@@ -19,6 +19,22 @@
       </div>
     </Transition>
 
+    <!-- ═══ Bot MOTD (gives way to typing) ═══ -->
+    <Transition name="typing-slide">
+      <div
+        v-if="motd && !typingUsers?.length"
+        data-testid="bot-motd"
+        class="absolute top-0 left-1/2 -translate-x-1/2 z-20 w-max max-w-[min(36rem,calc(100%-2rem))]"
+      >
+        <div
+          class="flex items-start gap-1.5 backdrop-blur-[10px] bg-card/[0.88] border border-border/20 rounded-b-[10px] px-3 py-1.5 text-xs text-muted-foreground shadow-sm"
+        >
+          <MegaphoneIcon class="size-3 shrink-0 mt-[2px]" aria-hidden="true" />
+          <span dir="auto" class="min-w-0 break-words">{{ motd }}</span>
+        </div>
+      </div>
+    </Transition>
+
     <!-- ═══ Message list (two-sided in DMs) ═══ -->
     <ChatMessageList
       ref="listRef"
@@ -45,6 +61,7 @@ import { ref, computed, watch, onUnmounted } from "vue";
 import { cn } from "@argon/core";
 import type { ArgonMessage } from "@argon/glue";
 import type { Guid } from "@argon-chat/ion.webcore";
+import { MegaphoneIcon } from "lucide-vue-next";
 
 import ChatMessageList from "@/components/chats/ChatMessageList.vue";
 
@@ -52,6 +69,7 @@ import { useLocale } from "@/store/system/localeStore";
 import { useRecentChatsStore } from "@/store/chat/useRecentChatsStore";
 import { useDirectMessages } from "@/composables/useDirectMessages";
 import { useMessageGrouping } from "@/composables/useMessageGrouping";
+import { useBotMotd } from "@/composables/useBotMotd";
 
 // ── Stores ──
 
@@ -79,6 +97,8 @@ const typingText = computed(() => {
   if (users.length <= 3) return t("typing.few", { names: users.map((u) => u.displayName).join(", ") });
   return t("typing.many");
 });
+
+const motd = useBotMotd(() => props.peerId);
 
 // ── Data ──
 

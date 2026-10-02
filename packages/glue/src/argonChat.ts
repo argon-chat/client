@@ -4973,6 +4973,19 @@ export interface InvitePreview {
 };
 
 
+export interface AppTexts {
+  version: i4;
+  texts: IonArray<LocalizedText> | null;
+};
+
+
+export interface LocalizedText {
+  key: string;
+  locale: string;
+  value: string;
+};
+
+
 export enum UploadFileError
 {
   NONE = 0,
@@ -20170,6 +20183,208 @@ IonFormatterStorage.register("FailedLookupProfile", {
 
 
 
+export abstract class IAppRef implements IIonUnion<IAppRef>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isAppById(): this is AppById {
+    return this.UnionKey === "AppById";
+  }
+  public isAppByBotUser(): this is AppByBotUser {
+    return this.UnionKey === "AppByBotUser";
+  }
+
+}
+
+
+export class AppById extends IAppRef
+{
+  constructor(public appId: guid) { super(); }
+
+  UnionKey: string = "AppById";
+  UnionIndex: number = 0;
+}
+
+export class AppByBotUser extends IAppRef
+{
+  constructor(public userId: guid) { super(); }
+
+  UnionKey: string = "AppByBotUser";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IAppRef", {
+  read(reader: CborReader): IAppRef {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IAppRef", 2);
+    let value: IAppRef = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<AppById>("AppById").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<AppByBotUser>("AppByBotUser").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("IAppRef", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: IAppRef): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<AppById>("AppById").write(writer, value as AppById);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<AppByBotUser>("AppByBotUser").write(writer, value as AppByBotUser);
+    }
+  
+    else throw new Error(`Ion union 'IAppRef' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("AppById", {
+  read(reader: CborReader): AppById {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "AppById");
+    const appId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new AppById(appId);
+  },
+  write(writer: CborWriter, value: AppById): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.appId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("AppByBotUser", {
+  read(reader: CborReader): AppByBotUser {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "AppByBotUser");
+    const userId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new AppByBotUser(userId);
+  },
+  write(writer: CborWriter, value: AppByBotUser): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.userId);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class ILookupAppTextsResult implements IIonUnion<ILookupAppTextsResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessLookupAppTexts(): this is SuccessLookupAppTexts {
+    return this.UnionKey === "SuccessLookupAppTexts";
+  }
+  public isFailedLookupAppTexts(): this is FailedLookupAppTexts {
+    return this.UnionKey === "FailedLookupAppTexts";
+  }
+
+}
+
+
+export class SuccessLookupAppTexts extends ILookupAppTextsResult
+{
+  constructor(public texts: AppTexts) { super(); }
+
+  UnionKey: string = "SuccessLookupAppTexts";
+  UnionIndex: number = 0;
+}
+
+export class FailedLookupAppTexts extends ILookupAppTextsResult
+{
+  constructor(public error: LookupError) { super(); }
+
+  UnionKey: string = "FailedLookupAppTexts";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("ILookupAppTextsResult", {
+  read(reader: CborReader): ILookupAppTextsResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "ILookupAppTextsResult", 2);
+    let value: ILookupAppTextsResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessLookupAppTexts>("SuccessLookupAppTexts").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedLookupAppTexts>("FailedLookupAppTexts").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("ILookupAppTextsResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: ILookupAppTextsResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessLookupAppTexts>("SuccessLookupAppTexts").write(writer, value as SuccessLookupAppTexts);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedLookupAppTexts>("FailedLookupAppTexts").write(writer, value as FailedLookupAppTexts);
+    }
+  
+    else throw new Error(`Ion union 'ILookupAppTextsResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessLookupAppTexts", {
+  read(reader: CborReader): SuccessLookupAppTexts {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessLookupAppTexts");
+    const texts = IonFormatterStorage.get<AppTexts>('AppTexts').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessLookupAppTexts(texts);
+  },
+  write(writer: CborWriter, value: SuccessLookupAppTexts): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<AppTexts>('AppTexts').write(writer, value.texts);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedLookupAppTexts", {
+  read(reader: CborReader): FailedLookupAppTexts {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedLookupAppTexts");
+    const error = IonFormatterStorage.get<LookupError>('LookupError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedLookupAppTexts(error);
+  },
+  write(writer: CborWriter, value: FailedLookupAppTexts): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<LookupError>('LookupError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
 export abstract class IBeginCallResult implements IIonUnion<IBeginCallResult>
 {
   abstract UnionKey: string;
@@ -24534,6 +24749,40 @@ IonFormatterStorage.register("InvitePreview", {
   }
 });
 
+IonFormatterStorage.register("AppTexts", {
+  read(reader: CborReader): AppTexts {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "AppTexts");
+    const version = IonFormatterStorage.get<i4>('i4').read(reader);
+    const texts = IonFormatterStorage.readNullableArray<LocalizedText>(reader, 'LocalizedText');
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { version, texts };
+  },
+  write(writer: CborWriter, value: AppTexts): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.version);
+    IonFormatterStorage.writeNullableArray<LocalizedText>(writer, value.texts, 'LocalizedText');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("LocalizedText", {
+  read(reader: CborReader): LocalizedText {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "LocalizedText");
+    const key = IonFormatterStorage.get<string>('string').read(reader);
+    const locale = IonFormatterStorage.get<string>('string').read(reader);
+    const value = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return { key, locale, value };
+  },
+  write(writer: CborWriter, value: LocalizedText): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<string>('string').write(writer, value.key);
+    IonFormatterStorage.get<string>('string').write(writer, value.locale);
+    IonFormatterStorage.get<string>('string').write(writer, value.value);
+    writer.writeEndArray();
+  }
+});
+
 IonFormatterStorage.register("UploadFileError", {
   read(reader: CborReader): UploadFileError {
     return IonFormatterStorage.readOpenEnum<UploadFileError>(reader, 'u4');
@@ -25206,6 +25455,7 @@ export interface IUserInteraction extends IIonService
   MarkAllNotificationsRead(type: string | null): Promise<void>;
   GetMyLegalState(): Promise<LegalState>;
   AcceptLegal(request: AcceptLegalInput): Promise<LegalState>;
+  LookupAppTexts(app: IAppRef, keys: IonArray<string>, known: i4 | null): Promise<ILookupAppTextsResult>;
 }
 
 
@@ -25666,6 +25916,7 @@ export interface IUserInteraction extends IIonService
   MarkAllNotificationsRead(type: string | null): Promise<void>;
   GetMyLegalState(): Promise<LegalState>;
   AcceptLegal(request: AcceptLegalInput): Promise<LegalState>;
+  LookupAppTexts(app: IAppRef, keys: IonArray<string>, known: i4 | null): Promise<ILookupAppTextsResult>;
 }
 
 
@@ -29589,6 +29840,21 @@ export class UserInteraction_Executor extends ServiceExecutor<IUserInteraction> 
     writer.writeEndArray();
           
     return await req.callAsyncT<LegalState>("LegalState", writer.data, this.signal);
+  }
+  async LookupAppTexts(app: IAppRef, keys: IonArray<string>, known: i4 | null): Promise<ILookupAppTextsResult> {
+    const req = new IonRequest(this.ctx, "IUserInteraction", "LookupAppTexts");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(3);
+          
+    IonFormatterStorage.get<IAppRef>('IAppRef').write(writer, app);
+    IonFormatterStorage.writeArray<string>(writer, keys, 'string');
+    IonFormatterStorage.writeNullable<i4>(writer, known, 'i4');
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ILookupAppTextsResult>("ILookupAppTextsResult", writer.data, this.signal);
   }
 
 }

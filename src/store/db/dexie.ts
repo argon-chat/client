@@ -1,4 +1,4 @@
-import { Archetype, ArgonChannel, ArgonMessage, ArgonSpace, ArgonSpaceBase, ArgonUser, ChannelGroup, SpaceMember, UserActivityPresence, UserStatus, type ArgonUserProfile, type ExpressionItem, type ExpressionPack, type SpaceVersions } from "@argon/glue";
+import { Archetype, ArgonChannel, ArgonMessage, ArgonSpace, ArgonSpaceBase, ArgonUser, ChannelGroup, SpaceMember, UserActivityPresence, UserStatus, type ArgonUserProfile, type ExpressionItem, type LocalizedText, type ExpressionPack, type SpaceVersions } from "@argon/glue";
 import { Guid, IonDateTime } from "@argon-chat/ion.webcore";
 import Dexie, { type Table, type Transaction } from "dexie";
 import { delay, logger } from "@argon/core";
@@ -91,6 +91,17 @@ export interface StoredExpressions {
   updatedAt: number;
 }
 
+/** An application's localized strings for the keys fetched, with the version the server gave them. */
+export interface StoredAppTexts {
+  /** `app:<appId>` or `bot:<userId>`; see `lib/appTexts.ts`. */
+  ref: string;
+  version: number;
+  keys: string[];
+  texts: LocalizedText[];
+  /** When the server last confirmed this copy. */
+  checkedAt: number;
+}
+
 /** An upload this account made, by the hash of its bytes; see `lib/attachments/uploadPool.ts`. */
 export interface StoredUpload {
   sha256: string;
@@ -116,6 +127,7 @@ export class PoolDatabase extends Dexie {
   spaceVersions!: Table<StoredSpaceVersions, Guid>;
   expressions!: Table<StoredExpressions, Guid>;
   uploadedFiles!: Table<StoredUpload, string>;
+  appTexts!: Table<StoredAppTexts, string>;
 
   constructor(name: string) {
     super(name);
@@ -175,6 +187,11 @@ export class PoolDatabase extends Dexie {
     // of the file rather than as bytes. Kept like v8: a new table, nothing else changed shape.
     this.version(9).stores({
       uploadedFiles: "sha256, uploadedAt",
+    });
+    // v10: applications' localized strings (a bot's MOTD) by version. Kept like v8: a new table,
+    // nothing else changed shape.
+    this.version(10).stores({
+      appTexts: "ref",
     });
 
     // Registered after the last `stores()` call on purpose: `Version.stores()` runs
