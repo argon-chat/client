@@ -26,13 +26,26 @@ export interface AudioConstraints {
   autoGainControl: boolean;
 }
 
-export type AudioDeviceErrorType = 'not-found' | 'not-readable';
+export type AudioDeviceErrorType = 'not-found' | 'not-readable' | 'not-allowed';
 
 export interface AudioDeviceErrorEvent {
   type: AudioDeviceErrorType;
   deviceId: string;
   message: string;
 }
+
+/** What holdInput() hands out. */
+export interface HeldInput {
+  /** The virtual input stream; silent until a microphone is attached to it. */
+  stream: MediaStream;
+  /** Why no microphone could be attached, or null when one is. */
+  error: AudioDeviceErrorEvent | null;
+}
+
+const DEVICE_KINDS = ['audioinput', 'videoinput', 'audiooutput'] as const;
+
+/** How long a burst of devicechange events has to go quiet before the list is read. */
+const DEVICE_CHANGE_SETTLE_MS = 300;
 
 export interface AudioLevels {
   input: number;  // 0-100
@@ -135,8 +148,16 @@ export interface IAudioManagement {
    * set — detached again once the last holder releases, so the mic isn't held while idle.
    */
   acquireInput(): Promise<MediaStream>;
+  /**
+   * acquireInput() for a consumer that carries on without a microphone (a call): the hold is
+   * taken even when no device can be opened, and the next one the user picks or plugs in is
+   * attached to the stream. Released by releaseInput() like any other hold.
+   */
+  holdInput(): Promise<HeldInput>;
   releaseInput(): void;
-  
+  /** Whether a real microphone feeds the virtual input stream right now. */
+  isMicrophoneAttached(): Ref<boolean>;
+
   // Media elements
   createAudioElement(stream?: MediaStream): Promise<Disposable<HTMLAudioElement>>;
   createVideoElement(): Promise<Disposable<HTMLVideoElement>>;
@@ -274,6 +295,7 @@ export class AudioManagement implements IAudioManagement {
   private virtualStreamInitPromise: Promise<MediaStream> | null = null;
   // Number of live consumers holding the real mic via acquireInput()/releaseInput().
   private inputRefCount = 0;
+  private micAttached: Ref<boolean> = ref(false);
   
   // Virtual output stream architecture
   private outputAnalyserNode: AnalyserNode | null = null;
@@ -295,6 +317,10 @@ export class AudioManagement implements IAudioManagement {
   
   // Device change listener
   private deviceChangeHandler: (() => void) | null = null;
+  private deviceChangeTimer: ReturnType<typeof setTimeout> | null = null;
+  private deviceChangeQueue: Promise<void> = Promise.resolve();
+  // The last device list that named its devices (see readDevices).
+  private knownDevices: MediaDeviceInfo[] = [];
   
   // Audio element monitoring
   private audioElementObserver: MutationObserver | null = null;
@@ -367,6 +393,10 @@ export class AudioManagement implements IAudioManagement {
     if (this.deviceChangeHandler) {
       navigator.mediaDevices.removeEventListener('devicechange', this.deviceChangeHandler);
     }
+    if (this.deviceChangeTimer) {
+      clearTimeout(this.deviceChangeTimer);
+      this.deviceChangeTimer = null;
+    }
     
     // Cleanup audio element observer
     if (this.audioElementObserver) {
@@ -388,6 +418,7 @@ export class AudioManagement implements IAudioManagement {
     
     // Cleanup virtual input stream
     this.cleanupCurrentMicSource();
+    this.micAttached.value = false;
     this.virtualStreamDestination?.disconnect();
     this.inputGainNode?.disconnect();
     this.virtualStreamDestination = null;
@@ -569,44 +600,97 @@ export class AudioManagement implements IAudioManagement {
   }
 
   private setupDeviceChangeListener() {
-    this.deviceChangeHandler = async () => {
-      logger.info("[AudioManagement] Device change detected");
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      this.devices$.next(devices);
-      
-      // Check if current devices still exist
-      const audioInputs = devices.filter(d => d.kind === 'audioinput');
-      const audioOutputs = devices.filter(d => d.kind === 'audiooutput');
-      
-      // If current input device was removed, switch to default
-      if (this.inputDeviceId.value !== 'default') {
-        const inputExists = audioInputs.some(d => d.deviceId === this.inputDeviceId.value);
-        if (!inputExists) {
-          logger.warn("[AudioManagement] Input device removed, switching to default");
-          await this.setInputDevice('default');
-        }
-      }
-      
-      // If current output device was removed, switch to default
-      if (this.outputDeviceId.value !== 'default') {
-        const outputExists = audioOutputs.some(d => d.deviceId === this.outputDeviceId.value);
-        if (!outputExists) {
-          logger.warn("[AudioManagement] Output device removed, switching to default");
-          await this.setOutputDevice('default');
-        }
-      }
+    // A headset coming or going arrives as a burst of changes, one per endpoint, and a list read
+    // in the middle of it can miss devices still on their way in — and then reset the user's
+    // choice to default. Wait for the burst to settle and handle one change at a time.
+    this.deviceChangeHandler = () => {
+      if (this.deviceChangeTimer) clearTimeout(this.deviceChangeTimer);
+      this.deviceChangeTimer = setTimeout(() => {
+        this.deviceChangeTimer = null;
+        this.deviceChangeQueue = this.deviceChangeQueue
+          .then(() => this.handleDeviceChange())
+          .catch((err) => logger.warn("[AudioManagement] Device change handling failed:", err));
+      }, DEVICE_CHANGE_SETTLE_MS);
     };
-    
+
     navigator.mediaDevices.addEventListener('devicechange', this.deviceChangeHandler);
+  }
+
+  private async handleDeviceChange(): Promise<void> {
+    logger.info("[AudioManagement] Device change detected");
+    const { devices, hidden, fresh } = await this.readDevices();
+    if (!fresh) return;
+    this.devices$.next(devices);
+
+    const audioInputs = devices.filter(d => d.kind === 'audioinput');
+    const audioOutputs = devices.filter(d => d.kind === 'audiooutput');
+
+    // A kind the browser would not name proves nothing about the chosen device.
+    if (!hidden.has('audioinput')) {
+      if (this.inputDeviceId.value !== 'default' && !audioInputs.some(d => d.deviceId === this.inputDeviceId.value)) {
+        logger.warn("[AudioManagement] Input device removed, switching to default");
+        await this.setInputDevice('default').catch(err => logger.warn("[AudioManagement] Switching input to default failed:", err));
+      } else if (this.inputRefCount > 0 && !this.hasLiveMicrophone()) {
+        if (audioInputs.length > 0) {
+          // Held without a working device: this change may be the microphone it is waiting for.
+          logger.info("[AudioManagement] Input held without a microphone, trying the current devices");
+          await this.attachMicrophone().catch(err => logger.warn("[AudioManagement] Still no microphone:", err));
+        } else if (this.micAttached.value) {
+          // The microphone in use was unplugged and nothing is left to replace it.
+          logger.warn("[AudioManagement] Microphone disconnected, none left");
+          this.cleanupCurrentMicSource();
+          this.micAttached.value = false;
+          this.audioDeviceError$.next({
+            type: 'not-found',
+            deviceId: this.inputDeviceId.value || 'default',
+            message: 'The microphone was disconnected',
+          });
+        }
+      }
+    }
+
+    if (!hidden.has('audiooutput') && this.outputDeviceId.value !== 'default'
+      && !audioOutputs.some(d => d.deviceId === this.outputDeviceId.value)) {
+      logger.warn("[AudioManagement] Output device removed, switching to default");
+      await this.setOutputDevice('default');
+    }
+  }
+
+  /**
+   * The devices the browser reports. A browser that withholds device details — no live capture
+   * and no persisted permission, which is how Firefox and Safari behave between calls — still
+   * lists one nameless entry per kind with an empty id. Such a kind keeps the last list that
+   * named it: the ids stay valid, and an empty picker is worse than a slightly stale one.
+   * `hidden` holds those kinds; `fresh` is false when the browser could not be asked at all,
+   * in which case the last list is returned as it was.
+   */
+  private async readDevices(): Promise<{ devices: MediaDeviceInfo[]; hidden: Set<MediaDeviceKind>; fresh: boolean }> {
+    let reported: MediaDeviceInfo[];
+    try {
+      reported = await navigator.mediaDevices.enumerateDevices();
+    } catch (err) {
+      logger.warn("[AudioManagement] enumerateDevices failed, keeping the last list:", err);
+      return { devices: this.knownDevices, hidden: new Set(), fresh: false };
+    }
+
+    const hidden = new Set<MediaDeviceKind>();
+    const devices = reported.filter(d => d.deviceId);
+    for (const kind of DEVICE_KINDS) {
+      const ofKind = reported.filter(d => d.kind === kind);
+      if (ofKind.length > 0 && ofKind.every(d => !d.deviceId)) {
+        hidden.add(kind);
+        devices.push(...this.knownDevices.filter(d => d.kind === kind));
+      }
+    }
+    this.knownDevices = devices;
+    return { devices, hidden, fresh: true };
   }
 
   async enumerateDevicesByKind(
     kind: "audioinput" | "videoinput" | "audiooutput",
   ): Promise<MediaDeviceInfo[]> {
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    return devices.filter(
-      (d) => d.kind === kind && d.deviceId && d.deviceId !== "communications",
-    );
+    const { devices } = await this.readDevices();
+    return devices.filter((d) => d.kind === kind && d.deviceId !== "communications");
   }
 
   getInputDevice(): Ref<DeviceId> {
@@ -624,12 +708,14 @@ export class AudioManagement implements IAudioManagement {
     this.inputDeviceId.value = deviceId;
     localStorage.setItem(STORAGE_KEYS.INPUT_DEVICE, deviceId);
     
-    // Switch the live microphone only if one is currently attached. If the mic was
-    // detached while idle, just remember the device — the next acquire grabs it.
-    if (this.virtualStreamInitialized && this.currentMicStream) {
+    // Switch the live microphone, or attach one for a holder still waiting for a device. If the
+    // mic was only detached while idle, just remember the device — the next acquire grabs it.
+    const live = this.virtualStreamInitialized && this.currentMicStream;
+    if (live || this.inputRefCount > 0) {
       try {
-        await this.connectMicrophoneToVirtualStream(deviceId);
-        logger.info('[AudioManagement] Microphone switched successfully to:', deviceId);
+        if (live) await this.connectMicrophoneToVirtualStream(deviceId);
+        else await this.attachMicrophone();
+        logger.info('[AudioManagement] Microphone switched successfully to:', this.inputDeviceId.value);
       } catch (err) {
         logger.error('[AudioManagement] Failed to switch microphone, reverting:', err);
         this.inputDeviceId.value = previousDeviceId;
@@ -637,9 +723,9 @@ export class AudioManagement implements IAudioManagement {
         throw err;
       }
     }
-    
-    // Notify subscribers AFTER successful switch
-    this.inputDevice$.next(deviceId);
+
+    // Notify subscribers AFTER successful switch; a missing device may have fallen back to default.
+    this.inputDevice$.next(this.inputDeviceId.value);
   }
 
   async setOutputDevice(deviceId: DeviceId): Promise<void> {
@@ -949,6 +1035,24 @@ export class AudioManagement implements IAudioManagement {
   }
 
   private async _initVirtualStreamInternal(): Promise<MediaStream> {
+    const stream = this.ensureInputGraph();
+
+    // Connect the initial microphone
+    await this.connectMicrophoneToVirtualStream(this.inputDeviceId.value);
+
+    this.virtualStreamInitialized = true;
+    logger.info('[AudioManagement] Virtual input stream initialized');
+
+    // Start input level monitoring if enabled
+    if (this.config.enableInputLevelMonitoring) {
+      this.startInputLevelMonitoring();
+    }
+
+    return stream;
+  }
+
+  /** The gain → processing → destination graph the microphone feeds, with or without one. */
+  private ensureInputGraph(): MediaStream {
     const ctx = this.getCurrentAudioContext();
 
     // Built once and reused: a retry after a failed microphone grab must not strand the
@@ -965,19 +1069,18 @@ export class AudioManagement implements IAudioManagement {
     }
     this.applyInputVolume();
     this.rebuildInputPipeline();
-    
-    // Connect the initial microphone
-    await this.connectMicrophoneToVirtualStream(this.inputDeviceId.value);
-    
-    this.virtualStreamInitialized = true;
-    logger.info('[AudioManagement] Virtual input stream initialized');
-    
-    // Start input level monitoring if enabled
-    if (this.config.enableInputLevelMonitoring) {
-      this.startInputLevelMonitoring();
-    }
-    
+
     return this.virtualStreamDestination.stream;
+  }
+
+  /** Put the chosen device on the virtual stream, initialising the stream on first use. */
+  private async attachMicrophone(): Promise<void> {
+    if (!this.virtualStreamInitialized) await this.initVirtualStream();
+    else await this.connectMicrophoneToVirtualStream(this.inputDeviceId.value);
+  }
+
+  private hasLiveMicrophone(): boolean {
+    return !!this.currentMicStream?.getAudioTracks().some(t => t.readyState !== 'ended');
   }
 
   private async connectMicrophoneToVirtualStream(deviceId: DeviceId): Promise<void> {
@@ -1019,33 +1122,39 @@ export class AudioManagement implements IAudioManagement {
       }
       
       logger.info('[AudioManagement] Microphone connected to virtual stream:', deviceId);
+      this.micAttached.value = true;
+      // The first microphone opened is what lets a browser name its devices: tell the pickers.
+      if (!this.knownDevices.some(d => d.kind === 'audioinput')) void this.refreshDevices();
     } catch (err: any) {
       const errorType = this.classifyMediaError(err);
+
+      // Another device only helps when this one is missing or busy; a refused permission
+      // refuses the default device just the same.
+      if ((errorType === 'not-found' || errorType === 'not-readable') && deviceId && deviceId !== 'default') {
+        logger.warn(`[AudioManagement] Microphone ${deviceId} failed (${errorType}), falling back to default:`, err);
+        await this.connectMicrophoneToVirtualStream('default');
+        this.inputDeviceId.value = 'default';
+        localStorage.setItem(STORAGE_KEYS.INPUT_DEVICE, 'default');
+        return;
+      }
+
+      this.micAttached.value = false;
+      // Reported once no microphone is left: a fallback that worked is not the user's problem.
       if (errorType) {
         this.audioDeviceError$.next({
           type: errorType,
           deviceId: deviceId || 'default',
           message: err?.message || String(err),
         });
-        logger.error(`[AudioManagement] Microphone error (${errorType}):`, err);
-
-        // Attempt fallback to default device if we weren't already using it
-        if (deviceId && deviceId !== 'default') {
-          logger.warn('[AudioManagement] Attempting fallback to default microphone');
-          try {
-            await this.connectMicrophoneToVirtualStream('default');
-            this.inputDeviceId.value = 'default';
-            localStorage.setItem(STORAGE_KEYS.INPUT_DEVICE, 'default');
-            return;
-          } catch (fallbackErr) {
-            logger.error('[AudioManagement] Fallback to default microphone also failed:', fallbackErr);
-          }
-        }
-      } else {
-        logger.error('[AudioManagement] Failed to connect microphone:', err);
       }
+      logger.error(`[AudioManagement] Failed to connect microphone (${errorType ?? 'unclassified'}):`, err);
       throw err;
     }
+  }
+
+  private async refreshDevices(): Promise<void> {
+    const { devices, fresh } = await this.readDevices();
+    if (fresh) this.devices$.next(devices);
   }
 
   private cleanupCurrentMicSource(): void {
@@ -1077,6 +1186,27 @@ export class AudioManagement implements IAudioManagement {
     return stream;
   }
 
+  async holdInput(): Promise<HeldInput> {
+    // Counted before the attempt, so a device picked while it is still running attaches too.
+    this.inputRefCount++;
+    try {
+      return { stream: await this.getVirtualInputStream(), error: null };
+    } catch (err: any) {
+      return {
+        stream: this.ensureInputGraph(),
+        error: {
+          type: this.classifyMediaError(err) ?? 'not-readable',
+          deviceId: this.inputDeviceId.value || 'default',
+          message: err?.message || String(err),
+        },
+      };
+    }
+  }
+
+  isMicrophoneAttached(): Ref<boolean> {
+    return this.micAttached;
+  }
+
   releaseInput(): void {
     if (this.inputRefCount > 0) this.inputRefCount--;
     if (this.inputRefCount === 0 && this.config.releaseInputWhenIdle) {
@@ -1092,6 +1222,7 @@ export class AudioManagement implements IAudioManagement {
   detachMicrophone(): void {
     if (!this.currentMicStream && !this.currentMicSource) return;
     this.cleanupCurrentMicSource();
+    this.micAttached.value = false;
     logger.info('[AudioManagement] Microphone detached (no active input consumers)');
   }
 
@@ -1296,13 +1427,25 @@ export class AudioManagement implements IAudioManagement {
   }
 
   private classifyMediaError(err: any): AudioDeviceErrorType | null {
-    if (err?.name === 'NotFoundError' || err?.name === 'DevicesNotFoundError') {
-      return 'not-found';
+    switch (err?.name) {
+      case 'NotFoundError':
+      case 'DevicesNotFoundError':
+      // A saved device that is gone: it is requested by exact id, and Chromium reports that
+      // as an unsatisfiable deviceId constraint rather than as NotFoundError.
+      case 'OverconstrainedError':
+        return 'not-found';
+      case 'NotReadableError':
+      case 'TrackStartError':
+      // Firefox's "Starting audio failed" for a device another app holds.
+      case 'AbortError':
+        return 'not-readable';
+      case 'NotAllowedError':
+      case 'PermissionDeniedError':
+      case 'SecurityError':
+        return 'not-allowed';
+      default:
+        return null;
     }
-    if (err?.name === 'NotReadableError' || err?.name === 'TrackStartError') {
-      return 'not-readable';
-    }
-    return null;
   }
 
   /**
@@ -1569,7 +1712,9 @@ export class AudioManagement implements IAudioManagement {
   async createVirtualVUMeter(
     onLevel: (level: number) => void
   ): Promise<Disposable<AudioWorkletNode>> {
-    const virtualStream = await this.getVirtualInputStream();
+    // A held input still waiting for a microphone has its graph already: meter that (silence
+    // until a device attaches) instead of failing on the capture.
+    const virtualStream = this.virtualStreamDestination?.stream ?? await this.getVirtualInputStream();
     return this.createVUMeterLight(virtualStream, onLevel);
   }
 

@@ -12,6 +12,7 @@ export {
   type RemoteAudioGraphInfo,
   type AudioDeviceErrorEvent,
   type AudioDeviceErrorType,
+  type HeldInput,
 } from "./AudioManager";
 
 export { NoiseSuppressor, type NoiseSuppressionMode, type NoiseSuppressorUrls } from "./NoiseSuppressor";

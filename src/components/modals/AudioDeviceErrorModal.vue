@@ -16,7 +16,7 @@
             <div class="flex flex-col gap-2">
                 <Button @click="goToSettings" class="w-full font-semibold rounded-xl">
                     <span class="i-lucide-settings mr-2"></span>
-                    {{ t('go_to_settings') }}
+                    {{ t('setup_microphone') }}
                 </Button>
                 <Button variant="ghost" @click="open = false" class="w-full rounded-xl">
                     {{ t('close') }}
@@ -40,23 +40,25 @@ const windows = useWindow();
 const open = defineModel<boolean>('open', { type: Boolean, default: false });
 
 const props = defineProps<{
-    errorType: 'not-found' | 'not-readable' | null;
+    errorType: 'not-found' | 'not-readable' | 'not-allowed' | null;
 }>();
 
 const errorTitle = computed(() => {
     if (props.errorType === 'not-found') return t('audio_device_not_found_title');
     if (props.errorType === 'not-readable') return t('audio_device_not_readable_title');
+    if (props.errorType === 'not-allowed') return t('audio_device_not_allowed_title');
     return t('microphone');
 });
 
 const errorDescription = computed(() => {
     if (props.errorType === 'not-found') return t('audio_device_not_found_desc');
     if (props.errorType === 'not-readable') return t('audio_device_not_readable_desc');
+    if (props.errorType === 'not-allowed') return t('audio_device_not_allowed_desc');
     return '';
 });
 
 function goToSettings() {
     open.value = false;
-    windows.settingsOpen = true;
+    windows.openSettings("audio");
 }
 </script>

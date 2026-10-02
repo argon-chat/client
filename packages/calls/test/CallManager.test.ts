@@ -11,7 +11,7 @@
  */
 
 import { describe, test, expect, vi, beforeEach } from "vitest";
-import { ref } from "vue";
+import { nextTick, ref } from "vue";
 
 const rooms = vi.hoisted(() => ({ last: null as any }));
 
@@ -85,7 +85,8 @@ function makeConfig(overrides: Partial<CallManagerConfig> = {}): CallManagerConf
   return {
     audio: {
       getCurrentAudioContext: () => ({ state: "running", resume: async () => {} }) as any,
-      acquireInput: async () => ({ getAudioTracks: () => [{ clone: () => ({}) }] }) as any,
+      holdInput: async () => ({ stream: { getAudioTracks: () => [{ clone: () => ({}) }] } as any, error: null }),
+      isMicrophoneAttached: () => ref(true),
       releaseInput: vi.fn(),
       createRemoteAudioGraph: () => ({ setVolume() {}, dispose() {} }),
       createVirtualVUMeter: async () => ({ dispose() {} }),
@@ -322,6 +323,85 @@ describe("call behaviour survived the move", () => {
     expect(events.has("CallIncoming")).toBe(true);
     events.get("CallIncoming")!({ callId: "c2", fromId: "u9" });
     expect(calls.incoming.value).toEqual({ callId: "c2", fromId: "u9" });
+  });
+});
+
+describe("joining without a usable microphone", () => {
+  /** An engine whose microphone cannot be opened, and that a test can plug one into. */
+  function noMicrophone(type: "not-found" | "not-readable" | "not-allowed" = "not-found") {
+    const attached = ref(false);
+    const config = makeConfig();
+    const errorHandlers: ((e: { type: string; message: string }) => void)[] = [];
+    config.audio = {
+      ...config.audio,
+      holdInput: vi.fn(async () => ({
+        stream: { getAudioTracks: () => [fakeTrack("audio")] } as any,
+        error: { type, message: "Requested device not found" },
+      })),
+      isMicrophoneAttached: () => attached,
+      onAudioDeviceError: (on: any) => {
+        errorHandlers.push(on);
+        return { unsubscribe() {} } as any;
+      },
+    };
+    const fail = (t: string) => { for (const h of errorHandlers) h({ type: t, message: "again" }); };
+    return { config, attached, fail };
+  }
+
+  test("still connects, listen-only, and says why instead of failing the join", async () => {
+    const { config } = noMicrophone("not-found");
+    const { calls, room } = await joined(config);
+
+    expect(calls.isConnected.value).toBe(true);
+    expect(calls.connectError.value).toBeNull();
+    expect(calls.audioDeviceError.value).toEqual({ type: "not-found", message: "Requested device not found" });
+    expect(calls.microphoneUnavailable.value).toBe(true);
+    // The silent stream is published, so a microphone attached later needs no republish.
+    expect(room.localParticipant.publishTrack).toHaveBeenCalledTimes(1);
+  });
+
+  test("a microphone attached mid-call settles it", async () => {
+    const { config, attached } = noMicrophone("not-allowed");
+    const { calls } = await joined(config);
+
+    attached.value = true;
+    await nextTick();
+
+    expect(calls.microphoneUnavailable.value).toBe(false);
+    expect(calls.audioDeviceError.value).toBeNull();
+  });
+
+  test("the same failure again does not reopen the complaint", async () => {
+    const { config, fail } = noMicrophone("not-found");
+    const { calls } = await joined(config);
+    const first = calls.audioDeviceError.value;
+
+    fail("not-found");
+    expect(calls.audioDeviceError.value).toBe(first);
+
+    fail("not-readable");
+    expect(calls.audioDeviceError.value?.type).toBe("not-readable");
+  });
+
+  test("the hold is released on leave, and nothing is released for a hold never taken", async () => {
+    const { config } = noMicrophone();
+    const { calls } = await joined(config);
+    await calls.leave();
+    expect(config.audio.releaseInput).toHaveBeenCalledTimes(1);
+    expect(calls.microphoneUnavailable.value).toBe(false);
+
+    await calls.leave();
+    expect(config.audio.releaseInput).toHaveBeenCalledTimes(1);
+  });
+
+  test("is reported to telemetry with the stage it happened at", async () => {
+    const { config } = noMicrophone("not-allowed");
+    const t = { count: vi.fn(), distribution: vi.fn() };
+    config.telemetry = t;
+    await joined(config);
+
+    expect(t.count).toHaveBeenCalledWith("call.audio_device.error", { type: "not-allowed", stage: "join" });
+    expect(t.count).toHaveBeenCalledWith("call.join", { mode: "channel", result: "ok" });
   });
 });
 

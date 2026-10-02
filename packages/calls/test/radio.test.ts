@@ -183,7 +183,8 @@ function makeSetup(over: {
   const config: CallManagerConfig = {
     audio: {
       getCurrentAudioContext: () => ({ state: "running", resume: async () => {} }) as any,
-      acquireInput: async () => ({ getAudioTracks: () => [{ clone: () => ({ stop() {} }) }] }) as any,
+      holdInput: async () => ({ stream: { getAudioTracks: () => [{ clone: () => ({ stop() {} }) }] } as any, error: null }),
+      isMicrophoneAttached: () => ref(true),
       releaseInput: vi.fn(),
       createRemoteAudioGraph: vi.fn((opts: any) => {
         const graph = { opts, setVolume: vi.fn(), dispose: vi.fn() };

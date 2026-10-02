@@ -44,7 +44,7 @@ import { parseRtcStats } from "./rtcStats";
 import { decodeVoiceState, encodeSelfVoiceState } from "./voiceState";
 import { connectRoom } from "./connectRoom";
 import { createMicHold } from "./micHold";
-import type { CallManagerConfig, CallNotice, RemoteAudioGraph, ScreenShareOpts } from "./types";
+import type { AudioDeviceError, CallManagerConfig, CallNotice, RemoteAudioGraph, ScreenShareOpts } from "./types";
 import { initialRadioState, type RadioState, type RadioUnavailableReason } from "./radio/types";
 import { isRadioIdentity, radioUserId, RADIO_ATTR, RADIO_ON_AIR } from "./radio/identity";
 import { RadioSession } from "./radio/RadioSession";
@@ -381,7 +381,16 @@ export function createCallManager(config: CallManagerConfig) {
   const playbackBlocked = computed(
     () => audioPlaybackBlocked.value || videoPlaybackBlocked.value,
   );
-  const audioDeviceError = ref<{ type: 'not-found' | 'not-readable'; message: string } | null>(null);
+  // Why the call has no working microphone. A missing or refused microphone does not fail the
+  // join: the call goes on listen-only, the user is asked to set one up, and this clears itself
+  // once a device is attached.
+  const audioDeviceError = ref<AudioDeviceError | null>(null);
+  // This call holds the audio engine's input (from the join until leave()).
+  const inputHeld = ref(false);
+  const microphoneUnavailable = computed(() => inputHeld.value && !audio.isMicrophoneAttached().value);
+  watch(() => audio.isMicrophoneAttached().value, (attached) => {
+    if (attached) audioDeviceError.value = null;
+  });
   // Set when joining voice fails at the system level (LiveKit connect or mic publish).
   // Surfaced as a "system failure" popup; cleared on leave() and on a new attempt.
   const connectError = ref<{ message: string } | null>(null);
@@ -562,8 +571,12 @@ export function createCallManager(config: CallManagerConfig) {
     audioGraphSubs.clear();
     screenAudioGraphSubs.clear();
 
-    // Release the mic held for this call (detaches the device on macOS when idle).
-    audio.releaseInput();
+    // Release the mic held for this call (detaches the device on macOS when idle). Only a hold
+    // this call took: a join that failed before it must not drop someone else's.
+    if (inputHeld.value) {
+      inputHeld.value = false;
+      audio.releaseInput();
+    }
 
     isSharing.value = false;
     screenTrackPub = null;
@@ -1538,9 +1551,21 @@ export function createCallManager(config: CallManagerConfig) {
       // - Device selection & switching
       // - Input volume control via inputGainNode
       // - Audio processing chain
-      // acquireInput() holds the real mic for the lifetime of the call; leave() releases it.
-      const virtualStream = await audio.acquireInput();
-      const virtualTrack = virtualStream.getAudioTracks()[0];
+      // The hold lasts for the call; leave() releases it. Without a usable microphone the stream
+      // is silent and the join goes on listen-only: the user is told to set one up, and the
+      // device they pick or plug in lands on the already published track.
+      const input = await audio.holdInput();
+      if (toRaw(room.value) !== r) {
+        audio.releaseInput();
+        return;
+      }
+      inputHeld.value = true;
+      if (input.error) {
+        logger.warn(`[CALL] joining without a microphone (${input.error.type}): ${input.error.message}`);
+        telemetry.count("call.audio_device.error", { type: input.error.type, stage: "join" });
+        audioDeviceError.value = { type: input.error.type, message: input.error.message };
+      }
+      const virtualTrack = input.stream.getAudioTracks()[0];
 
       if (!virtualTrack) {
         throw new Error("No audio track in virtual input stream");
@@ -1598,8 +1623,12 @@ export function createCallManager(config: CallManagerConfig) {
 
       const audioErrorSub = audio.onAudioDeviceError((err) => {
         logger.error(`[CALL] Audio device error (${err.type}):`, err.message);
-        telemetry.count("call.audio_device.error", { type: err.type });
-        audioDeviceError.value = { type: err.type, message: err.message };
+        telemetry.count("call.audio_device.error", { type: err.type, stage: "call" });
+        // Once per kind of failure: a device that fails again on every hot-plug must not reopen
+        // the dialog each time. A microphone that attaches clears it for the next one.
+        if (audioDeviceError.value?.type !== err.type) {
+          audioDeviceError.value = { type: err.type, message: err.message };
+        }
       });
       disposables.addSubscription(audioErrorSub);
     } catch (err) {
@@ -2906,6 +2935,7 @@ export function createCallManager(config: CallManagerConfig) {
 
     isCpuConstrained,
     audioDeviceError,
+    microphoneUnavailable,
     audioPlaybackBlocked,
     videoPlaybackBlocked,
     playbackBlocked,

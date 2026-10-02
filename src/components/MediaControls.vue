@@ -11,15 +11,16 @@
             <div class="ctrl-split ctrl-split--mic">
                 <button
                     class="ctrl-btn icon-motion icon-motion--lift"
-                    :class="{ 'ctrl-btn--active': sys.microphoneMuted, 'ctrl-btn--locked': sys.microphoneLocked, 'ctrl-btn--forbidden': !sys.microphoneLocked && !canSpeak }"
+                    :class="{ 'ctrl-btn--active': sys.microphoneMuted, 'ctrl-btn--locked': sys.microphoneLocked, 'ctrl-btn--forbidden': !sys.microphoneLocked && !canSpeak, 'ctrl-btn--warning': micMissing }"
                     :aria-disabled="micLocked || undefined"
                     :title="micLockReason"
                     data-control="microphone"
                     @click="toggleMic">
-                    <MicOff v-if="sys.microphoneMuted" class="w-[18px] h-[18px] icon-appear" />
+                    <MicOff v-if="sys.microphoneMuted || micMissing" class="w-[18px] h-[18px] icon-appear" />
                     <Mic v-else class="w-[18px] h-[18px] icon-appear" />
                     <ShieldIcon v-if="sys.microphoneLocked" class="ctrl-lock-badge" />
                     <LockIcon v-else-if="!canSpeak" class="ctrl-lock-badge" />
+                    <TriangleAlert v-else-if="micMissing" class="ctrl-lock-badge" />
                 </button>
                 <Popover v-model:open="mic.open">
                     <PopoverTrigger as-child>
@@ -28,7 +29,7 @@
                     <PopoverContent side="top" align="start" class="ctrl-popover">
                         <div class="ctrl-popover-title">{{ t('microphone') }}</div>
                         <div v-if="mic.devices.length === 0" class="device-row device-row--empty">
-                            {{ t('no_microphones_found') }}
+                            {{ mic.loaded ? t('no_microphones_found') : t('loading') }}
                         </div>
                         <button
                             v-for="d in mic.devices"
@@ -65,7 +66,7 @@
                     <PopoverContent side="top" align="start" class="ctrl-popover">
                         <div class="ctrl-popover-title">{{ t('speakers') }}</div>
                         <div v-if="speakers.devices.length === 0" class="device-row device-row--empty">
-                            {{ t('no_speakers_found') }}
+                            {{ speakers.loaded ? t('no_speakers_found') : t('loading') }}
                         </div>
                         <button
                             v-for="d in speakers.devices"
@@ -175,7 +176,7 @@
                     <PopoverContent side="top" align="end" class="ctrl-popover">
                         <div class="ctrl-popover-title">{{ t('camera') }}</div>
                         <div v-if="cam.devices.length === 0" class="device-row device-row--empty">
-                            {{ t('no_cameras_found') }}
+                            {{ cam.loaded ? t('no_cameras_found') : t('loading') }}
                         </div>
                         <button
                             v-for="d in cam.devices"
@@ -213,6 +214,7 @@ import { usePlayFrameActivity } from "@/store/features/playframeStore";
 import { useDrawingSession } from "@/store/features/drawingSessionStore";
 import { usePreference } from "@/store/ui/preferenceStore";
 import { useLocale } from "@/store/system/localeStore";
+import { useWindow } from "@/store/ui/windowStore";
 import { audio } from "@/lib/audio/AudioManager";
 import ScreenSharePicker from "./ScreenSharePicker.vue";
 import { qualityPresets } from "@/composables/useScreenShareSources";
@@ -221,7 +223,7 @@ import {
     Mic, MicOff, Headphones, HeadphoneOff,
     ScreenShare, ScreenShareOff, PhoneOffIcon,
     CameraIcon, CameraOff, Gamepad2,
-    ChevronUp, Check, Volume2, VolumeX, Monitor, Pencil, Gauge, ShieldIcon, LockIcon,
+    ChevronUp, Check, Volume2, VolumeX, Monitor, Pencil, Gauge, ShieldIcon, LockIcon, TriangleAlert,
 } from "lucide-vue-next";
 import { useCallPermissions } from "@/composables/useCallPermissions";
 
@@ -230,6 +232,7 @@ const sys = useSystemStore();
 const activity = usePlayFrameActivity();
 const draw = useDrawingSession();
 const pref = usePreference();
+const windows = useWindow();
 const { t } = useLocale();
 
 // Channel rights for the call we are in; a direct call has none to lack.
@@ -237,13 +240,20 @@ const { canSpeak, canVideo, canStream } = useCallPermissions();
 
 // Locked while a moderator holds the mute/deafen, or when the channel does not let us speak.
 const micLocked = computed(() => sys.microphoneLocked || !canSpeak.value);
+// In the call without a working microphone: the button leads to the audio settings instead.
+const micMissing = computed(() => !micLocked.value && voice.microphoneUnavailable);
 const micLockReason = computed(() => {
     if (sys.microphoneLocked) return t('voice_member_server_muted');
-    return canSpeak.value ? undefined : t('voice_no_speak_permission');
+    if (!canSpeak.value) return t('voice_no_speak_permission');
+    return micMissing.value ? t('microphone_unavailable') : undefined;
 });
 
 const toggleMic = () => {
     if (micLocked.value) return;
+    if (micMissing.value) {
+        windows.openSettings("audio");
+        return;
+    }
     sys.toggleMicrophoneMute();
 };
 
@@ -424,6 +434,21 @@ const activeCamId = computed(() => pref.defaultVideoDevice);
 
 .ctrl-btn--forbidden .ctrl-lock-badge {
     color: hsl(var(--muted-foreground));
+}
+
+/* No working microphone: amber, and the click opens the audio settings. */
+.ctrl-btn--warning,
+.ctrl-btn--warning:hover {
+    position: relative;
+    color: hsl(38 92% 50%);
+}
+
+.ctrl-btn--warning:hover {
+    background: hsl(38 92% 50% / 0.12);
+}
+
+.ctrl-btn--warning .ctrl-lock-badge {
+    color: hsl(38 92% 50%);
 }
 
 .ctrl-btn:disabled:hover {

@@ -90,6 +90,38 @@ describe("listing", () => {
     expect(menu.devices).toEqual([]);
     expect(menu.open).toBe(true);
   });
+
+  test("an enumeration failure keeps the list already shown", async () => {
+    // Wiping it on any failed read was one way the menu lost every device at once.
+    audio.enumerateDevicesByKind.mockResolvedValue([device("mic-1"), device("mic-2")]);
+    const menu = useDeviceMenu("audioinput", async () => {});
+    menu.open = true;
+    await nextTick();
+    await nextTick();
+
+    menu.open = false;
+    await nextTick();
+    audio.enumerateDevicesByKind.mockRejectedValue(new Error("AbortError"));
+    menu.open = true;
+    await nextTick();
+    await nextTick();
+
+    expect(menu.devices.map((d) => d.deviceId)).toEqual(["mic-1", "mic-2"]);
+  });
+
+  test("reads as loading until the first list arrives, not as no devices", async () => {
+    const pending = deferred<{ deviceId: string; label: string }[]>();
+    audio.enumerateDevicesByKind.mockReturnValue(pending.promise);
+    const menu = useDeviceMenu("audioinput", async () => {});
+    menu.open = true;
+    await nextTick();
+    expect(menu.loaded).toBe(false);
+
+    pending.resolve([]);
+    await nextTick();
+    await nextTick();
+    expect(menu.loaded).toBe(true);
+  });
 });
 
 describe("picking", () => {

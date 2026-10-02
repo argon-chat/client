@@ -18,7 +18,7 @@ import { nextTick } from "vue";
 
 // ── Fakes ────────────────────────────────────────────────────────────────────
 
-const { audio, devicesByKind, sys, voice, callRights } = await vi.hoisted(async () => {
+const { audio, devicesByKind, sys, voice, callRights, windows } = await vi.hoisted(async () => {
   const { ref, reactive } = await import("vue");
   const { vi } = await import("vitest");
 
@@ -57,6 +57,7 @@ const { audio, devicesByKind, sys, voice, callRights } = await vi.hoisted(async 
     systemAudioEnabled: false,
     lastShareOpts: null as null | Record<string, unknown>,
     adaptiveSettingPending: false,
+    microphoneUnavailable: false,
     switchCamera: vi.fn(async () => {}),
     toggleCamera: vi.fn(),
     toggleSystemAudio: vi.fn(),
@@ -68,13 +69,16 @@ const { audio, devicesByKind, sys, voice, callRights } = await vi.hoisted(async 
   // What the channel we are in grants (useCallPermissions); all granted unless a test says not.
   const callRights = { canSpeak: ref(true), canVideo: ref(true), canStream: ref(true) };
 
-  return { audio, devicesByKind, sys, voice, callRights };
+  const windows = { openSettings: vi.fn() };
+
+  return { audio, devicesByKind, sys, voice, callRights, windows };
 });
 
 vi.mock("@/lib/audio/AudioManager", () => ({ audio }));
 vi.mock("@/store/system/systemStore", () => ({ useSystemStore: () => sys }));
 vi.mock("@/store/media/unifiedCallStore", () => ({ useUnifiedCall: () => voice }));
 vi.mock("@/composables/useCallPermissions", () => ({ useCallPermissions: () => callRights }));
+vi.mock("@/store/ui/windowStore", () => ({ useWindow: () => windows }));
 vi.mock("@/store/features/playframeStore", () => ({
   usePlayFrameActivity: () => ({ isActive: false, openPicker() {} }),
 }));
@@ -177,6 +181,8 @@ beforeEach(() => {
   callRights.canStream.value = true;
   voice.isCameraOn = false;
   voice.isSharing = false;
+  voice.microphoneUnavailable = false;
+  windows.openSettings.mockClear();
   voice.toggleCamera.mockClear();
   voice.stopScreenShare.mockClear();
 });
@@ -420,5 +426,58 @@ describe("when the channel does not grant it", () => {
       expect(b.classes()).not.toContain("ctrl-btn--forbidden");
       expect(b.attributes("aria-disabled")).toBeUndefined();
     }
+  });
+});
+
+describe("in the call without a working microphone", () => {
+  const mic = (w: VueWrapper) => w.find('[data-control="microphone"]');
+
+  test("the button says so and leads to the audio settings instead of toggling", async () => {
+    voice.microphoneUnavailable = true;
+    const w = render();
+
+    expect(mic(w).classes()).toContain("ctrl-btn--warning");
+    expect(mic(w).attributes("title")).toBe("microphone_unavailable");
+
+    await mic(w).trigger("click");
+    expect(windows.openSettings).toHaveBeenCalledWith("audio");
+    expect(sys.toggleMicrophoneMute).not.toHaveBeenCalled();
+  });
+
+  test("a moderator's mute still comes first", () => {
+    voice.microphoneUnavailable = true;
+    sys.microphoneLocked = true;
+    const w = render();
+
+    expect(mic(w).classes()).toContain("ctrl-btn--locked");
+    expect(mic(w).classes()).not.toContain("ctrl-btn--warning");
+    expect(mic(w).attributes("title")).toBe("voice_member_server_muted");
+  });
+
+  test("once a microphone is attached the button is an ordinary toggle again", async () => {
+    voice.microphoneUnavailable = true;
+    const w = render();
+    voice.microphoneUnavailable = false;
+    await nextTick();
+
+    expect(mic(w).classes()).not.toContain("ctrl-btn--warning");
+    await mic(w).trigger("click");
+    expect(sys.toggleMicrophoneMute).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("a device menu still waiting for its first list", () => {
+  test("reads as loading rather than as no devices", async () => {
+    let finish!: (v: { deviceId: string; label: string }[]) => void;
+    audio.enumerateDevicesByKind.mockImplementationOnce(() => new Promise((res) => { finish = res; }));
+    const w = render();
+    const menu = await openMenu(w, "mic");
+
+    expect(menu.find(".device-row--empty").text()).toBe("loading");
+
+    finish([]);
+    await nextTick();
+    await nextTick();
+    expect(split(w, "mic").find(".device-row--empty").text()).toBe("no_microphones_found");
   });
 });

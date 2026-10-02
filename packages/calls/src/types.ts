@@ -26,7 +26,7 @@ export interface ScreenShareOpts {
   maxBitrate?: number;
 }
 
-export type AudioDeviceErrorType = "not-found" | "not-readable";
+export type AudioDeviceErrorType = "not-found" | "not-readable" | "not-allowed";
 
 export interface AudioDeviceError {
   type: AudioDeviceErrorType;
@@ -52,9 +52,15 @@ export interface RemoteAudioGraphOptions {
 /** Audio engine. Satisfied by @argon/audio's AudioManagement. */
 export interface ICallAudioManager {
   getCurrentAudioContext(): AudioContext;
-  /** Reference-counted hold on the live microphone, released by releaseInput(). */
-  acquireInput(): Promise<MediaStream>;
+  /**
+   * Reference-counted hold on the microphone, released by releaseInput(). Taken even when no
+   * device can be opened: the stream is then silent, `error` says why, and the engine attaches
+   * the next microphone the user picks or plugs in.
+   */
+  holdInput(): Promise<{ stream: MediaStream; error: AudioDeviceError | null }>;
   releaseInput(): void;
+  /** Whether a real microphone feeds the held stream right now. */
+  isMicrophoneAttached(): Ref<boolean>;
   createRemoteAudioGraph(options: RemoteAudioGraphOptions): RemoteAudioGraph;
   createVirtualVUMeter(onLevel: (level: number) => void): Promise<{ dispose(): void }>;
   onAudioDeviceError(on: (error: AudioDeviceError) => void): Subscription;

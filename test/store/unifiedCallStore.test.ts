@@ -102,19 +102,23 @@ vi.mock("@argon/glue", () => ({
   RtcEndpoint: class {},
 }));
 vi.mock("@/lib/mediaPermissions", () => ({ ensureMediaPermission: async () => {} }));
-vi.mock("@/lib/audio/AudioManager", () => ({
-  audio: {
-    getCurrentAudioContext: () => ({ state: "running", resume: async () => {} }),
-    acquireInput: async () => ({ getAudioTracks: () => [{ clone: () => ({}) }] }),
-    releaseInput: vi.fn(),
-    createVirtualVUMeter: async () => ({ dispose() {} }),
-    onAudioDeviceError: () => ({ unsubscribe() {} }),
-    createRemoteAudioGraph: () => ({ setVolume() {}, dispose() {} }),
-    getVoiceBus: () => ({}),
-    setVoiceBusGain() {},
-    getOutputDestination: () => ({}),
-  },
-}));
+vi.mock("@/lib/audio/AudioManager", async () => {
+  const attached = (await import("vue")).ref(true);
+  return {
+    audio: {
+      getCurrentAudioContext: () => ({ state: "running", resume: async () => {} }),
+      holdInput: async () => ({ stream: { getAudioTracks: () => [{ clone: () => ({}) }] }, error: null }),
+      isMicrophoneAttached: () => attached,
+      releaseInput: vi.fn(),
+      createVirtualVUMeter: async () => ({ dispose() {} }),
+      onAudioDeviceError: () => ({ unsubscribe() {} }),
+      createRemoteAudioGraph: () => ({ setVolume() {}, dispose() {} }),
+      getVoiceBus: () => ({}),
+      setVoiceBusGain() {},
+      getOutputDestination: () => ({}),
+    },
+  };
+});
 vi.mock("@/store/system/apiStore", () => ({
   useApi: () => ({
     channelInteraction: { Interlink: async () => deps.interlink, UpdateVoiceState: async () => {} },

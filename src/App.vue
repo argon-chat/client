@@ -97,8 +97,9 @@ watch(altShift7, (v) => {
 
 const showAudioDeviceError = ref(false);
 
+// Cleared once a microphone attaches (or the call ends), which closes the dialog with it.
 watch(() => call.audioDeviceError, (err) => {
-  if (err) showAudioDeviceError.value = true;
+  showAudioDeviceError.value = !!err;
 });
 
 const showCallSystemError = ref(false);

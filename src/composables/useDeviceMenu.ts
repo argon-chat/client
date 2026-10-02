@@ -19,6 +19,8 @@ export type DeviceMenuKind = "audioinput" | "audiooutput" | "videoinput";
  */
 export function useDeviceMenu(kind: DeviceMenuKind, apply: (deviceId: string) => Promise<unknown>) {
   const devices = ref<MediaDeviceInfo[]>([]);
+  // False until the first list arrives, so a slow enumeration reads as loading, not as no devices.
+  const loaded = ref(false);
   const open = ref(false);
   const switching = ref(false);
 
@@ -27,8 +29,10 @@ export function useDeviceMenu(kind: DeviceMenuKind, apply: (deviceId: string) =>
     try {
       devices.value = await audio.enumerateDevicesByKind(kind);
     } catch (e) {
+      // The list already shown is still the best answer; wiping it emptied the menu.
       logger.warn(`[controls] could not list ${kind} devices`, e);
-      devices.value = [];
+    } finally {
+      loaded.value = true;
     }
   });
 
@@ -47,5 +51,5 @@ export function useDeviceMenu(kind: DeviceMenuKind, apply: (deviceId: string) =>
 
   // Reactive so a template can bind `menu.open` with v-model and read `menu.devices`
   // without `.value` — the refs are unwrapped through the proxy.
-  return reactive({ devices, open, switching, pick });
+  return reactive({ devices, loaded, open, switching, pick });
 }

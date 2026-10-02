@@ -8,7 +8,7 @@
  * whether a suppressor or gate actually ended up in the chain.
  */
 
-import { describe, test, expect, vi, beforeEach } from "vitest";
+import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
 
 // ── A recording Web Audio fake ──────────────────────────────────────
 
@@ -215,6 +215,218 @@ describe("a denied microphone is recoverable", () => {
     await m.acquireInput();
 
     expect(managerInternals(m as any).destination).toBe(first);
+  });
+});
+
+describe("a microphone that cannot be opened", () => {
+  const errors = (m: AudioManagement) => {
+    const seen: string[] = [];
+    m.onAudioDeviceError((e) => seen.push(e.type));
+    return seen;
+  };
+  const requestedDevice = (call: number) =>
+    (getUserMedia.mock.calls[call] as any[])[0].audio.deviceId;
+
+  test("a saved device that is gone falls back to the default one, quietly", async () => {
+    // Chromium reports a missing device requested by exact id as OverconstrainedError, which
+    // used to be unclassified: no fallback, and the whole voice join failed.
+    localStorage.setItem("inputDeviceId", "headset");
+    state.micResults = ["OverconstrainedError"];
+    const m = make();
+    const seen = errors(m);
+
+    await m.acquireInput();
+
+    expect(requestedDevice(0)).toEqual({ exact: "headset" });
+    expect(requestedDevice(1)).toBeUndefined();
+    expect(m.getInputDevice().value).toBe("default");
+    expect(m.isMicrophoneAttached().value).toBe(true);
+    expect(seen).toEqual([]);
+  });
+
+  test("a refused permission is not retried on another device, and is reported", async () => {
+    localStorage.setItem("inputDeviceId", "headset");
+    state.micResults = ["NotAllowedError"];
+    const m = make();
+    const seen = errors(m);
+
+    await expect(m.acquireInput()).rejects.toThrow();
+
+    expect(state.micCalls).toBe(1);
+    expect(seen).toEqual(["not-allowed"]);
+  });
+
+  test("with no microphone at all the error is reported once", async () => {
+    state.micResults = ["NotFoundError"];
+    const m = make();
+    const seen = errors(m);
+
+    await expect(m.acquireInput()).rejects.toThrow();
+    expect(seen).toEqual(["not-found"]);
+    expect(m.isMicrophoneAttached().value).toBe(false);
+  });
+});
+
+describe("a hold that outlives a missing microphone", () => {
+  test("hands out the silent stream with the reason, and keeps the hold", async () => {
+    state.micResults = ["NotFoundError"];
+    const m = make({ releaseInputWhenIdle: true });
+
+    const held = await m.holdInput();
+
+    expect(held.stream).toBe((managerInternals(m as any).destination as FakeDestination).stream);
+    expect(held.error?.type).toBe("not-found");
+    expect(m.isMicrophoneAttached().value).toBe(false);
+    expect((m as any).inputRefCount).toBe(1);
+  });
+
+  test("the device the user picks next is attached to the same stream", async () => {
+    state.micResults = ["NotFoundError"];
+    const m = make();
+    const held = await m.holdInput();
+
+    await m.setInputDevice("usb-mic");
+
+    expect(m.isMicrophoneAttached().value).toBe(true);
+    expect((managerInternals(m as any).destination as FakeDestination).stream).toBe(held.stream);
+    expect(m.getInputDevice().value).toBe("usb-mic");
+  });
+
+  test("an unknown failure still yields a reason", async () => {
+    state.micResults = ["WeirdError"];
+    const m = make();
+    const held = await m.holdInput();
+    expect(held.error?.type).toBe("not-readable");
+  });
+
+  test("without a hold, picking a device only remembers it", async () => {
+    const m = make();
+    await m.setInputDevice("usb-mic");
+    expect(state.micCalls).toBe(0);
+  });
+});
+
+describe("device lists", () => {
+  const info = (kind: MediaDeviceKind, deviceId: string, label = deviceId) =>
+    ({ kind, deviceId, label, groupId: "" }) as MediaDeviceInfo;
+  const enumerate = () => navigator.mediaDevices.enumerateDevices as unknown as ReturnType<typeof vi.fn>;
+  const fireDeviceChange = async () => {
+    const add = navigator.mediaDevices.addEventListener as unknown as ReturnType<typeof vi.fn>;
+    const handler = add.mock.calls.find(([name]) => name === "devicechange")![1];
+    handler();
+    await vi.advanceTimersByTimeAsync(1000);
+  };
+
+  test("a browser that stops naming devices keeps the last list instead of an empty one", async () => {
+    // Firefox and Safari hide ids and labels between captures: one nameless entry per kind.
+    const m = make();
+    enumerate().mockResolvedValueOnce([info("audioinput", "mic-1"), info("audiooutput", "spk-1")]);
+    expect((await m.enumerateDevicesByKind("audioinput")).map((d) => d.deviceId)).toEqual(["mic-1"]);
+
+    enumerate().mockResolvedValueOnce([info("audioinput", "", ""), info("audiooutput", "", "")]);
+    expect((await m.enumerateDevicesByKind("audioinput")).map((d) => d.deviceId)).toEqual(["mic-1"]);
+    enumerate().mockResolvedValueOnce([info("audioinput", "", ""), info("audiooutput", "", "")]);
+    expect((await m.enumerateDevicesByKind("audiooutput")).map((d) => d.deviceId)).toEqual(["spk-1"]);
+  });
+
+  test("a failed enumeration keeps the last list", async () => {
+    const m = make();
+    enumerate().mockResolvedValueOnce([info("audioinput", "mic-1")]);
+    await m.enumerateDevicesByKind("audioinput");
+
+    enumerate().mockRejectedValueOnce(new Error("NotAllowedError"));
+    expect((await m.enumerateDevicesByKind("audioinput")).map((d) => d.deviceId)).toEqual(["mic-1"]);
+  });
+
+  test("devices that really went away do go away", async () => {
+    const m = make();
+    enumerate().mockResolvedValueOnce([info("audioinput", "mic-1"), info("audioinput", "mic-2")]);
+    await m.enumerateDevicesByKind("audioinput");
+
+    enumerate().mockResolvedValueOnce([info("audioinput", "mic-2")]);
+    expect((await m.enumerateDevicesByKind("audioinput")).map((d) => d.deviceId)).toEqual(["mic-2"]);
+  });
+
+  test("the communications alias is left out", async () => {
+    const m = make();
+    enumerate().mockResolvedValueOnce([info("audioinput", "default"), info("audioinput", "communications"), info("audioinput", "mic-1")]);
+    expect((await m.enumerateDevicesByKind("audioinput")).map((d) => d.deviceId)).toEqual(["default", "mic-1"]);
+  });
+
+  describe("on a device change", () => {
+    beforeEach(() => { vi.useFakeTimers(); });
+    afterEach(() => { vi.useRealTimers(); });
+
+    test("a list the browser would not name does not reset the chosen device", async () => {
+      localStorage.setItem("inputDeviceId", "mic-1");
+      const m = make();
+      enumerate().mockResolvedValue([info("audioinput", "", "")]);
+
+      await fireDeviceChange();
+
+      expect(m.getInputDevice().value).toBe("mic-1");
+    });
+
+    test("a chosen device that was unplugged falls back to default", async () => {
+      localStorage.setItem("inputDeviceId", "mic-1");
+      const m = make();
+      enumerate().mockResolvedValue([info("audioinput", "default"), info("audioinput", "mic-2")]);
+
+      await fireDeviceChange();
+
+      expect(m.getInputDevice().value).toBe("default");
+    });
+
+    test("a burst of changes is read once, after it settles", async () => {
+      make();
+      enumerate().mockResolvedValue([info("audioinput", "default")]);
+      const add = navigator.mediaDevices.addEventListener as unknown as ReturnType<typeof vi.fn>;
+      const handler = add.mock.calls.find(([name]) => name === "devicechange")![1];
+
+      handler(); handler(); handler();
+      await vi.advanceTimersByTimeAsync(1000);
+
+      expect(enumerate()).toHaveBeenCalledTimes(1);
+    });
+
+    test("a held input without a microphone picks up the one just plugged in", async () => {
+      state.micResults = ["NotFoundError"];
+      const m = make();
+      await m.holdInput();
+      expect(m.isMicrophoneAttached().value).toBe(false);
+
+      enumerate().mockResolvedValue([info("audioinput", "default"), info("audioinput", "mic-1")]);
+      await fireDeviceChange();
+
+      expect(m.isMicrophoneAttached().value).toBe(true);
+    });
+
+    test("the microphone in use unplugged with none left is reported, not left looking attached", async () => {
+      const m = make();
+      const seen: string[] = [];
+      m.onAudioDeviceError((e) => seen.push(e.type));
+      await m.holdInput();
+      expect(m.isMicrophoneAttached().value).toBe(true);
+      (m as any).currentMicStream.getAudioTracks = () => [{ readyState: "ended", stop() {} }];
+
+      enumerate().mockResolvedValue([info("audiooutput", "spk-1")]);
+      await fireDeviceChange();
+
+      expect(m.isMicrophoneAttached().value).toBe(false);
+      expect(seen).toEqual(["not-found"]);
+    });
+
+    test("nothing is opened for a change that brought no microphone", async () => {
+      state.micResults = ["NotFoundError"];
+      const m = make();
+      await m.holdInput();
+      const before = state.micCalls;
+
+      enumerate().mockResolvedValue([info("audiooutput", "spk-1")]);
+      await fireDeviceChange();
+
+      expect(state.micCalls).toBe(before);
+    });
   });
 });
 

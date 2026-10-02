@@ -113,7 +113,8 @@ function makeConfig(overrides: Partial<CallManagerConfig> = {}) {
   const config: CallManagerConfig = {
     audio: {
       getCurrentAudioContext: () => ({ state: "running", resume: async () => {} }) as any,
-      acquireInput: async () => ({ getAudioTracks: () => [{ clone: () => ({ stop() {} }) }] }) as any,
+      holdInput: async () => ({ stream: { getAudioTracks: () => [{ clone: () => ({ stop() {} }) }] } as any, error: null }),
+      isMicrophoneAttached: () => ref(true),
       releaseInput: vi.fn(),
       createRemoteAudioGraph: () => ({ setVolume() {}, dispose() {} }),
       createVirtualVUMeter: async () => ({ dispose() {} }),
