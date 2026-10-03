@@ -105,7 +105,7 @@
                     </PopoverTrigger>
                     <PopoverContent side="top" align="end" class="ctrl-popover">
                         <!-- System / desktop audio -->
-                        <button class="device-row" :class="{ active: voice.systemAudioEnabled }" @click="voice.toggleSystemAudio()">
+                        <button class="device-row" :class="{ active: voice.systemAudioEnabled }" @click="toggleSystemAudio">
                             <Volume2 v-if="voice.systemAudioEnabled" class="w-3.5 h-3.5 shrink-0 icon-appear" />
                             <VolumeX v-else class="w-3.5 h-3.5 shrink-0 icon-appear" />
                             <span class="device-name">{{ t('system_audio') }}</span>
@@ -120,8 +120,9 @@
                             <span class="device-name">{{ t('switch_monitor') }}</span>
                         </button>
 
-                        <!-- Quality (only meaningful while live) -->
-                        <template v-if="voice.isSharing">
+                        <!-- Quality (only meaningful while live). A browser would re-open its
+                             picker for every change, so the web build keeps its default. -->
+                        <template v-if="voice.isSharing && isDesktop">
                             <div class="menu-sep" />
                             <div class="ctrl-popover-title">{{ t('quality') }}</div>
                             <button
@@ -218,6 +219,7 @@ import { useWindow } from "@/store/ui/windowStore";
 import { audio } from "@/lib/audio/AudioManager";
 import ScreenSharePicker from "./ScreenSharePicker.vue";
 import { qualityPresets } from "@/composables/useScreenShareSources";
+import { isDesktop } from "@/lib/platform";
 import { Popover, PopoverTrigger, PopoverContent } from "@argon/ui/popover";
 import {
     Mic, MicOff, Headphones, HeadphoneOff,
@@ -281,7 +283,7 @@ defineEmits<{
 const sharePicker = ref<InstanceType<typeof ScreenSharePicker> | null>(null);
 
 const openSharePicker = () => {
-    if (sharePicker.value) sharePicker.value.open = true;
+    sharePicker.value?.request();
 };
 
 const toggleScreenCast = () => {
@@ -293,18 +295,32 @@ const toggleScreenCast = () => {
 };
 
 async function goShare(opts: {
-    deviceId: string;
+    deviceId: string | null;
     systemAudio: "include" | "exclude";
     width: number;
     height: number;
     frameRate: number;
     maxBitrate: number;
 }) {
-    // Picker is also used to switch the source mid-share → swap, don't re-prompt-toggle.
-    if (voice.isSharing) {
-        await voice.switchScreenShare(opts);
-    } else {
-        await voice.startScreenShare(opts);
+    try {
+        // Picker is also used to switch the source mid-share → swap, don't re-prompt-toggle.
+        if (voice.isSharing) {
+            await voice.switchScreenShare(opts);
+        } else {
+            await voice.startScreenShare(opts);
+        }
+    } catch (e) {
+        // Also a dismissed browser picker: nothing changes.
+        console.warn("Screen share did not start", e);
+    }
+}
+
+// In a browser, turning it on re-opens the browser's picker, which can be dismissed.
+async function toggleSystemAudio() {
+    try {
+        await voice.toggleSystemAudio();
+    } catch (e) {
+        console.warn("System audio did not start", e);
     }
 }
 

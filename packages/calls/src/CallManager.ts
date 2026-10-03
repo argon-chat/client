@@ -2002,18 +2002,20 @@ export function createCallManager(config: CallManagerConfig) {
       return;
     }
 
-    const fr = opts.frameRate ?? 30;
+    const stream = await captureDisplay(opts);
+    await publishScreenShare(stream, opts);
+  }
 
+  async function captureDisplay(opts: ScreenShareOpts): Promise<MediaStream> {
     // On the desktop host, tell the main process which source to provide before
     // calling getDisplayMedia (it is intercepted by setDisplayMediaRequestHandler).
-    // Elsewhere the host supplies a no-op and the browser shows its own picker.
+    // Without a source id the browser shows its own picker.
     if (opts.deviceId) {
       await config.selectScreenSource(opts.deviceId, opts.systemAudio === "include");
     }
 
-    let stream: MediaStream;
     try {
-      stream = await navigator.mediaDevices.getDisplayMedia({
+      return await navigator.mediaDevices.getDisplayMedia({
         video: true,
         // restrictOwnAudio keeps this page's own output out of the desktop capture, so the
         // other participants' voices coming from our speakers aren't echoed back into the
@@ -2030,6 +2032,10 @@ export function createCallManager(config: CallManagerConfig) {
       telemetry.count("call.screenshare.start", { result: "failed", error: errorName(err), system_audio: opts.systemAudio === "include" });
       throw err;
     }
+  }
+
+  async function publishScreenShare(stream: MediaStream, opts: ScreenShareOpts) {
+    const fr = opts.frameRate ?? 30;
 
     // From here on the capture is live. Should anything below fail, every track of it has to
     // be stopped, or the OS keeps its "sharing" indicator up for the rest of the session with
@@ -2039,6 +2045,12 @@ export function createCallManager(config: CallManagerConfig) {
         try { t.stop(); } catch { /* already stopped */ }
       }
     };
+
+    // The call may have ended while the picker was open.
+    if (!room.value) {
+      stopCapture();
+      return;
+    }
 
     let vid: LocalVideoTrack;
     try {
@@ -2089,9 +2101,11 @@ export function createCallManager(config: CallManagerConfig) {
       throw err;
     }
 
+    // A browser picker has its own audio checkbox, so what was asked for is not what we got.
+    const systemAudio = screenAudioTrackPub ? "include" : "exclude";
     isSharing.value = true;
-    lastShareOpts.value = { ...opts };
-    systemAudioEnabled.value = opts.systemAudio === "include";
+    lastShareOpts.value = { ...opts, systemAudio };
+    systemAudioEnabled.value = systemAudio === "include";
     shareStartedAt = performance.now();
     telemetry.count("call.screenshare.start", {
       result: "ok",
@@ -2217,16 +2231,27 @@ export function createCallManager(config: CallManagerConfig) {
     await startCamera(deviceId);
   }
 
-  /** Switch the screen-share target/source by restarting the capture with new opts. */
+  /**
+   * Switch the screen-share target/source by restarting the capture with new opts. The new
+   * capture is taken first, so a dismissed browser picker leaves the current share running.
+   */
   async function switchScreenShare(opts: ScreenShareOpts) {
-    if (isSharing.value) await stopScreenShare();
-    await startScreenShare(opts);
+    if (!isSharing.value || !canInCurrentChannel("Stream")) {
+      if (isSharing.value) await stopScreenShare();
+      await startScreenShare(opts);
+      return;
+    }
+
+    const stream = await captureDisplay(opts);
+    await stopScreenShare();
+    await publishScreenShare(stream, opts);
   }
 
   /**
    * Toggle system/desktop audio. While sharing: turning OFF unpublishes the audio
    * track instantly; turning ON re-captures the same source with audio (the stored
-   * source id makes Electron auto-select it, so there is no picker re-prompt).
+   * source id makes Electron auto-select it, so there is no picker re-prompt; a browser
+   * asks again).
    * Outside a share it just records the preference for the next share.
    */
   async function toggleSystemAudio() {
@@ -2251,7 +2276,12 @@ export function createCallManager(config: CallManagerConfig) {
     }
 
     // Turning ON: audio wasn't captured, so restart the capture with the same source.
-    await switchScreenShare({ ...lastShareOpts.value, systemAudio: "include" });
+    try {
+      await switchScreenShare({ ...lastShareOpts.value, systemAudio: "include" });
+    } catch (err) {
+      systemAudioEnabled.value = lastShareOpts.value?.systemAudio === "include";
+      throw err;
+    }
   }
 
   // ── Radio (broadcast channels) ───────────────────────────────────

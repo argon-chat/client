@@ -273,6 +273,44 @@ describe("host integration points are honoured", () => {
     expect(config.selectScreenSource).toHaveBeenCalledWith("screen:1", false);
   });
 
+  test("without a source id the browser picker decides, audio included", async () => {
+    const { calls, config } = await joined();
+    const getDisplayMedia = vi.fn(async () => ({
+      getVideoTracks: () => [fakeTrack()],
+      getAudioTracks: () => [],
+    }));
+    (globalThis.navigator as any).mediaDevices = { getDisplayMedia };
+
+    await calls.startScreenShare({ deviceId: null, systemAudio: "include" });
+
+    expect(config.selectScreenSource).not.toHaveBeenCalled();
+    expect((getDisplayMedia.mock.calls[0] as any[])[0].audio).toBeTruthy();
+    expect(calls.isSharing.value).toBe(true);
+    // The audio checkbox was left off in the picker: no audio track, so the toggle reads off.
+    expect(calls.systemAudioEnabled.value).toBe(false);
+    expect(calls.lastShareOpts.value?.systemAudio).toBe("exclude");
+  });
+
+  test("a dismissed picker during a switch leaves the current share running", async () => {
+    const { calls, room } = await joined();
+    room.localParticipant.setScreenShareEnabled = vi.fn(async () => {});
+    room.localParticipant.unpublishTrack = vi.fn(async () => {});
+    let dismiss = false;
+    (globalThis.navigator as any).mediaDevices = {
+      getDisplayMedia: async () => {
+        if (dismiss) throw new DOMException("Permission denied", "NotAllowedError");
+        return { getVideoTracks: () => [fakeTrack()], getAudioTracks: () => [] };
+      },
+    };
+    await calls.startScreenShare({ deviceId: null, systemAudio: "exclude" });
+
+    dismiss = true;
+    await expect(calls.switchScreenShare({ deviceId: null, systemAudio: "exclude" })).rejects.toThrow();
+
+    expect(calls.isSharing.value).toBe(true);
+    expect(room.localParticipant.setScreenShareEnabled).not.toHaveBeenCalled();
+  });
+
   test("the microphone hold is released back to the host on leave", async () => {
     const { calls, config } = await joined();
     await calls.leave();

@@ -22,6 +22,22 @@ export const fpsPresets = [
   { label: "60 fps", value: "60", premium: true },
 ] as const;
 
+/**
+ * A share whose source the browser's own picker chooses (web build): no source id, and audio is
+ * asked for so the picker offers its "share audio" checkbox.
+ */
+export function browserShareOpts() {
+  const preset = qualityPresets[1];
+  return {
+    deviceId: null,
+    systemAudio: "include" as const,
+    width: preset.w,
+    height: preset.h,
+    frameRate: 30,
+    maxBitrate: preset.maxBitrate,
+  };
+}
+
 export function useScreenShareSources() {
   const openShareSettings = ref(false);
   const shareTab = ref<string>("screens");

@@ -165,12 +165,12 @@ const toggleScreenCast = () => {
     if (voice.isSharing) {
         voice.stopScreenShare();
     } else if (sharePicker.value && canStream.value) {
-        sharePicker.value.open = true;
+        sharePicker.value.request();
     }
 };
 
 async function goShare(opts: {
-    deviceId: string;
+    deviceId: string | null;
     systemAudio: "include" | "exclude";
     width: number;
     height: number;
@@ -184,7 +184,12 @@ async function goShare(opts: {
         return;
     }
 
-    await voice.startScreenShare(opts);
+    try {
+        await voice.startScreenShare(opts);
+    } catch (e) {
+        // Also a dismissed browser picker: the share just does not start.
+        console.warn("Screen share did not start", e);
+    }
 }
 </script>
 

@@ -164,9 +164,11 @@ import BuyPremium from "./modals/BuyPremium.vue";
 import TabTransition from "@/components/shared/TabTransition.vue";
 import {
     useScreenShareSources,
+    browserShareOpts,
     qualityPresets,
     fpsPresets,
 } from "@/composables/useScreenShareSources";
+import { isWeb } from "@/lib/platform";
 
 const { t } = useLocale();
 const me = useMe();
@@ -224,11 +226,18 @@ watch(premiumEnabled, (enabled) => {
     if (selectedFps.value?.premium) fps.value = "30";
 }, { immediate: true });
 
-defineExpose({ open });
+// A browser tab cannot list screens or windows: there the browser's own picker is the source
+// picker, and it has to be opened from this same click.
+function request() {
+    if (isWeb) emit("start", browserShareOpts());
+    else open.value = true;
+}
+
+defineExpose({ request });
 
 const emit = defineEmits<{
     (e: "start", opts: {
-        deviceId: string;
+        deviceId: string | null;
         systemAudio: "include" | "exclude";
         width: number;
         height: number;
