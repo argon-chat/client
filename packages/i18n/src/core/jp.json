@@ -67,6 +67,8 @@
   "customize": "カスタマイズ",
   "done": "完了",
   "reset": "リセット",
+  "member_volume": "メンバーの音量",
+  "member_volume_reset": "100%に戻す",
   "active_now": "オンライン中",
   "no_friends_online": "オンラインの友達はいません",
   "invite_friends_to_chat": "友達を招待してチャットを始めましょう",

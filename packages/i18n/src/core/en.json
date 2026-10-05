@@ -123,6 +123,8 @@
   "customize": "Customize",
   "done": "Done",
   "reset": "Reset",
+  "member_volume": "Member volume",
+  "member_volume_reset": "Reset to 100%",
   "active_now": "Active Now",
   "no_friends_online": "No friends online",
   "invite_friends_to_chat": "Invite friends to start chatting",

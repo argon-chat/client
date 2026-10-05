@@ -67,6 +67,8 @@
   "customize": "Настроить",
   "done": "Готово",
   "reset": "Сбросить",
+  "member_volume": "Громкость участника",
+  "member_volume_reset": "Сбросить до 100%",
   "active_now": "Сейчас онлайн",
   "no_friends_online": "Нет друзей онлайн",
   "invite_friends_to_chat": "Пригласите друзей, чтобы начать общение",

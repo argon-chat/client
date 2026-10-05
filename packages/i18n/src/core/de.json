@@ -123,6 +123,8 @@
   "customize": "Anpassen",
   "done": "Fertig",
   "reset": "Zurücksetzen",
+  "member_volume": "Lautstärke des Mitglieds",
+  "member_volume_reset": "Auf 100 % zurücksetzen",
   "active_now": "Jetzt aktiv",
   "no_friends_online": "Keine Freunde online",
   "invite_friends_to_chat": "Lade Freunde ein, um loszuchatten",

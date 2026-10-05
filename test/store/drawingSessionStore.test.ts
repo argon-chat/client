@@ -50,7 +50,9 @@ function fakeRoom() {
   return {
     on: (event: string, cb: Function) => handlers.set(event, cb),
     off: (event: string) => handlers.delete(event),
-    localParticipant: { publishData: vi.fn(async () => {}) },
+    localParticipant: {
+      publishData: vi.fn(async (_payload: Uint8Array, _opts: { reliable: boolean; topic: string }) => {}),
+    },
     /** Deliver a packet as LiveKit would: payload, the sender, kind, topic. */
     receive(packet: object, sender: string, topic = DRAW_TOPIC) {
       handlers.get("dataReceived")?.(
