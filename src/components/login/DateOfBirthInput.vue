@@ -10,8 +10,12 @@
  * Day-Month-Year with each box labelled: the labels, not the order, say which is which, so no
  * locale reads it as the wrong date. The model stays a `DateValue`, so callers keep the shape the
  * calendar gave them.
+ *
+ * Each box takes only what can still be a value for it. A month of 19 or a year starting with 0 is
+ * refused as it is typed, not reported once the whole date is in; the only thing left for the
+ * complete-date check is what no single box can know, like the 30th of February or the age limit.
  */
-import { computed, ref, watch } from "vue";
+import { computed, ref, watch, type Ref } from "vue";
 import { CalendarDate, getLocalTimeZone, today } from "@internationalized/date";
 import type { DateValue } from "reka-ui";
 import { useLocale } from "@/store/system/localeStore";
@@ -32,6 +36,10 @@ const emit = defineEmits<{ (e: "update:modelValue", value: DateValue | undefined
 
 const { t } = useLocale();
 
+type Segment = "day" | "month";
+const SEGMENT_MAX: Record<Segment, number> = { day: 31, month: 12 };
+const thisYear = today(getLocalTimeZone()).year;
+
 const day = ref(props.modelValue ? String(props.modelValue.day).padStart(2, "0") : "");
 const month = ref(props.modelValue ? String(props.modelValue.month).padStart(2, "0") : "");
 const year = ref(props.modelValue ? String(props.modelValue.year) : "");
@@ -41,11 +49,11 @@ const monthEl = ref<HTMLInputElement | null>(null);
 const yearEl = ref<HTMLInputElement | null>(null);
 
 // Nothing is complained about until every box has been filled in — an error next to a date the
-// person is still halfway through typing is just noise.
+// person is still halfway through typing is just noise. A lone zero is a box still being typed.
 const error = ref<string | null>(null);
 
 const isComplete = computed(
-  () => day.value.length > 0 && month.value.length > 0 && year.value.length === 4,
+  () => Number(day.value) > 0 && Number(month.value) > 0 && year.value.length === 4,
 );
 
 /** Calendar-real, not just numerically in range: 31 February is three digits of nonsense. */
@@ -121,29 +129,75 @@ watch(
   },
 );
 
-const digitsOnly = (raw: string, max: number) => raw.replace(/\D/g, "").slice(0, max);
+const digitsOf = (raw: string) => raw.replace(/\D/g, "");
 
 /**
- * Moves on once a box cannot take another digit — either it is full, or a second digit would put it
- * past what the box can hold (a day starting 4, a month starting 2). Typing "1" for January or the
- * 1st waits, because "12" is still coming.
+ * The box is written by hand as well as through the binding: when a keystroke is refused the ref
+ * does not change, and Vue would then leave the refused character sitting in the box.
  */
-function onSegmentInput(segment: "day" | "month", raw: string) {
-  const value = digitsOnly(raw, 2);
-  if (segment === "day") day.value = value;
-  else month.value = value;
-
-  const limit = segment === "day" ? 3 : 1;
-  const settled = value.length === 2 || (value.length === 1 && Number(value) > limit);
-  if (!settled) return;
-
-  const next = segment === "day" ? monthEl : yearEl;
-  next.value?.focus();
-  next.value?.select();
+function setBox(box: Ref<string>, el: HTMLInputElement | null, value: string) {
+  box.value = value;
+  if (el && el.value !== value) el.value = value;
 }
 
-function onYearInput(raw: string) {
-  year.value = digitsOnly(raw, 4);
+/**
+ * What a day or month box keeps of the digits in it.
+ *
+ * Only what can still become a real number for the box: `1` waits for its second digit, `4` is
+ * already a whole day, `35` is not a day at all. When a second digit overflows the box, the first
+ * digit is taken as the whole value and the second is carried into the next box — `3`, `5` typed
+ * into the day box is the 3rd of May, which is what a native date field makes of it too. `00` is
+ * not a value, so a second zero is dropped.
+ */
+function fitSegment(digits: string, max: number): { value: string; carry: string; settled: boolean } {
+  if (digits.length === 0) return { value: "", carry: "", settled: false };
+  const first = digits.charAt(0);
+  if (digits.length === 1) {
+    const settled = Number(first) * 10 > max;
+    return { value: settled ? `0${first}` : first, carry: "", settled };
+  }
+  const n = Number(digits.slice(0, 2));
+  if (n >= 1 && n <= max) return { value: digits.slice(0, 2), carry: "", settled: true };
+  if (first === "0") return { value: "0", carry: "", settled: false };
+  return { value: `0${first}`, carry: digits.charAt(1), settled: true };
+}
+
+/** Digits that can still become a year the form takes: `19`, `200`, `2` — not `0`, `18` or `21`. */
+function isYearPrefix(digits: string): boolean {
+  if (digits.length === 0) return true;
+  const span = 10 ** (4 - digits.length);
+  const low = Number(digits) * span;
+  return low <= thisYear && low + span - 1 >= props.minYear;
+}
+
+/** Moves on once a box is settled, taking any carried digit along, so a date is typed straight through. */
+function fillSegment(segment: Segment, digits: string) {
+  const { value, carry, settled } = fitSegment(digits, SEGMENT_MAX[segment]);
+  setBox(segment === "day" ? day : month, (segment === "day" ? dayEl : monthEl).value, value);
+  if (!settled) return;
+
+  if (segment === "day") {
+    monthEl.value?.focus();
+    if (carry) fillSegment("month", carry);
+    else monthEl.value?.select();
+  } else {
+    yearEl.value?.focus();
+    if (carry) fillYear(carry);
+    else yearEl.value?.select();
+  }
+}
+
+function fillYear(digits: string) {
+  const value = digits.slice(0, 4);
+  setBox(year, yearEl.value, isYearPrefix(value) ? value : year.value);
+}
+
+function onSegmentInput(segment: Segment, event: Event) {
+  fillSegment(segment, digitsOf((event.target as HTMLInputElement).value));
+}
+
+function onYearInput(event: Event) {
+  fillYear(digitsOf((event.target as HTMLInputElement).value));
 }
 
 /** Backspace at the start of an empty box steps back, so a correction never needs the mouse. */
@@ -155,28 +209,33 @@ function onBackspace(segment: "month" | "year", event: KeyboardEvent) {
   previous.value?.focus();
 }
 
-/** Pad a lone digit on the way out, so "5" reads back as "05". */
-function padSegment(segment: "day" | "month") {
-  const target = segment === "day" ? day : month;
-  if (target.value.length === 1) target.value = target.value.padStart(2, "0");
+/** Pad a lone digit on the way out, so "5" reads back as "05"; a lone zero was never going to be anything. */
+function padSegment(segment: Segment) {
+  const box = segment === "day" ? day : month;
+  if (box.value.length !== 1) return;
+  box.value = box.value === "0" ? "" : `0${box.value}`;
 }
 
 /**
  * A date pasted into any box fills all three. Only a full eight digits are taken — a two-digit year
  * would have to be guessed a century for — read as day-month-year, or as year-month-day when the
- * leading four digits can only be a year.
+ * leading four are the only four that can be a year. Eight digits that make no date are left alone.
  */
 function onPaste(event: ClipboardEvent) {
-  const digits = (event.clipboardData?.getData("text") ?? "").replace(/\D/g, "");
+  const digits = digitsOf(event.clipboardData?.getData("text") ?? "");
   if (digits.length !== 8) return;
 
   event.preventDefault();
 
-  const isIso = Number(digits.slice(0, 4)) > 31;
-  [day.value, month.value, year.value] = isIso
+  const isYear = (s: string) => Number(s) >= props.minYear && Number(s) <= thisYear;
+  const isIso = isYear(digits.slice(0, 4)) && !isYear(digits.slice(4));
+  const [d, m, y] = isIso
     ? [digits.slice(6, 8), digits.slice(4, 6), digits.slice(0, 4)]
     : [digits.slice(0, 2), digits.slice(2, 4), digits.slice(4)];
+  const inRange = (s: string, max: number) => Number(s) >= 1 && Number(s) <= max;
+  if (!inRange(d, SEGMENT_MAX.day) || !inRange(m, SEGMENT_MAX.month) || !isYear(y)) return;
 
+  [day.value, month.value, year.value] = [d, m, y];
   yearEl.value?.focus();
 }
 </script>
@@ -198,7 +257,7 @@ function onPaste(event: ClipboardEvent) {
           autocomplete="bday-day"
           maxlength="2"
           placeholder="DD"
-          @input="onSegmentInput('day', ($event.target as HTMLInputElement).value)"
+          @input="onSegmentInput('day', $event)"
           @blur="padSegment('day')"
           @paste="onPaste"
         />
@@ -218,7 +277,7 @@ function onPaste(event: ClipboardEvent) {
           autocomplete="bday-month"
           maxlength="2"
           placeholder="MM"
-          @input="onSegmentInput('month', ($event.target as HTMLInputElement).value)"
+          @input="onSegmentInput('month', $event)"
           @keydown.backspace="onBackspace('month', $event)"
           @blur="padSegment('month')"
           @paste="onPaste"
@@ -239,7 +298,7 @@ function onPaste(event: ClipboardEvent) {
           autocomplete="bday-year"
           maxlength="4"
           placeholder="YYYY"
-          @input="onYearInput(($event.target as HTMLInputElement).value)"
+          @input="onYearInput($event)"
           @keydown.backspace="onBackspace('year', $event)"
           @paste="onPaste"
         />
