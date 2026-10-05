@@ -19,7 +19,7 @@
             <div class="relative space-y-8">
 
                 <InputWithError v-model="spaceName" placeholder="e.g., Cool Space" :error="createError"
-                    @clear-error="createError = ''">
+                    :maxlength="MAX_SPACE_NAME_LENGTH" @clear-error="createError = ''">
                     <template #label>
                         <Label for="space-name" class="text-muted-foreground flex items-center gap-2">
                             <span class="i-lucide-plus-circle text-primary"></span>
@@ -27,9 +27,10 @@
                         </Label>
                     </template>
                 </InputWithError>
-                <Button @click="createServerCmd"
+                <Button @click="createServerCmd" :disabled="createLoading"
                     class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl transition-all">
-                    <span class="i-lucide-rocket mr-2"></span>
+                    <span v-if="createLoading" class="animate-spin i-lucide-loader-2 mr-2"></span>
+                    <span v-else class="i-lucide-rocket mr-2"></span>
                     {{ t('create_new_server') }}
                 </Button>
             </div>
@@ -90,40 +91,58 @@ const inviteCode = ref("")
 const spaceName = ref("")
 const api = useApi()
 
+/** The server's limit (SpaceGrain.MaxSpaceNameLength); the box stops at it so the refusal is never reached by typing. */
+const MAX_SPACE_NAME_LENGTH = 64
+
 const emit = defineEmits<{ (e: 'join', name: string): void }>()
 
 async function createServerCmd() {
     createError.value = ''
-    if (!spaceName.value?.trim()) {
-        createError.value = t?.('space_name_required') ?? 'Please enter a name.'
+    const name = spaceName.value.trim()
+    if (!name) {
+        createError.value = t('space_error_name_empty')
+        return
+    }
+    if (name.length > MAX_SPACE_NAME_LENGTH) {
+        createError.value = errorText(CreateSpaceError.NAME_TOO_LONG)
         return
     }
 
     try {
         createLoading.value = true
-        const res = await api.userInteraction.CreateSpace({ name: spaceName.value.trim(), description: "", avatarFieldId: "" });
+        const res = await api.userInteraction.CreateSpace({ name, description: "", avatarFieldId: "" });
 
         if (res.isFailedCreateSpace()) {
             logger.error("failed to create space, error: ", res.error);
-            createError.value = humanizeError(res.error);
+            createError.value = errorText(res.error);
             return
         }
 
         spaceName.value = ''
         open.value = false
-        
+
         await poolStore.refershDatas()
-    } catch (e: any) {
-        createError.value = humanizeError(e)
+    } catch (e) {
+        logger.error("failed to create space", e);
+        createError.value = t('space_error_unknown')
     } finally {
         createLoading.value = false
     }
 }
 
-function humanizeError(err: CreateSpaceError): string {
-    if (err === CreateSpaceError.LIMIT_REACHED)
-        return "Limit reached";
-    return "Unknown error";
+function errorText(error: CreateSpaceError): string {
+    switch (error) {
+        case CreateSpaceError.LIMIT_REACHED:
+            return t('space_error_limit_reached')
+        case CreateSpaceError.NAME_EMPTY:
+            return t('space_error_name_empty')
+        case CreateSpaceError.NAME_TOO_LONG:
+            return t('space_error_name_too_long', { max: MAX_SPACE_NAME_LENGTH })
+        case CreateSpaceError.DESCRIPTION_TOO_LONG:
+            return t('space_error_description_too_long')
+        default:
+            return t('space_error_unknown')
+    }
 }
 
 

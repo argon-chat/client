@@ -11,7 +11,8 @@ const props = defineProps<{
   disabled?: boolean;
   error?: string | null;
   success?: string | null;
-  id?: string | null
+  id?: string | null;
+  maxlength?: number;
 }>();
 
 const emit = defineEmits<{
@@ -80,7 +81,7 @@ function handleInput() {
              w-full cyber-input" :class="error
               ? 'border-red-500 focus:border-red-500 focus:ring-red-500/50'
               : 'focus:border-primary focus:ring-primary/30'
-              " @input="handleInput" :id="props.id" />
+              " @input="handleInput" :id="props.id" :maxlength="maxlength" />
   </div>
 </template>
 

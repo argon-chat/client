@@ -5090,9 +5090,12 @@ export enum CreateSpaceError
 {
   UNKNOWN = 0,
   LIMIT_REACHED = 1,
+  NAME_EMPTY = 2,
+  NAME_TOO_LONG = 3,
+  DESCRIPTION_TOO_LONG = 4,
 }
 
-const declaredCreateSpaceError: ReadonlySet<unknown> = new Set<unknown>([CreateSpaceError.UNKNOWN, CreateSpaceError.LIMIT_REACHED]);
+const declaredCreateSpaceError: ReadonlySet<unknown> = new Set<unknown>([CreateSpaceError.UNKNOWN, CreateSpaceError.LIMIT_REACHED, CreateSpaceError.NAME_EMPTY, CreateSpaceError.NAME_TOO_LONG, CreateSpaceError.DESCRIPTION_TOO_LONG]);
 
 /**
  * Open-enum helpers for {@link CreateSpaceError}.
