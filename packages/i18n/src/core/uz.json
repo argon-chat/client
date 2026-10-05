@@ -1732,6 +1732,8 @@
   "desktop_only_hotkeys_desc": "Global tezkor tugmalar Argon fonda ishlayotganda ham ishlaydi, buni faqat kompyuter ilovasi qila oladi.",
   "desktop_only_overlay_title": "Oʻyin overlayi",
   "desktop_only_overlay_desc": "Oʻyin ustida chizish va qaysi oʻyinni oʻynayotganingizni bilish uchun kompyuter ilovasi kerak.",
+  "draw_on_stream": "Strimda chizish",
+  "draw_allow_this_share": "Bu strimda chizishga ruxsat berish",
   "desktop_only_application_desc": "Kompyuter ilovasida tizim bilan birga ishga tushish, yangilanish kanallari, global tezkor tugmalar, oʻyin overlayi va boshqa imkoniyatlar bor.",
   "web_signin_title": "Argonga kirish",
   "web_signin_desc": "Argon hisobingiz orqali kirasiz va darhol shu yerga qaytasiz.",

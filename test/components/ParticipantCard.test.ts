@@ -32,7 +32,7 @@ const { stubModule, passthrough, empty } = vi.hoisted(() => ({
 vi.mock("@/components/ArgonAvatar.vue", stubModule("ArgonAvatar", "stub-avatar"));
 vi.mock("@/components/DrawOverlay.vue", stubModule("DrawOverlay", "stub-draw-overlay"));
 vi.mock("@/store/features/drawingSessionStore", () => ({
-  useDrawingSession: () => ({ isSessionActive: () => false }),
+  useDrawingSession: () => ({ isDrawable: () => false }),
 }));
 vi.mock("@/store/system/localeStore", () => ({
   useLocale: () => ({ t: (key: string) => key }),

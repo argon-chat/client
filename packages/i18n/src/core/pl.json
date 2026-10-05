@@ -1732,6 +1732,8 @@
   "desktop_only_hotkeys_desc": "Globalne skróty klawiszowe działają, gdy Argon jest w tle, a to potrafi tylko aplikacja na komputer.",
   "desktop_only_overlay_title": "Nakładka w grze",
   "desktop_only_overlay_desc": "Rysowanie na ekranie gry i rozpoznawanie, w co grasz, wymagają aplikacji na komputer.",
+  "draw_on_stream": "Rysuj na streamie",
+  "draw_allow_this_share": "Zezwól na rysowanie na tej transmisji",
   "desktop_only_application_desc": "Aplikacja na komputer dodaje uruchamianie razem z systemem, kanały aktualizacji, globalne skróty klawiszowe, nakładkę w grze i więcej.",
   "web_signin_title": "Zaloguj się do Argon",
   "web_signin_desc": "Zalogujesz się na swoje konto Argon i od razu tu wrócisz.",

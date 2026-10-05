@@ -120,6 +120,18 @@
                             <span class="device-name">{{ t('switch_monitor') }}</span>
                         </button>
 
+                        <!-- Drawing on my share. Offered to viewers on its own when the overlay can
+                             paint it and the privacy rule allows; a host whose rule says nobody
+                             can still let people draw on this one share. -->
+                        <template v-if="voice.isSharing && draw.canAllowThisShare">
+                            <div class="menu-sep" />
+                            <button class="device-row" :class="{ active: draw.allowedThisShare }" data-testid="draw-allow-this-share" @click="draw.toggleAllowThisShare()">
+                                <Pencil class="w-3.5 h-3.5 shrink-0" />
+                                <span class="device-name">{{ t('draw_allow_this_share') }}</span>
+                                <Check v-if="draw.allowedThisShare" class="w-3.5 h-3.5 ml-auto shrink-0" />
+                            </button>
+                        </template>
+
                         <!-- Quality (only meaningful while live). A browser would re-open its
                              picker for every change, so the web build keeps its default. -->
                         <template v-if="voice.isSharing && isDesktop">
@@ -195,7 +207,7 @@
             </div>
 
             <!-- Toggle the drawing toolbar on streams you're allowed to annotate -->
-            <button v-if="draw.canDrawAnywhere" class="ctrl-btn icon-motion icon-motion--lift" :class="{ 'ctrl-btn--active': draw.drawMode }" @click="draw.toggleDrawMode()" :disabled="!isConnected" title="Draw on stream">
+            <button v-if="draw.canDrawAnywhere" class="ctrl-btn icon-motion icon-motion--lift" :class="{ 'ctrl-btn--active': draw.drawMode }" @click="draw.toggleDrawMode()" :disabled="!isConnected" :title="t('draw_on_stream')">
                 <Pencil class="w-[18px] h-[18px]" />
             </button>
 

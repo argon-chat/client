@@ -194,6 +194,55 @@ beforeEach(() => {
 
 // ── Tests ───────────────────────────────────────────────────────────
 
+describe("capabilities", () => {
+  test("a participant's offers are read from their attributes and follow changes", async () => {
+    const { calls, room } = await joined();
+    const p = remote("u1", { "argon.caps": "draw=contacts", isMutedAll: "true" });
+
+    room.emit("participantConnected", p);
+    await vi.waitFor(() => expect(calls.participants["u1"]).toBeDefined());
+    expect(calls.participants["u1"].capabilities.get("draw")).toBe("contacts");
+    expect(calls.capabilityOf("u1", "draw")).toBe("contacts");
+
+    // One key changing is not every other key being cleared.
+    p.fire("attributesChanged", { "argon.caps": "draw" });
+    expect(calls.capabilityOf("u1", "draw")).toBe("");
+    expect(calls.participants["u1"].mutedAll).toBe(true);
+
+    p.fire("attributesChanged", { "argon.caps": "" });
+    expect(calls.capabilityOf("u1", "draw")).toBeNull();
+    expect(calls.capabilityOf("nobody", "draw")).toBeNull();
+  });
+
+  test("offering and withdrawing publishes the one attribute", async () => {
+    const { calls, room } = await joined();
+
+    calls.setCapability("draw", "contacts");
+    expect(room.localParticipant.setAttributes).toHaveBeenLastCalledWith({ "argon.caps": "draw=contacts" });
+
+    calls.setCapability("relay", "");
+    expect(room.localParticipant.setAttributes).toHaveBeenLastCalledWith({ "argon.caps": "draw=contacts relay" });
+
+    // Re-offering the same thing is not a publish.
+    const publishes = room.localParticipant.setAttributes.mock.calls.length;
+    calls.setCapability("draw", "contacts");
+    expect(room.localParticipant.setAttributes.mock.calls.length).toBe(publishes);
+
+    calls.setCapability("draw", null);
+    expect(room.localParticipant.setAttributes).toHaveBeenLastCalledWith({ "argon.caps": "relay" });
+
+    expect(() => calls.setCapability("not a token", "")).toThrow();
+  });
+
+  test("offers belong to the call and do not outlive it", async () => {
+    const { calls } = await joined();
+    calls.setCapability("draw", "");
+    expect(calls.localCapabilities.size).toBe(1);
+    await calls.leave();
+    expect(calls.localCapabilities.size).toBe(0);
+  });
+});
+
 describe("participants", () => {
   test("someone joining is added with their name and saved volume", async () => {
     const { calls, room } = await joined();

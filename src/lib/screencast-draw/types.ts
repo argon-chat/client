@@ -16,9 +16,7 @@ export type DrawKind = "begin" | "append" | "end" | "clear" | "undo";
 
 export interface DrawEnvelope {
   v: 1;
-  /** Drawing session id (from the server's StartDrawingSession). */
-  sid: string;
-  /** LiveKit participant identity of the drawer. */
+  /** LiveKit participant identity of the drawer; the receiver checks it against the actual sender. */
   from: string;
   /** Streamer identity whose surface this draws on. */
   target: string;

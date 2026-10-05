@@ -42,7 +42,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useDrawingSession } from "@/store/features/drawingSessionStore";
 import { StrokeCanvas } from "@/lib/screencast-draw/StrokeCanvas";
-import { DEFAULT_WIDTH, type DrawPacket, type NormPoint, type StrokeTool } from "@/lib/screencast-draw/types";
+import { DEFAULT_TTL_MS, DEFAULT_WIDTH, type DrawPacket, type NormPoint, type StrokeTool } from "@/lib/screencast-draw/types";
 
 const props = withDefaults(
   defineProps<{
@@ -136,7 +136,7 @@ function onPointerDown(e: PointerEvent): void {
     tool: tool.value,
     color: color.value,
     width: DEFAULT_WIDTH,
-    ttlMs: draw.sessionFor(props.targetId)?.defaultTtlMs ?? 6000,
+    ttlMs: DEFAULT_TTL_MS,
     p: [p],
   });
   if (!flushTimer) flushTimer = setInterval(flush, 50);

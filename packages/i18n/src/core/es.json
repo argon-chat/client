@@ -1732,6 +1732,8 @@
   "desktop_only_hotkeys_desc": "Los atajos de teclado globales funcionan mientras Argon está en segundo plano, algo que solo puede hacer la app de escritorio.",
   "desktop_only_overlay_title": "Superposición en el juego",
   "desktop_only_overlay_desc": "Dibujar sobre un juego y saber a cuál estás jugando requieren la app de escritorio.",
+  "draw_on_stream": "Dibujar en la transmisión",
+  "draw_allow_this_share": "Permitir dibujar en esta transmisión",
   "desktop_only_application_desc": "La app de escritorio añade el inicio con el sistema, los canales de actualización, los atajos de teclado globales, la superposición en el juego y más.",
   "web_signin_title": "Iniciar sesión en Argon",
   "web_signin_desc": "Iniciarás sesión con tu cuenta de Argon y volverás directamente aquí.",

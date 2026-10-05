@@ -323,11 +323,11 @@ function resumePlayback(): void {
     void videoEl.value?.play().catch(() => {});
 }
 
-// Show the drawing surface only over a screenshare video with an active session.
+// Show the drawing surface only over a screenshare whose host offers drawing on it.
 const showDrawOverlay = computed(() =>
     showsVideo.value &&
     !!props.videoSource && props.videoSource.includes('screen') &&
-    draw.isSessionActive(props.userId),
+    draw.isDrawable(props.userId),
 );
 </script>
 

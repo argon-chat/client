@@ -1732,6 +1732,8 @@
   "desktop_only_hotkeys_desc": "Global hotkeys work while Argon is in the background, which only the desktop app can do.",
   "desktop_only_overlay_title": "Game overlay",
   "desktop_only_overlay_desc": "Drawing over a game, and knowing which one you're playing, both need the desktop app.",
+  "draw_on_stream": "Draw on stream",
+  "draw_allow_this_share": "Allow drawing on this share",
   "desktop_only_application_desc": "The desktop app adds startup with the system, update channels, global hotkeys, the game overlay and more.",
   "web_signin_title": "Sign in to Argon",
   "web_signin_desc": "You'll sign in with your Argon account and come straight back.",

@@ -1732,6 +1732,8 @@
   "desktop_only_hotkeys_desc": "Globale Tastenkürzel funktionieren, während Argon im Hintergrund läuft – das kann nur die Desktop-App.",
   "desktop_only_overlay_title": "Spiel-Overlay",
   "desktop_only_overlay_desc": "Über ein Spiel zeichnen und erkennen, welches du gerade spielst – beides geht nur mit der Desktop-App.",
+  "draw_on_stream": "Auf dem Stream zeichnen",
+  "draw_allow_this_share": "Zeichnen auf dieser Übertragung erlauben",
   "desktop_only_application_desc": "Die Desktop-App bringt zusätzlich Autostart mit dem System, Update-Kanäle, globale Tastenkürzel, das Spiel-Overlay und mehr.",
   "web_signin_title": "Bei Argon anmelden",
   "web_signin_desc": "Du meldest dich mit deinem Argon-Konto an und kommst direkt hierher zurück.",

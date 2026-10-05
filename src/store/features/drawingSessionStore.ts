@@ -1,107 +1,230 @@
 /**
- * Screencast drawing — client data + control plane.
+ * Screencast drawing: who may draw on whose share, and the strokes themselves.
  *
- * Data plane: stroke packets ride the LiveKit room data channel on topic "af-draw"
- * (same mechanism as PlayFrame). Every participant receives them; viewers paint into a
- * DOM canvas over the <video>, and the STREAMER additionally forwards each packet to the
- * native overlay plugin (via the argonScreencastDraw preload bridge) so it paints on the
- * real monitor.
+ * The host's own client decides whether its share can be drawn on, and says so with the `draw`
+ * capability on its LiveKit participant (see @argon/calls capabilities). It is offered only when
+ * the native overlay can paint on the shared monitor — the Windows desktop app on a hardware GPU;
+ * a browser or a Mac has no overlay and offers nothing — and the host's "stream.draw" privacy rule
+ * allows it: `draw` for anyone, `draw=contacts` for the host's contacts. A host whose rule says
+ * nobody can still allow drawing on this one share, which offers `draw` until the share ends.
  *
- * Control plane: the streamer opens/closes a session through ChannelInteraction; the
- * server computes the allowed-drawers set (entitlement + privacy) and broadcasts
- * DrawingSessionStarted/Ended. Clients only enable the brush UI / accept packets for an
- * active session whose drawer is in that set.
+ * Everyone reads the offer off the host's participant, so someone joining mid-share sees it as
+ * soon as they see the host. A viewer may draw when the host's offer covers them and, in a
+ * channel, the channel grants them CanDrawOnStream.
+ *
+ * Data plane: stroke packets ride the LiveKit room data channel on topic "af-draw". Every
+ * participant paints them into a canvas over the host's <video>; the host additionally forwards
+ * them to the native overlay so they land on the real monitor. The host takes a stroke only from
+ * someone its offer covers, judged by the sender's identity rather than what the packet claims.
  */
 import { defineStore } from "pinia";
-import { computed, reactive, ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import type { Room, RemoteParticipant } from "livekit-client";
 import { RoomEvent } from "livekit-client";
 import { logger } from "@argon/core";
-import { DrawingSessionStarted, DrawingSessionEnded } from "@argon/glue";
+import { PrivacyRuleMode } from "@argon/glue";
 
 import { useUnifiedCall } from "@/store/media/unifiedCallStore";
 import { useMe } from "@/store/auth/meStore";
-import { useBus } from "@/store/realtime/busStore";
 import { useApi } from "@/store/system/apiStore";
-import { usePoolStore } from "@/store/data/poolStore";
+import { useFriendsStore } from "@/store/data/friendsStore";
+import { usePexStore } from "@/store/data/permissionStore";
 import { useFeatureFlags } from "@/store/features/featureFlagsStore";
-import {
-  DRAW_TOPIC,
-  DEFAULT_TTL_MS,
-  type DrawPacket,
-} from "@/lib/screencast-draw/types";
+import { DRAW_TOPIC, type DrawPacket } from "@/lib/screencast-draw/types";
 
-interface ActiveSession {
-  sessionId: string;
-  allowedDrawers: Set<string>;
-  defaultTtlMs: number;
+/** The capability a host publishes while its share can be drawn on. */
+export const DRAW_CAPABILITY = "draw";
+/** Its value when the offer is to the host's contacts only. */
+export const DRAW_CONTACTS = "contacts";
+/** The privacy rule behind the offer: who may draw on my streams. */
+const STREAM_DRAW_RULE = "stream.draw";
+
+/** The Electron bridge to the native overlay; absent on the web. */
+interface ScreencastDrawBridge {
+  isAvailable?(): Promise<boolean>;
+  start?(sourceId: string | null): void;
+  stop?(): void;
+  applyStroke?(packet: DrawPacket): void;
 }
 
-/** Fields a DrawOverlay supplies; the store stamps the envelope (v/sid/from/target/t). */
+const bridge = (): ScreencastDrawBridge | undefined =>
+  (window as any).argonScreencastDraw as ScreencastDrawBridge | undefined;
+
+/** Fields a DrawOverlay supplies; the store stamps the envelope (v/from/target/t). */
 type PacketBody =
-  | Omit<Extract<DrawPacket, { kind: "begin" }>, "v" | "sid" | "from" | "target" | "t">
-  | Omit<Extract<DrawPacket, { kind: "append" }>, "v" | "sid" | "from" | "target" | "t">
-  | Omit<Extract<DrawPacket, { kind: "end" }>, "v" | "sid" | "from" | "target" | "t">
-  | Omit<Extract<DrawPacket, { kind: "clear" }>, "v" | "sid" | "from" | "target" | "t">
-  | Omit<Extract<DrawPacket, { kind: "undo" }>, "v" | "sid" | "from" | "target" | "t">;
+  | Omit<Extract<DrawPacket, { kind: "begin" }>, "v" | "from" | "target" | "t">
+  | Omit<Extract<DrawPacket, { kind: "append" }>, "v" | "from" | "target" | "t">
+  | Omit<Extract<DrawPacket, { kind: "end" }>, "v" | "from" | "target" | "t">
+  | Omit<Extract<DrawPacket, { kind: "clear" }>, "v" | "from" | "target" | "t">
+  | Omit<Extract<DrawPacket, { kind: "undo" }>, "v" | "from" | "target" | "t">;
 
 export const useDrawingSession = defineStore("drawingSession", () => {
   const call = useUnifiedCall();
   const me = useMe();
-  const bus = useBus();
   const api = useApi();
-  const pool = usePoolStore();
+  const friends = useFriendsStore();
+  const pex = usePexStore();
   const ff = useFeatureFlags();
-
-  /** Active sessions keyed by streamer (target) identity. */
-  const sessions = reactive(new Map<string, ActiveSession>());
-
-  /** Per-target packet consumers (each mounted DrawOverlay registers one). */
-  const consumers = new Map<string, Set<(p: DrawPacket) => void>>();
-
-  const encoder = new TextEncoder();
-  const decoder = new TextDecoder();
-
-  let boundRoom: Room | null = null;
 
   const selfId = () => me.me?.userId ?? null;
 
-  // ── LiveKit data channel ──────────────────────────────────────────
+  // ── Host: what my share offers ────────────────────────────────────
+
+  /** Whether this client can paint on the shared monitor at all. Probed once; false on the web. */
+  const overlayAvailable = ref(false);
+  void Promise.resolve()
+    .then(() => bridge()?.isAvailable?.())
+    .then((ok) => { overlayAvailable.value = !!ok; })
+    .catch(() => { overlayAvailable.value = false; });
+
+  const sharing = ref(false);
+  let shareSourceId: string | null = null;
+  /** Counts shares, so one that ended while its rule was still loading does not come back. */
+  let shareEpoch = 0;
+  /** The host's "stream.draw" rule, read when a share starts. */
+  const privacyMode = ref<PrivacyRuleMode>(PrivacyRuleMode.NOBODY);
+  /** The host allowed drawing on this one share although their rule says nobody. */
+  const allowedThisShare = ref(false);
+
+  /** What my share offers: "" to anyone, "contacts" to my contacts, null when nothing. */
+  const offered = computed<string | null>(() => {
+    if (!ff.screencastDrawingActive || !sharing.value || !overlayAvailable.value) return null;
+    if (allowedThisShare.value) return "";
+    switch (privacyMode.value) {
+      case PrivacyRuleMode.CONTACTS: return DRAW_CONTACTS;
+      case PrivacyRuleMode.NOBODY: return null;
+      default: return "";
+    }
+  });
+
+  /** The host can turn drawing on for this share: there is an overlay, and only their rule is in the way. */
+  const canAllowThisShare = computed(
+    () => ff.screencastDrawingActive && sharing.value && overlayAvailable.value && privacyMode.value === PrivacyRuleMode.NOBODY,
+  );
+
+  function toggleAllowThisShare(): void {
+    if (!canAllowThisShare.value) return;
+    allowedThisShare.value = !allowedThisShare.value;
+  }
+
+  // The offer is the capability, and the native overlay lives exactly as long as the offer.
+  watch(offered, (value, previous) => {
+    try { call.setCapability(DRAW_CAPABILITY, value); }
+    catch (e) { logger.warn("[draw] failed to publish the offer", e); }
+    if (value !== null && previous === null) {
+      try { bridge()?.start?.(shareSourceId); } catch (e) { logger.warn("[draw] overlay start failed", e); }
+    } else if (value === null && previous !== null) {
+      try { bridge()?.stop?.(); } catch (e) { logger.warn("[draw] overlay stop failed", e); }
+    }
+  }, { flush: "sync" });
+
+  /** The rule as the server holds it; when it cannot be read nothing is offered rather than everything. */
+  async function readPrivacyMode(): Promise<PrivacyRuleMode> {
+    try {
+      const rule = await api.privacyInteraction.GetPrivacyRule(STREAM_DRAW_RULE, null);
+      return rule?.mode ?? PrivacyRuleMode.EVERYBODY;
+    } catch (e) {
+      logger.warn("[draw] could not read the stream.draw rule; offering nothing", e);
+      return PrivacyRuleMode.NOBODY;
+    }
+  }
+
+  /** Host: a share just started from `sourceId` (the captured monitor, where the overlay goes). */
+  async function beginStreamerSession(sourceId: string | null): Promise<void> {
+    const epoch = ++shareEpoch;
+    shareSourceId = sourceId;
+    allowedThisShare.value = false;
+    if (!ff.screencastDrawingActive || !overlayAvailable.value) return;
+    const mode = await readPrivacyMode();
+    if (epoch !== shareEpoch) return;
+    privacyMode.value = mode;
+    sharing.value = true;
+  }
+
+  /** Host: the share ended, and with it every offer made for it. */
+  function endStreamerSession(): void {
+    shareEpoch++;
+    sharing.value = false;
+    allowedThisShare.value = false;
+    shareSourceId = null;
+  }
+
+  // ── Viewer: what others offer me ──────────────────────────────────
+
+  /** What `hostId`'s share offers: "" to anyone, "contacts" to their contacts, null when nothing. */
+  function offeredBy(hostId: string): string | null {
+    if (hostId === selfId()) return offered.value;
+    return call.capabilityOf(hostId, DRAW_CAPABILITY);
+  }
+
+  /** Whether `hostId`'s share can be drawn on by someone — what puts a drawing surface over it. */
+  function isDrawable(hostId: string): boolean {
+    return ff.screencastDrawingActive && offeredBy(hostId) !== null;
+  }
+
+  /** Whether the local user may draw on `hostId`'s share right now. */
+  function canIDrawOn(hostId: string): boolean {
+    const id = selfId();
+    if (!id || hostId === id || !ff.screencastDrawingActive) return false;
+    const value = offeredBy(hostId);
+    if (value === null) return false;
+    if (value === DRAW_CONTACTS && !friends.isFriend(hostId)) return false;
+    // In a channel the right to draw is a channel entitlement; a direct call has no such thing.
+    const channelId = call.connectedVoiceChannelId;
+    return !channelId || pex.hasIn(channelId, "CanDrawOnStream", call.connectedVoiceSpaceId);
+  }
+
+  /** The host's side of the offer: whether a stroke from `userId` lands on my monitor. */
+  function acceptedFrom(userId: string): boolean {
+    const value = offered.value;
+    if (value === null || userId === selfId()) return false;
+    return value !== DRAW_CONTACTS || friends.isFriend(userId);
+  }
+
+  /** True if there is at least one share the local user may draw on. */
+  const canDrawAnywhere = computed(() => Object.keys(call.participants).some((uid) => canIDrawOn(uid)));
+
+  /** Whether the brush UI is engaged (per-share pointer capture is still gated by canIDrawOn). */
+  const drawMode = ref(false);
+  function toggleDrawMode(): void { drawMode.value = !drawMode.value; }
+  watch(canDrawAnywhere, (ok) => { if (!ok) drawMode.value = false; });
+
+  // ── Data plane ────────────────────────────────────────────────────
+
+  /** Per-host packet consumers (each mounted DrawOverlay registers one). */
+  const consumers = new Map<string, Set<(p: DrawPacket) => void>>();
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+  let boundRoom: Room | null = null;
 
   function onData(
     payload: Uint8Array,
-    _participant?: RemoteParticipant,
+    participant?: RemoteParticipant,
     _kind?: unknown,
     topic?: string,
   ): void {
     if (topic !== DRAW_TOPIC) return;
+    let packet: DrawPacket;
     try {
-      const packet = JSON.parse(decoder.decode(payload)) as DrawPacket;
-      handleIncoming(packet);
+      packet = JSON.parse(decoder.decode(payload)) as DrawPacket;
     } catch (e) {
       logger.warn("[draw] failed to decode packet", e);
+      return;
     }
-  }
-
-  function handleIncoming(packet: DrawPacket): void {
-    const sess = sessions.get(packet.target);
-    if (!sess || sess.sessionId !== packet.sid) return; // unknown / stale session
-    // The streamer may always annotate their own surface; others must be allowed.
-    if (packet.from !== packet.target && !sess.allowedDrawers.has(packet.from)) return;
+    // A stroke is whoever sent it, not whoever it says it is.
+    if (!participant || packet.from !== participant.identity) return;
+    if (!isDrawable(packet.target)) return;
+    if (packet.target === selfId() && !acceptedFrom(packet.from)) return;
     dispatch(packet);
   }
 
-  /** Fan a packet out to local canvases for its target, and to native if I'm the streamer. */
+  /** Fan a packet out to the canvases for its host, and to the native overlay if the host is me. */
   function dispatch(packet: DrawPacket): void {
     const set = consumers.get(packet.target);
     if (set) for (const cb of set) cb(packet);
-
     if (packet.target === selfId()) {
-      try {
-        (window as any).argonScreencastDraw?.applyStroke?.(packet);
-      } catch (e) {
-        logger.warn("[draw] native forward failed", e);
-      }
+      try { bridge()?.applyStroke?.(packet); }
+      catch (e) { logger.warn("[draw] native forward failed", e); }
     }
   }
 
@@ -123,84 +246,31 @@ export const useDrawingSession = defineStore("drawingSession", () => {
       if (r) bindRoom(r as unknown as Room);
       else {
         unbindRoom();
-        sessions.clear();
+        drawMode.value = false;
       }
     },
     { immediate: true },
   );
 
-  // ── Consumer registration (DrawOverlay ↔ store) ───────────────────
-
-  function registerConsumer(targetId: string, cb: (p: DrawPacket) => void): () => void {
-    let set = consumers.get(targetId);
-    if (!set) { set = new Set(); consumers.set(targetId, set); }
+  function registerConsumer(hostId: string, cb: (p: DrawPacket) => void): () => void {
+    let set = consumers.get(hostId);
+    if (!set) { set = new Set(); consumers.set(hostId, set); }
     set.add(cb);
     return () => {
-      const s = consumers.get(targetId);
+      const s = consumers.get(hostId);
       if (!s) return;
       s.delete(cb);
-      if (s.size === 0) consumers.delete(targetId);
+      if (s.size === 0) consumers.delete(hostId);
     };
   }
 
-  // ── Capabilities (drive the viewer brush UI) ──────────────────────
-
-  function sessionFor(targetId: string): ActiveSession | undefined {
-    return sessions.get(targetId);
-  }
-
-  function isSessionActive(targetId: string): boolean {
-    return ff.screencastDrawingActive && sessions.has(targetId);
-  }
-
-  /** Whether the local user may draw on targetId's stream right now. */
-  function canIDrawOn(targetId: string): boolean {
-    if (!ff.screencastDrawingActive) return false;
-    const sess = sessions.get(targetId);
-    if (!sess) return false;
+  /** Send a stroke to `hostId`'s share; nothing leaves unless the host's offer covers me. */
+  function publish(hostId: string, body: PacketBody): void {
     const id = selfId();
-    if (!id) return false;
-    if (targetId === id) return false; // the streamer doesn't draw on their own stream
-    return sess.allowedDrawers.has(id);
-  }
+    if (!id || !canIDrawOn(hostId)) return;
 
-  // ── Draw mode (toggled from MediaControls) ────────────────────────
-
-  /** Whether the brush UI is engaged (per-stream pointer capture still gated by canIDrawOn). */
-  const drawMode = ref(false);
-
-  /** True if there's at least one stream the local user is allowed to draw on. */
-  const canDrawAnywhere = computed(() => {
-    const id = selfId();
-    if (!id || !ff.screencastDrawingActive) return false;
-    for (const [target, s] of sessions) {
-      if (target !== id && s.allowedDrawers.has(id)) return true;
-    }
-    return false;
-  });
-
-  function toggleDrawMode(): void { drawMode.value = !drawMode.value; }
-
-  // Drop out of draw mode whenever nothing is drawable (session ended, left call, etc.).
-  watch(canDrawAnywhere, (ok) => { if (!ok) drawMode.value = false; });
-
-  // ── Outgoing strokes (called by DrawOverlay) ──────────────────────
-
-  function publish(targetId: string, body: PacketBody): void {
-    const sess = sessions.get(targetId);
-    const id = selfId();
-    if (!sess || !id) return;
-
-    const packet = {
-      v: 1,
-      sid: sess.sessionId,
-      from: id,
-      target: targetId,
-      t: Date.now(),
-      ...body,
-    } as DrawPacket;
-
-    dispatch(packet); // local echo (incl. native forward if I'm the streamer)
+    const packet = { v: 1, from: id, target: hostId, t: Date.now(), ...body } as DrawPacket;
+    dispatch(packet); // local echo
 
     // Reliable for begin/end/clear/undo; unreliable for high-rate append.
     boundRoom?.localParticipant
@@ -211,95 +281,28 @@ export const useDrawingSession = defineStore("drawingSession", () => {
       .catch((e) => logger.warn("[draw] publishData failed", e));
   }
 
-  /** Clear only the local user's own strokes on a target's surface. */
-  function clearOwn(targetId: string): void {
+  /** Clear only the local user's own strokes on a host's share. */
+  function clearOwn(hostId: string): void {
     const id = selfId();
     if (!id) return;
-    publish(targetId, { kind: "clear", who: id });
+    publish(hostId, { kind: "clear", who: id });
   }
-
-  // ── Control plane ─────────────────────────────────────────────────
-
-  function ctx(): { spaceId: string; channelId: string } | null {
-    const spaceId = pool.selectedServer;
-    const channelId = call.connectedVoiceChannelId;
-    if (!spaceId || !channelId) return null;
-    return { spaceId, channelId };
-  }
-
-  /** Streamer: open a drawing session for the share just started on `sourceId`. */
-  async function beginStreamerSession(sourceId: string | null): Promise<void> {
-    if (!ff.screencastDrawingActive) return;
-    const c = ctx();
-    const id = selfId();
-    if (!c || !id) return;
-
-    try {
-      const res = await api.channelInteraction.StartDrawingSession(c.spaceId, c.channelId);
-      if (!res || !res.isDrawingStarted()) {
-        logger.warn("[draw] StartDrawingSession denied", res);
-        return;
-      }
-      const s = res.session; // narrowed to DrawingStarted by the type guard
-      sessions.set(id, {
-        sessionId: s.sessionId,
-        allowedDrawers: new Set<string>((s.allowedDrawers as unknown as string[]) ?? []),
-        defaultTtlMs: s.defaultTtlMs || DEFAULT_TTL_MS,
-      });
-      // Bring up the native overlay on the shared monitor.
-      try { (window as any).argonScreencastDraw?.start?.(sourceId); } catch { /* not electron */ }
-      logger.info("[draw] streamer session started", s.sessionId);
-    } catch (e) {
-      logger.error("[draw] beginStreamerSession failed", e);
-    }
-  }
-
-  /** Streamer: close the drawing session for the local user's share. */
-  async function endStreamerSession(): Promise<void> {
-    const c = ctx();
-    const id = selfId();
-    const sess = id ? sessions.get(id) : undefined;
-    try { (window as any).argonScreencastDraw?.stop?.(); } catch { /* not electron */ }
-    if (id) sessions.delete(id);
-    if (c && sess) {
-      try { await api.channelInteraction.StopDrawingSession(c.spaceId, c.channelId, sess.sessionId); }
-      catch (e) { logger.warn("[draw] StopDrawingSession failed", e); }
-    }
-  }
-
-  // ── Server broadcasts (viewer side) ───────────────────────────────
-
-  bus.onServerEvent<DrawingSessionStarted>("DrawingSessionStarted", (ev) => {
-    sessions.set(ev.ownerId, {
-      sessionId: ev.sessionId,
-      allowedDrawers: new Set<string>((ev.allowedDrawers as unknown as string[]) ?? []),
-      defaultTtlMs: ev.defaultTtlMs || DEFAULT_TTL_MS,
-    });
-  });
-
-  bus.onServerEvent<DrawingSessionEnded>("DrawingSessionEnded", (ev) => {
-    for (const [target, s] of sessions) {
-      if (s.sessionId === ev.sessionId) {
-        sessions.delete(target);
-        if (target === selfId()) {
-          try { (window as any).argonScreencastDraw?.stop?.(); } catch { /* not electron */ }
-        }
-      }
-    }
-  });
 
   return {
-    sessions,
-    registerConsumer,
-    sessionFor,
-    isSessionActive,
-    canIDrawOn,
-    drawMode,
-    canDrawAnywhere,
-    toggleDrawMode,
-    publish,
-    clearOwn,
+    overlayAvailable,
+    offered,
+    canAllowThisShare,
+    allowedThisShare,
+    toggleAllowThisShare,
     beginStreamerSession,
     endStreamerSession,
+    isDrawable,
+    canIDrawOn,
+    canDrawAnywhere,
+    drawMode,
+    toggleDrawMode,
+    registerConsumer,
+    publish,
+    clearOwn,
   };
 });

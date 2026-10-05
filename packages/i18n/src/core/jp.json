@@ -1007,6 +1007,8 @@
   "desktop_only_hotkeys_desc": "グローバルホットキーは Argon が背面にあるときも動作するため、デスクトップアプリが必要です。",
   "desktop_only_overlay_title": "ゲームオーバーレイ",
   "desktop_only_overlay_desc": "ゲームの上に表示することも、プレイ中のタイトルを知ることも、デスクトップアプリが必要です。",
+  "draw_on_stream": "配信に描く",
+  "draw_allow_this_share": "この配信への描き込みを許可",
   "desktop_only_application_desc": "デスクトップアプリでは自動起動、更新チャンネル、グローバルホットキー、ゲームオーバーレイなどが使えます。",
   "web_signin_title": "Argon にサインイン",
   "web_signin_desc": "Argon アカウントでサインインして、すぐにここへ戻ります。",

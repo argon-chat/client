@@ -825,14 +825,6 @@ export interface SendMessageReadback {
 };
 
 
-export interface DrawingSession {
-  sessionId: string;
-  ownerId: guid;
-  allowedDrawers: IonArray<guid>;
-  defaultTtlMs: i4;
-};
-
-
 export interface ChannelReadState {
   channelId: guid;
   spaceId: guid | null;
@@ -1712,40 +1704,6 @@ export const Ion_StartStreamError_OpenEnum = {
    */
   unknownValue(value: StartStreamError): u2 | undefined {
     return declaredStartStreamError.has(value) ? undefined : (value as unknown as u2);
-  },
-} as const;
-
-
-export enum DrawingDenyReason
-{
-  NONE = 0,
-  FEATURE_DISABLED = 1,
-  NOT_STREAMING = 2,
-  NO_PERMISSION = 3,
-  INTERNAL_ERROR = 4,
-}
-
-const declaredDrawingDenyReason: ReadonlySet<unknown> = new Set<unknown>([DrawingDenyReason.NONE, DrawingDenyReason.FEATURE_DISABLED, DrawingDenyReason.NOT_STREAMING, DrawingDenyReason.NO_PERMISSION, DrawingDenyReason.INTERNAL_ERROR]);
-
-/**
- * Open-enum helpers for {@link DrawingDenyReason}.
- *
- * Adding a member to an Ion enum is a safe schema change, so a value this revision does
- * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
- * say whether that happened — a `switch` over the enum cannot, because an undeclared
- * value simply matches no case.
- */
-export const Ion_DrawingDenyReason_OpenEnum = {
-  /** Whether `value` is a member this schema revision declares. */
-  isKnown(value: DrawingDenyReason): boolean {
-    return declaredDrawingDenyReason.has(value);
-  },
-  /**
-   * The raw `u2` the peer sent when `value` names no declared member, or
-   * `undefined` when it does. This is the exact value that will be written back out.
-   */
-  unknownValue(value: DrawingDenyReason): u2 | undefined {
-    return declaredDrawingDenyReason.has(value) ? undefined : (value as unknown as u2);
   },
 } as const;
 
@@ -9430,107 +9388,6 @@ IonFormatterStorage.register("FailedStartStream", {
   write(writer: CborWriter, value: FailedStartStream): void {
     writer.writeStartArray(1);
     IonFormatterStorage.get<StartStreamError>('StartStreamError').write(writer, value.error);
-    writer.writeEndArray();
-  }
-});
-
-
-
-export abstract class IStartDrawingResult implements IIonUnion<IStartDrawingResult>
-{
-  abstract UnionKey: string;
-  abstract UnionIndex: number;
-  
-  
-  
-  
-  public isDrawingStarted(): this is DrawingStarted {
-    return this.UnionKey === "DrawingStarted";
-  }
-  public isDrawingDenied(): this is DrawingDenied {
-    return this.UnionKey === "DrawingDenied";
-  }
-
-}
-
-
-export class DrawingStarted extends IStartDrawingResult
-{
-  constructor(public session: DrawingSession) { super(); }
-
-  UnionKey: string = "DrawingStarted";
-  UnionIndex: number = 0;
-}
-
-export class DrawingDenied extends IStartDrawingResult
-{
-  constructor(public error: DrawingDenyReason) { super(); }
-
-  UnionKey: string = "DrawingDenied";
-  UnionIndex: number = 1;
-}
-
-
-
-IonFormatterStorage.register("IStartDrawingResult", {
-  read(reader: CborReader): IStartDrawingResult {
-    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IStartDrawingResult", 2);
-    let value: IStartDrawingResult = null as any;
-
-    if (false)
-    {}
-        else if (unionIndex == 0)
-      value = IonFormatterStorage.get<DrawingStarted>("DrawingStarted").read(reader);
-    else if (unionIndex == 1)
-      value = IonFormatterStorage.get<DrawingDenied>("DrawingDenied").read(reader);
-
-    else IonFormatterStorage.invalidUnionIndex("IStartDrawingResult", unionIndex, 2);
-
-    IonFormatterStorage.readEndUnion(reader);
-    return value!;
-  },
-  write(writer: CborWriter, value: IStartDrawingResult): void {
-    writer.writeStartArray(2);
-    writer.writeUInt32(value.UnionIndex);
-    if (false)
-    {}
-        else if (value.UnionIndex == 0) {
-        IonFormatterStorage.get<DrawingStarted>("DrawingStarted").write(writer, value as DrawingStarted);
-    }
-    else if (value.UnionIndex == 1) {
-        IonFormatterStorage.get<DrawingDenied>("DrawingDenied").write(writer, value as DrawingDenied);
-    }
-  
-    else throw new Error(`Ion union 'IStartDrawingResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
-    writer.writeEndArray();
-  }
-});
-
-
-IonFormatterStorage.register("DrawingStarted", {
-  read(reader: CborReader): DrawingStarted {
-    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "DrawingStarted");
-    const session = IonFormatterStorage.get<DrawingSession>('DrawingSession').read(reader);
-    reader.readEndArrayAndSkip(arraySize - 1);
-    return new DrawingStarted(session);
-  },
-  write(writer: CborWriter, value: DrawingStarted): void {
-    writer.writeStartArray(1);
-    IonFormatterStorage.get<DrawingSession>('DrawingSession').write(writer, value.session);
-    writer.writeEndArray();
-  }
-});
-
-IonFormatterStorage.register("DrawingDenied", {
-  read(reader: CborReader): DrawingDenied {
-    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "DrawingDenied");
-    const error = IonFormatterStorage.get<DrawingDenyReason>('DrawingDenyReason').read(reader);
-    reader.readEndArrayAndSkip(arraySize - 1);
-    return new DrawingDenied(error);
-  },
-  write(writer: CborWriter, value: DrawingDenied): void {
-    writer.writeStartArray(1);
-    IonFormatterStorage.get<DrawingDenyReason>('DrawingDenyReason').write(writer, value.error);
     writer.writeEndArray();
   }
 });
@@ -21576,26 +21433,6 @@ IonFormatterStorage.register("SendMessageReadback", {
   }
 });
 
-IonFormatterStorage.register("DrawingSession", {
-  read(reader: CborReader): DrawingSession {
-    const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "DrawingSession");
-    const sessionId = IonFormatterStorage.get<string>('string').read(reader);
-    const ownerId = IonFormatterStorage.get<guid>('guid').read(reader);
-    const allowedDrawers = IonFormatterStorage.readArray<guid>(reader, 'guid');
-    const defaultTtlMs = IonFormatterStorage.get<i4>('i4').read(reader);
-    reader.readEndArrayAndSkip(arraySize - 4);
-    return { sessionId, ownerId, allowedDrawers, defaultTtlMs };
-  },
-  write(writer: CborWriter, value: DrawingSession): void {
-    writer.writeStartArray(4);
-    IonFormatterStorage.get<string>('string').write(writer, value.sessionId);
-    IonFormatterStorage.get<guid>('guid').write(writer, value.ownerId);
-    IonFormatterStorage.writeArray<guid>(writer, value.allowedDrawers, 'guid');
-    IonFormatterStorage.get<i4>('i4').write(writer, value.defaultTtlMs);
-    writer.writeEndArray();
-  }
-});
-
 IonFormatterStorage.register("ChannelReadState", {
   read(reader: CborReader): ChannelReadState {
     const arraySize = IonFormatterStorage.readStartMessage(reader, 4, "ChannelReadState");
@@ -22023,16 +21860,6 @@ IonFormatterStorage.register("StartStreamError", {
     return IonFormatterStorage.readOpenEnum<StartStreamError>(reader, 'u2');
   },
   write(writer: CborWriter, value: StartStreamError): void {
-    const casted: u2 = value;
-    IonFormatterStorage.get<u2>('u2').write(writer, casted);
-  }
-});
-
-IonFormatterStorage.register("DrawingDenyReason", {
-  read(reader: CborReader): DrawingDenyReason {
-    return IonFormatterStorage.readOpenEnum<DrawingDenyReason>(reader, 'u2');
-  },
-  write(writer: CborWriter, value: DrawingDenyReason): void {
     const casted: u2 = value;
     IonFormatterStorage.get<u2>('u2').write(writer, casted);
   }
@@ -25112,8 +24939,6 @@ export interface IChannelInteraction extends IIonService
   DisconnectFromVoiceChannel(spaceId: guid, channelId: guid): Promise<void>;
   Interlink(spaceId: guid, channelId: guid): Promise<IInterlinkResult>;
   InterlinkStream(spaceId: guid, channelId: guid, density: i4): Promise<IInterlinkStreamResult>;
-  StartDrawingSession(spaceId: guid, channelId: guid): Promise<IStartDrawingResult>;
-  StopDrawingSession(spaceId: guid, channelId: guid, sessionId: string): Promise<bool>;
   KickMemberFromChannel(spaceId: guid, channelId: guid, memberId: guid): Promise<bool>;
   MoveVoiceMember(spaceId: guid, channelId: guid, memberId: guid, targetChannelId: guid): Promise<IMoveVoiceMemberResult>;
   UpdateVoiceState(spaceId: guid, channelId: guid, state: ChannelMemberState): Promise<void>;
@@ -25573,8 +25398,6 @@ export interface IChannelInteraction extends IIonService
   DisconnectFromVoiceChannel(spaceId: guid, channelId: guid): Promise<void>;
   Interlink(spaceId: guid, channelId: guid): Promise<IInterlinkResult>;
   InterlinkStream(spaceId: guid, channelId: guid, density: i4): Promise<IInterlinkStreamResult>;
-  StartDrawingSession(spaceId: guid, channelId: guid): Promise<IStartDrawingResult>;
-  StopDrawingSession(spaceId: guid, channelId: guid, sessionId: string): Promise<bool>;
   KickMemberFromChannel(spaceId: guid, channelId: guid, memberId: guid): Promise<bool>;
   MoveVoiceMember(spaceId: guid, channelId: guid, memberId: guid, targetChannelId: guid): Promise<IMoveVoiceMemberResult>;
   UpdateVoiceState(spaceId: guid, channelId: guid, state: ChannelMemberState): Promise<void>;
@@ -26748,35 +26571,6 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
     writer.writeEndArray();
           
     return await req.callAsyncT<IInterlinkStreamResult>("IInterlinkStreamResult", writer.data, this.signal);
-  }
-  async StartDrawingSession(spaceId: guid, channelId: guid): Promise<IStartDrawingResult> {
-    const req = new IonRequest(this.ctx, "IChannelInteraction", "StartDrawingSession");
-          
-    const writer = new CborWriter();
-      
-    writer.writeStartArray(2);
-          
-    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
-    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
-      
-    writer.writeEndArray();
-          
-    return await req.callAsyncT<IStartDrawingResult>("IStartDrawingResult", writer.data, this.signal);
-  }
-  async StopDrawingSession(spaceId: guid, channelId: guid, sessionId: string): Promise<bool> {
-    const req = new IonRequest(this.ctx, "IChannelInteraction", "StopDrawingSession");
-          
-    const writer = new CborWriter();
-      
-    writer.writeStartArray(3);
-          
-    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
-    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
-    IonFormatterStorage.get<string>('string').write(writer, sessionId);
-      
-    writer.writeEndArray();
-          
-    return await req.callAsyncT<bool>("bool", writer.data, this.signal);
   }
   async KickMemberFromChannel(spaceId: guid, channelId: guid, memberId: guid): Promise<bool> {
     const req = new IonRequest(this.ctx, "IChannelInteraction", "KickMemberFromChannel");

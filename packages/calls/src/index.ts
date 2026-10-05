@@ -6,6 +6,13 @@ export { parseRtcStats, type ParsedRtcStats } from "./rtcStats";
 export { createMicHold, type MicHold, type MicHoldOptions } from "./micHold";
 export { connectRoom, probeTurn, type ConnectRoomOptions, type TurnProbeSummary } from "./connectRoom";
 export { RadioSession, type RadioSessionDeps } from "./radio/RadioSession";
+export {
+  CAPABILITIES_ATTR,
+  parseCapabilities,
+  encodeCapabilities,
+  isValidCapability,
+  type Capabilities,
+} from "./capabilities";
 // Also reachable as "@argon/calls/voice-state", without loading LiveKit.
 export {
   VoiceStateBits,

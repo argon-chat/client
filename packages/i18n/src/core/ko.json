@@ -1732,6 +1732,8 @@
   "desktop_only_hotkeys_desc": "전역 단축키는 Argon이 백그라운드에 있을 때도 작동하며, 이는 데스크톱 앱에서만 가능합니다.",
   "desktop_only_overlay_title": "게임 오버레이",
   "desktop_only_overlay_desc": "게임 위에 표시하는 것과 어떤 게임을 하고 있는지 감지하는 것 모두 데스크톱 앱이 필요합니다.",
+  "draw_on_stream": "스트림에 그리기",
+  "draw_allow_this_share": "이 스트림에 그리기 허용",
   "desktop_only_application_desc": "데스크톱 앱에서는 시스템 시작 시 자동 실행, 업데이트 채널, 전역 단축키, 게임 오버레이 등을 사용할 수 있습니다.",
   "web_signin_title": "Argon에 로그인",
   "web_signin_desc": "Argon 계정으로 로그인하면 바로 이곳으로 돌아옵니다.",

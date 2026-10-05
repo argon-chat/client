@@ -43,6 +43,7 @@ import type {
 import { parseRtcStats } from "./rtcStats";
 import { decodeVoiceState, encodeSelfVoiceState } from "./voiceState";
 import { connectRoom } from "./connectRoom";
+import { CAPABILITIES_ATTR, encodeCapabilities, isValidCapability, parseCapabilities } from "./capabilities";
 import { createMicHold } from "./micHold";
 import type { AudioDeviceError, CallManagerConfig, CallNotice, InterlinkResult, RemoteAudioGraph, ScreenShareOpts } from "./types";
 import { initialRadioState, type RadioState, type RadioUnavailableReason } from "./radio/types";
@@ -232,6 +233,8 @@ export function createCallManager(config: CallManagerConfig) {
         screenAudioGraph: RemoteAudioGraph | null;
         /** Raw PlayFrame activity presence attribute (JSON string) if running a game */
         pfActivity?: string;
+        /** What their client offers the call — see capabilities.ts. */
+        capabilities: Map<string, string>;
       }
     >
   >({});
@@ -547,6 +550,8 @@ export function createCallManager(config: CallManagerConfig) {
     isReconnecting.value = false;
 
     Object.keys(participants).forEach((key) => delete participants[key]);
+    // Offers are made to a call; the next one starts with none.
+    localCapabilities.clear();
     for (const track of videoTracks.values()) {
       try { track.detach(); } catch { /* already detached */ }
     }
@@ -1071,6 +1076,7 @@ export function createCallManager(config: CallManagerConfig) {
       mutedAll: isInitiallyMutedAll,
       screencast: isInitiallyScreencast,
       pfActivity: p.attributes?.pfActivity || undefined,
+      capabilities: parseCapabilities(p.attributes),
     };
 
     // Add guest user to realtime channel if in channel mode
@@ -1128,20 +1134,20 @@ export function createCallManager(config: CallManagerConfig) {
 
     p.setAudioContext(audio.getCurrentAudioContext());
 
-    p.on("attributesChanged", (x) => {
-      logger.info("attributesChanged", uid, x);
+    p.on("attributesChanged", (changed) => {
+      logger.info("attributesChanged", uid, changed);
       const pm = participants[uid];
-      if (pm) {
-        pm.mutedAll = x.isMutedAll === "true";
-        pm.screencast = x.isScreencast === "true";
-        // PlayFrame presence: only update when the key is part of this change set
-        if ("pfActivity" in x) {
-          pm.pfActivity = x.pfActivity || undefined;
-        }
-        logger.info(
-          `[ATTRIBUTES] ${uid} mutedAll=${pm.mutedAll} screencast=${pm.screencast}`,
-        );
-      }
+      if (!pm) return;
+      // The event carries only what changed. The record is rebuilt from the whole set, so one key
+      // coming or going (a capability, say) cannot read as every other key being cleared.
+      const attrs: Record<string, string> = { ...(p.attributes ?? {}), ...changed };
+      pm.mutedAll = attrs.isMutedAll === "true";
+      pm.screencast = attrs.isScreencast === "true";
+      pm.pfActivity = attrs.pfActivity || undefined;
+      pm.capabilities = parseCapabilities(attrs);
+      logger.info(
+        `[ATTRIBUTES] ${uid} mutedAll=${pm.mutedAll} screencast=${pm.screencast}`,
+      );
     });
   }
 
@@ -1599,6 +1605,7 @@ export function createCallManager(config: CallManagerConfig) {
       await r.localParticipant.setAttributes({
         isMutedAll: sys.headphoneMuted ? "true" : "false",
         isScreencast: "false",
+        [CAPABILITIES_ATTR]: encodeCapabilities(localCapabilities),
       });
 
       logger.info(
@@ -1811,6 +1818,7 @@ export function createCallManager(config: CallManagerConfig) {
           screenAudioGraph: null,
           mutedAll: false,
           screencast: false,
+          capabilities: parseCapabilities(participant.attributes),
         };
       }
     }
@@ -2930,8 +2938,41 @@ export function createCallManager(config: CallManagerConfig) {
     busSubscriptions.length = 0;
   }
 
+  // ── Capabilities ──────────────────────────────────────────────────
+  // What this client offers the others in the call, carried in one participant attribute (see
+  // capabilities.ts). Offers belong to a call: leave() clears them.
+
+  const localCapabilities = reactive(new Map<string, string>());
+
+  function publishLocalCapabilities(): void {
+    const r = room.value;
+    if (!r) return;
+    r.localParticipant
+      .setAttributes({ [CAPABILITIES_ATTR]: encodeCapabilities(localCapabilities) })
+      .catch((e) => logger.warn("[CALL] failed to publish capabilities", e));
+  }
+
+  /** Offer `name` (with "" for a bare capability) or, with null, withdraw it. */
+  function setCapability(name: string, value: string | null): void {
+    if (!isValidCapability(name, value ?? "")) throw new Error(`invalid capability: ${name}=${value}`);
+    const current = localCapabilities.get(name);
+    if (value === null ? current === undefined : current === value) return;
+    if (value === null) localCapabilities.delete(name);
+    else localCapabilities.set(name, value);
+    publishLocalCapabilities();
+  }
+
+  /** What `userId` offers under `name`: "" for a bare capability, null when nothing. */
+  function capabilityOf(userId: string, name: string): string | null {
+    const value = participants[userId]?.capabilities.get(name);
+    return value === undefined ? null : value;
+  }
+
   return {
     dispose,
+    localCapabilities,
+    setCapability,
+    capabilityOf,
     radio,
     radioKeyDown,
     radioKeyUp,
