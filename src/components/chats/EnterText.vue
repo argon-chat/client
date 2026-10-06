@@ -319,15 +319,13 @@
             :space-id="spaceId"
             :receiver-id="receiverId"
             @send="onAttachmentDialogSend"
-            @close="onAttachmentDialogClose"
+            @close="showAttachmentDialog = false"
             @add-more="openFilePicker"
             @remove="attachments.removeFile"
             @add-files="onDialogAddFiles"
             @replace-file="onReplaceFile"
             @open-editor="onOpenAttachmentEditor"
             @video-prefs="attachments.setVideoPrefs"
-            @video-cancel="attachments.cancelVideoPreparation"
-            @video-prepare="attachments.prepareVideoNow"
         />
 
         <!-- Media Editor for attachment editing -->
@@ -442,7 +440,7 @@ const { t } = localeStore;
 
 const configStore = useConfigStore();
 
-const { gifsSelectorActive, chatVideoActive } = storeToRefs(useFeatureFlags());
+const { gifsSelectorActive } = storeToRefs(useFeatureFlags());
 
 // ── GIFs (gated behind af.chat.gifs-selector): a message of one GIF entity and no text ──
 const canSendGifs = computed(
@@ -791,10 +789,8 @@ const isDragging = ref(false);
 const api = useApi();
 const pool = usePoolStore();
 const me = useMe();
-// Videos go as videos only behind af.chat.video: older clients cannot decode the video entity.
 const attachments = useAttachmentUpload({
-  videoSending: () => !!chatVideoActive?.value,
-  // Its upload limits (video size and length) are the target's own.
+  // A video's upload limits (size and length) are the target's own.
   uploadTarget: () => {
     const targetId = resolveTargetId();
     return targetId ? uploadTarget(targetId) : null;
@@ -1519,16 +1515,6 @@ function onReplaceFile(index: number, file: File, previewUrl?: string | null, si
   void attachments.replaceFile(index, file, { previewUrl, width: size?.width, height: size?.height });
 }
 
-function onAttachmentDialogClose() {
-  showAttachmentDialog.value = false;
-  // Nothing is sent while it is closed: compressing stops and starts again when it opens.
-  attachments.pausePreparations();
-}
-
-watch(showAttachmentDialog, (open) => {
-  if (open) attachments.resumePreparations();
-});
-
 /** The editor's still as a preview URL, or null. */
 const stillUrl = (still: Blob | undefined) => (still ? URL.createObjectURL(still) : null);
 
@@ -1831,12 +1817,15 @@ const handleSend = async (captionContent?: { text: string; entities: IMessageEnt
 /** How long the local previews of a sent message outlive the send (the server's copy arrives by then). */
 const OPTIMISTIC_PREVIEW_HOLD_MS = 15_000;
 
-/** What a video in the optimistic bubble is doing, in the user's language. */
+/**
+ * What a video in the optimistic bubble is doing, in the user's language. The percent is the send's
+ * combined progress (compressing and uploading), the same value the ring shows.
+ */
 function videoSendStage(phase: VideoSendPhase, fraction: number | null): string {
   const percent = Math.round((fraction ?? 0) * 100);
   if (phase === "render") return t("video_send_processing", { percent });
   if (phase === "prepare") return t("video_send_compressing", { percent });
-  return fraction === null ? t("video_send_preparing_upload") : t("video_send_uploading", { percent });
+  return t("video_send_uploading", { percent });
 }
 
 async function handleExternalFiles(files: FileList) {

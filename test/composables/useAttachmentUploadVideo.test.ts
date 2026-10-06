@@ -1,9 +1,9 @@
 /**
- * The composer's video branch, with the video library mocked: a picked video is probed and given a
- * poster, prepared at once in the background, prepared again (the old run cancelled, its output
- * dropped) whenever how it is sent changes, cancelled when it is removed, and sent as a video — or
- * as a plain file when the user asks, when the plan says it cannot be a video, or when af.chat.video
- * is off.
+ * The composer's video branch, with the video library mocked. Picking a video does only the cheap
+ * part: probe, poster and plan (the dialog's size estimate and "goes as a file" reasons). Nothing is
+ * compressed until Send; then each video is prepared (one at a time, across composers) and uploaded,
+ * and its bubble gets one combined, ever-growing progress. A video goes as a plain file when the user
+ * asks or when the plan (or the target's limits) say it cannot be a video.
  */
 import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
 
@@ -72,7 +72,7 @@ vi.mock("@/lib/video", () => ({
 }));
 
 import { toRaw } from "vue";
-import { useAttachmentUpload } from "@/composables/useAttachmentUpload";
+import { useAttachmentUpload, type PendingAttachment } from "@/composables/useAttachmentUpload";
 import { clearUploadLimits } from "@/lib/attachments/uploadLimits";
 import { MessageEntityAttachment, SuccessUploadFile, VideoUploadError, type AttachmentInfo } from "@argon/glue";
 
@@ -107,15 +107,16 @@ const POSTER = { blob: new Blob(["poster"], { type: "image/webp" }), width: 720,
 
 interface PrepareCall {
   file: Blob;
-  plan: { mode: string; prefs: Record<string, unknown> };
-  signal: AbortSignal;
-  resolve: (prepared: unknown) => void;
+  plan: ReturnType<typeof plan>;
+  progress: (fraction: number) => void;
+  resolve: (value: unknown) => void;
   reject: (e: unknown) => void;
 }
 
 let prepareCalls: PrepareCall[] = [];
+let planMode = "transcode";
 
-function plan(prefs: Record<string, unknown>, mode = "transcode", sourceMs = 30_000) {
+function plan(prefs: Record<string, unknown>, mode = planMode, sourceMs = 30_000) {
   const trim = prefs.trim as { startMs: number; endMs: number } | null | undefined;
   return {
     mode,
@@ -130,6 +131,7 @@ function plan(prefs: Record<string, unknown>, mode = "transcode", sourceMs = 30_
     crop: prefs.crop ?? null,
     rotate: prefs.rotate ?? 0,
     flip: !!prefs.flip,
+    maxBytes: prefs.maxBytes,
     sourceBytes: PROBE.size,
     estimatedBytes: 10_000_000,
     downscaledToFit: false,
@@ -143,16 +145,29 @@ function prepared(size = 1_000) {
 
 const videoFile = (name = "clip.mp4", type = "video/mp4") => new File([new Uint8Array(64)], name, { type });
 
-let flagOn = true;
 let targetKnown = true;
 let made: ReturnType<typeof useAttachmentUpload>[] = [];
 const make = () => {
-  const attachments = useAttachmentUpload({ videoSending: () => flagOn, uploadTarget: () => (targetKnown ? target : null) });
+  const attachments = useAttachmentUpload({ uploadTarget: () => (targetKnown ? target : null) });
   made.push(attachments);
   return attachments;
 };
 
-// Transcodes queue across composers: a test that leaves one running would hold up the next.
+/** A video added and planned. */
+async function withVideo(name = "clip.mp4", type = "video/mp4") {
+  const attachments = make();
+  await attachments.addFiles([videoFile(name, type)]);
+  await vi.waitFor(() => expect(attachments.pendingFiles.value.at(-1)?.video?.plan).toBeTruthy());
+  return attachments;
+}
+
+/** Records what the bubble is told: [phase, combined fraction]. */
+function bubble() {
+  const seen: [string, number | null][] = [];
+  return { seen, report: (_entity: unknown, phase: string, fraction: number | null) => seen.push([phase, fraction]) };
+}
+
+// The preparation queue spans composers: a test that leaves one waiting would hold up the next.
 afterEach(() => {
   for (const attachments of made) attachments.clear();
   made = [];
@@ -163,8 +178,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   clearUploadLimits();
   prepareCalls = [];
-  flagOn = true;
   targetKnown = true;
+  planMode = "transcode";
   v.quality.value = "auto";
   // This channel takes videos up to 200 MB and one hour.
   h.limits.mockResolvedValue({ attachmentMaxBytes: 25n * MB, videoMaxBytes: 200n * MB, videoMaxDurationMs: 3_600_000n });
@@ -177,17 +192,16 @@ beforeEach(() => {
 
   v.probeVideo.mockResolvedValue({ ...PROBE });
   v.extractPoster.mockResolvedValue(POSTER);
-  v.videoCodecAvailability.mockResolvedValue({ avc: true, aac: true, aacPolyfill: false });
-  v.planVideo.mockImplementation((probe: { durationMs: number }, prefs: Record<string, unknown>) => plan(prefs, "transcode", probe.durationMs));
-  // prepareWithinLimit: plans (as the mocked planVideo does) and prepares. A test resolves a call with
-  // the prepared video, or with a whole { plan, prepared } to say what the library ended up with.
+  v.videoCodecAvailability.mockResolvedValue({ avc: true, aac: true, aacPolyfill: false, memoryBudgetBytes: 512 * 1024 * 1024 });
+  v.planVideo.mockImplementation((probe: { durationMs: number }, prefs: Record<string, unknown>) => plan(prefs, planMode, probe.durationMs));
+  // prepareWithinLimit: a test drives a call's progress and resolves it with the prepared video (or a
+  // whole { plan, prepared } to say what the library ended up with).
   v.prepareWithinLimit.mockImplementation(
-    (file: Blob, probe: { durationMs: number }, prefs: Record<string, unknown>, _encoders: unknown, options: { signal: AbortSignal }) =>
+    (file: Blob, probe: { durationMs: number }, prefs: Record<string, unknown>, _encoders: unknown, options: { onProgress?: (f: number) => void }) =>
       new Promise((resolve, reject) => {
-        const p = plan(prefs, "transcode", probe.durationMs);
+        const p = plan(prefs, planMode, probe.durationMs);
         const done = (value: unknown) => resolve(value && typeof value === "object" && "plan" in value ? value : { plan: p, prepared: value });
-        prepareCalls.push({ file, plan: p, signal: options.signal, resolve: done, reject });
-        options.signal.addEventListener("abort", () => reject(Object.assign(new Error("aborted"), { name: "AbortError", code: "aborted" })));
+        prepareCalls.push({ file, plan: p, progress: (f) => options.onProgress?.(f), resolve: done, reject });
       }),
   );
   v.buildStoryboard.mockResolvedValue(null);
@@ -197,32 +211,43 @@ beforeEach(() => {
 });
 
 describe("a picked video", () => {
-  test("is probed and given a poster a second in, and its size and placeholder come from them", async () => {
-    const attachments = make();
-    await attachments.addFiles([videoFile()]);
+  test("is probed, given a poster a second in and planned — and nothing is compressed", async () => {
+    const attachments = await withVideo();
 
     const entry = attachments.pendingFiles.value[0];
     expect(v.probeVideo).toHaveBeenCalledTimes(1);
     expect(v.extractPoster).toHaveBeenCalledWith(expect.any(File), 1_000);
-    expect(entry.video?.probe.durationMs).toBe(30_000);
     expect(entry.thumbHash).toBe("HASH");
     expect(entry.previewUrl).toMatch(/^blob:/);
     expect(entry.video?.prefs).toEqual({ quality: "auto", mute: false, sendAsFile: false });
+    expect(v.planVideo).toHaveBeenCalledWith(
+      expect.objectContaining({ width: 1920 }),
+      expect.objectContaining({ quality: "auto", mute: false, maxBytes: 200 * 1024 * 1024 }),
+      { avc: true, aac: true, memoryBudgetBytes: 512 * 1024 * 1024 },
+    );
+    expect([entry.width, entry.height]).toEqual([1280, 720]);
+
+    expect(v.prepareWithinLimit).not.toHaveBeenCalled();
+    expect(v.buildStoryboard).not.toHaveBeenCalled();
     // Its bytes are hashed only if it goes as a file.
     expect(h.sha).not.toHaveBeenCalled();
   });
 
-  test("a short one takes its poster at a tenth of its length", async () => {
-    v.probeVideo.mockResolvedValue({ ...PROBE, durationMs: 4_000 });
-    const attachments = make();
-    await attachments.addFiles([videoFile()]);
-    expect(v.extractPoster).toHaveBeenCalledWith(expect.any(File), 400);
+  test("a changed preference plans it again, and still compresses nothing", async () => {
+    const attachments = await withVideo();
+    attachments.setVideoPrefs(0, { quality: 480 });
+    await vi.waitFor(() => expect(attachments.pendingFiles.value[0].video?.plan?.height).toBe(480));
+    attachments.setVideoPrefs(0, { mute: true });
+    await vi.waitFor(() => expect(v.planVideo).toHaveBeenCalledTimes(3));
+    expect(v.planVideo.mock.calls[2][1]).toMatchObject({ quality: 480, mute: true });
+    expect(v.prepareWithinLimit).not.toHaveBeenCalled();
   });
 
-  test("the default quality comes from the setting", async () => {
+  test("a short one takes its poster at a tenth of its length; the default quality is the setting's", async () => {
+    v.probeVideo.mockResolvedValue({ ...PROBE, durationMs: 4_000 });
     v.quality.value = 720;
-    const attachments = make();
-    await attachments.addFiles([videoFile()]);
+    const attachments = await withVideo();
+    expect(v.extractPoster).toHaveBeenCalledWith(expect.any(File), 400);
     expect(attachments.pendingFiles.value[0].video?.prefs.quality).toBe(720);
   });
 
@@ -230,173 +255,166 @@ describe("a picked video", () => {
     v.probeVideo.mockRejectedValue(Object.assign(new Error("unsupported-format"), { name: "VideoProbeError", code: "unsupported-format" }));
     const attachments = make();
     await attachments.addFiles([videoFile("clip.mkv", "")]);
-
     expect(attachments.pendingFiles.value[0].video).toBeUndefined();
     expect(h.sha).toHaveBeenCalled();
   });
 
   test("a video by its extension when the browser gave it no type", async () => {
-    const attachments = make();
-    await attachments.addFiles([videoFile("holiday.MOV", "")]);
-    expect(v.probeVideo).toHaveBeenCalled();
+    const attachments = await withVideo("holiday.MOV", "");
     expect(attachments.pendingFiles.value[0].video).toBeDefined();
   });
-});
 
-describe("eager preparation", () => {
-  test("starts as soon as the video is added, with the plan of its preferences", async () => {
+  test("a plan that cannot make it playable sends it as a file, locked, with nothing prepared", async () => {
+    planMode = "original";
     const attachments = make();
     await attachments.addFiles([videoFile()]);
-    await vi.waitFor(() => expect(prepareCalls).toHaveLength(1));
-
-    expect(v.planVideo).toHaveBeenCalledWith(expect.objectContaining({ width: 1920 }), expect.objectContaining({ quality: "auto", mute: false, maxBytes: 200 * 1024 * 1024 }), { avc: true, aac: true });
-    expect(h.limits).toHaveBeenCalledWith("s1", "c1");
     const entry = attachments.pendingFiles.value[0];
-    expect(entry.video?.preparing).toMatchObject({ phase: "prepare", progress: 0 });
+    await vi.waitFor(() => expect(entry.video?.fileReason).toBe("undecodable"));
 
-    prepareCalls[0].resolve(prepared());
-    await vi.waitFor(() => expect(entry.video?.prepared).toBeTruthy());
-    expect(entry.video?.preparing).toBeNull();
-  });
-
-  test("a changed preference cancels the run, drops its output and prepares again", async () => {
-    const attachments = make();
-    await attachments.addFiles([videoFile()]);
-    await vi.waitFor(() => expect(prepareCalls).toHaveLength(1));
-    prepareCalls[0].resolve(prepared());
-    const entry = attachments.pendingFiles.value[0];
-    await vi.waitFor(() => expect(entry.video?.prepared).toBeTruthy());
-
-    attachments.setVideoPrefs(0, { quality: 480 });
-    expect(entry.video?.prepared).toBeNull();
-    await vi.waitFor(() => expect(prepareCalls).toHaveLength(2));
-    expect(prepareCalls[1].plan.prefs).toMatchObject({ quality: 480 });
-
-    // Changed again while it runs: the running one is cancelled.
-    attachments.setVideoPrefs(0, { mute: true });
-    expect(prepareCalls[1].signal.aborted).toBe(true);
-    await vi.waitFor(() => expect(prepareCalls).toHaveLength(3));
-    expect(prepareCalls[2].plan.prefs).toMatchObject({ quality: 480, mute: true });
-  });
-
-  test("removing the video cancels its preparation", async () => {
-    const attachments = make();
-    await attachments.addFiles([videoFile()]);
-    await vi.waitFor(() => expect(prepareCalls).toHaveLength(1));
-
-    attachments.removeFile(0);
-    expect(prepareCalls[0].signal.aborted).toBe(true);
-    expect(attachments.pendingFiles.value).toHaveLength(0);
-  });
-
-  test("the user's stop releases it, and sending runs it again", async () => {
-    const attachments = make();
-    await attachments.addFiles([videoFile()]);
-    await vi.waitFor(() => expect(prepareCalls).toHaveLength(1));
-
-    attachments.cancelVideoPreparation(0);
-    const entry = attachments.pendingFiles.value[0];
-    expect(prepareCalls[0].signal.aborted).toBe(true);
-    expect(entry.video?.paused).toBe(true);
-    expect(entry.video?.preparing).toBeNull();
-
-    const sending = attachments.uploadAll(target);
-    await vi.waitFor(() => expect(prepareCalls).toHaveLength(2));
-    prepareCalls[1].resolve(prepared());
-    const entities = await sending;
-    expect(v.uploadVideo).toHaveBeenCalledTimes(1);
-    expect(entities).toEqual([{ type: 25, fileId: "video-file", kind: "video" }]);
-  });
-
-  test("a closed dialog stops it, and opening it again starts it over", async () => {
-    const attachments = make();
-    await attachments.addFiles([videoFile()]);
-    await vi.waitFor(() => expect(prepareCalls).toHaveLength(1));
-
-    attachments.pausePreparations();
-    expect(prepareCalls[0].signal.aborted).toBe(true);
-    attachments.resumePreparations();
-    await vi.waitFor(() => expect(prepareCalls).toHaveLength(2));
-  });
-
-  test("prepared within the target's limit: the source, its probe, the preferences with the limit, the encoders", async () => {
-    v.videoCodecAvailability.mockResolvedValue({ avc: true, aac: true, aacPolyfill: false, memoryBudgetBytes: 512 * 1024 * 1024 });
-    const attachments = make();
-    await attachments.addFiles([videoFile()]);
-    await vi.waitFor(() => expect(prepareCalls).toHaveLength(1));
-
-    const [file, probe, prefs, encoders] = v.prepareWithinLimit.mock.calls[0];
-    expect(file).toBe(toRaw(attachments.pendingFiles.value[0].video?.source));
-    expect(probe).toMatchObject({ width: 1920, durationMs: 30_000 });
-    expect(prefs).toMatchObject({ quality: "auto", mute: false, maxBytes: 200 * 1024 * 1024 });
-    expect(encoders).toEqual({ avc: true, aac: true, memoryBudgetBytes: 512 * 1024 * 1024 });
-  });
-
-  test("an output that overshot and was made a rung lower keeps the lower plan, and says so", async () => {
-    const attachments = make();
-    await attachments.addFiles([videoFile()]);
-    await vi.waitFor(() => expect(prepareCalls).toHaveLength(1));
-    const lower = plan({ quality: 480 });
-    prepareCalls[0].resolve({ plan: lower, prepared: prepared() });
-
-    const entry = attachments.pendingFiles.value[0];
-    await vi.waitFor(() => expect(entry.video?.prepared).toBeTruthy());
-    expect(entry.video?.steppedDown).toBe(true);
-    expect([entry.video?.plan?.width, entry.video?.plan?.height]).toEqual([854, 480]);
-    expect([entry.width, entry.height]).toEqual([854, 480]);
-  });
-
-  test("when even the lowest rung is too large, it goes as a file", async () => {
-    const attachments = make();
-    await attachments.addFiles([videoFile()]);
-    await vi.waitFor(() => expect(prepareCalls).toHaveLength(1));
-    prepareCalls[0].resolve({ plan: { ...plan({}, "original"), reason: "too-large" }, prepared: null });
-
-    const entry = attachments.pendingFiles.value[0];
-    await vi.waitFor(() => expect(entry.video?.fileReason).toBe("too-large"));
     expect(entry.video?.prefs.sendAsFile).toBe(true);
-    expect(entry.video?.prepared).toBeNull();
-  });
-
-  test("a failed preparation sends the video as a file and says why", async () => {
-    const attachments = make();
-    await attachments.addFiles([videoFile()]);
-    await vi.waitFor(() => expect(prepareCalls).toHaveLength(1));
-    prepareCalls[0].reject(Object.assign(new Error("conversion-failed"), { name: "VideoPrepareError", code: "conversion-failed" }));
-
-    const entry = attachments.pendingFiles.value[0];
-    await vi.waitFor(() => expect(entry.video?.fileReason).toBe("failed"));
+    attachments.setVideoPrefs(0, { sendAsFile: false });
     expect(entry.video?.prefs.sendAsFile).toBe(true);
-    expect(entry.video?.error).toBe("conversion-failed");
+
+    const entities = await attachments.uploadAll(target);
+    expect(v.prepareWithinLimit).not.toHaveBeenCalled();
+    expect(entities[0]).toBeInstanceOf(MessageEntityAttachment);
+    expect(v.recordVideoSentAsFile).toHaveBeenCalledWith(expect.objectContaining({ mode: "original", reason: "undecodable" }));
   });
 });
 
 describe("sending", () => {
-  test("a video goes up as a video with its poster, and the message carries the video entity", async () => {
-    const attachments = make();
-    await attachments.addFiles([videoFile("trip.mov", "video/quicktime")]);
-    await vi.waitFor(() => expect(prepareCalls).toHaveLength(1));
+  test("prepares, then uploads with the poster and the storyboard; the bubble gets one combined, growing value", async () => {
+    const attachments = await withVideo("trip.mov", "video/quicktime");
     const output = prepared(2_048);
+    const storyboard = { blob: new Blob(["sprite"]), storyboard: { frameWidth: 160, frameHeight: 90, columns: 10, frameCount: 12, intervalMs: 1_000 } };
+    v.buildStoryboard.mockResolvedValue(storyboard);
+    v.uploadVideo.mockImplementation(async (_t: unknown, _input: unknown, opts: { onProgress: (stage: string, f: number) => void }) => {
+      opts.onProgress("poster", 1);
+      opts.onProgress("storyboard", 1);
+      opts.onProgress("video", 0.5);
+      opts.onProgress("video", 1);
+      return { fileId: "video-file" };
+    });
+    const { seen, report } = bubble();
+
+    const sending = attachments.uploadAll(target, report);
+    await vi.waitFor(() => expect(prepareCalls).toHaveLength(1));
+    // Prepared from the file as picked, within the target's limit.
+    const [file, , prefs, encoders] = v.prepareWithinLimit.mock.calls[0];
+    expect(file).toBe(toRaw(attachments.pendingFiles.value[0].video?.source));
+    expect(prefs).toMatchObject({ maxBytes: 200 * 1024 * 1024 });
+    expect(encoders).toEqual({ avc: true, aac: true, memoryBudgetBytes: 512 * 1024 * 1024 });
+    prepareCalls[0].progress(0.5);
     prepareCalls[0].resolve(output);
+    const entities = await sending;
 
-    const reported: [string, number | null][] = [];
-    const entities = await attachments.uploadAll(target, (_entity, phase, fraction) => reported.push([phase, fraction]));
-
-    const [uploadTarget, input] = v.uploadVideo.mock.calls[0];
-    expect(uploadTarget).toEqual(target);
-    expect(input).toMatchObject({ fileName: "trip.mov", poster: POSTER, storyboard: null, width: 1280, height: 720 });
+    const [, input] = v.uploadVideo.mock.calls[0];
+    expect(input).toMatchObject({ fileName: "trip.mov", poster: POSTER, storyboard, width: 1280, height: 720 });
     expect(input.blob).toBe(output.blob);
     expect(v.buildStoryboard).toHaveBeenCalledWith(output.blob, 30_000);
     expect(entities).toEqual([{ type: 25, fileId: "video-file", kind: "video" }]);
-    expect(h.begin).not.toHaveBeenCalled();
-    expect(reported.some(([phase]) => phase === "upload")).toBe(true);
+
+    // A transcode: compress 0.6 (preparation 0.85 of it, storyboard 0.15), upload 0.4.
+    const values = seen.map(([, f]) => f as number);
+    for (let i = 1; i < values.length; i++) expect(values[i]).toBeGreaterThanOrEqual(values[i - 1]);
+    expect(seen).toContainEqual(["prepare", expect.closeTo(0.255, 5)]);
+    expect(seen).toContainEqual(["prepare", expect.closeTo(0.6, 5)]);
+    expect(seen).toContainEqual(["upload", expect.closeTo(0.82, 5)]);
+    expect(seen.at(-1)).toEqual(["upload", 1]);
   });
 
-  test("the optimistic bubble is a video entity with what the plan measured", async () => {
-    const attachments = make();
-    await attachments.addFiles([videoFile()]);
-    await vi.waitFor(() => expect(attachments.pendingFiles.value[0].video?.plan).toBeTruthy());
+  test("a copy is all upload: compressing leaves the ring at 0", async () => {
+    planMode = "copy";
+    const attachments = await withVideo();
+    v.uploadVideo.mockImplementation(async (_t: unknown, _i: unknown, opts: { onProgress: (stage: string, f: number) => void }) => {
+      opts.onProgress("video", 0.5);
+      return { fileId: "video-file" };
+    });
+    const { seen, report } = bubble();
+    const sending = attachments.uploadAll(target, report);
+    await vi.waitFor(() => expect(prepareCalls).toHaveLength(1));
+    prepareCalls[0].progress(0.9);
+    prepareCalls[0].resolve(prepared());
+    await sending;
 
+    expect(seen.filter(([phase]) => phase === "prepare").every(([, f]) => f === 0)).toBe(true);
+    expect(seen).toContainEqual(["upload", expect.closeTo(0.45, 5)]);
+    expect(seen.at(-1)).toEqual(["upload", 1]);
+  });
+
+  test("videos are prepared one at a time, across composers; an upload does not hold up the next preparation", async () => {
+    const first = await withVideo("a.mp4");
+    const second = await withVideo("b.mp4");
+    let finishFirstUpload!: () => void;
+    v.uploadVideo.mockImplementationOnce(() => new Promise((resolve) => (finishFirstUpload = () => resolve({ fileId: "a" }))));
+
+    const sendingFirst = first.uploadAll(target);
+    const sendingSecond = second.uploadAll(target);
+    await vi.waitFor(() => expect(prepareCalls).toHaveLength(1));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(prepareCalls).toHaveLength(1);
+
+    prepareCalls[0].resolve(prepared());
+    // The first is uploading now; the second is prepared meanwhile.
+    await vi.waitFor(() => expect(prepareCalls).toHaveLength(2));
+    expect(v.uploadVideo).toHaveBeenCalledTimes(1);
+    prepareCalls[1].resolve(prepared());
+    await sendingSecond;
+    finishFirstUpload();
+    await sendingFirst;
+    expect(v.uploadVideo).toHaveBeenCalledTimes(2);
+  });
+
+  test("a failed preparation fails the send with its error, and nothing is uploaded", async () => {
+    const attachments = await withVideo();
+    const uploader = attachments.detach();
+    const sending = uploader.uploadAll(target);
+    await vi.waitFor(() => expect(prepareCalls).toHaveLength(1));
+    const failure = Object.assign(new Error("conversion-failed"), { name: "VideoPrepareError", code: "conversion-failed" });
+    prepareCalls[0].reject(failure);
+
+    expect(await sending).toEqual([]);
+    expect(uploader.hasErrors()).toBe(true);
+    expect(uploader.videoFailure()).toBe(failure);
+    expect(v.uploadVideo).not.toHaveBeenCalled();
+    expect(h.begin).not.toHaveBeenCalled();
+  });
+
+  test("a failed upload keeps its failure for the message", async () => {
+    const failure = Object.assign(new Error("TOO_LARGE"), { name: "VideoUploadFailure", code: 2 });
+    v.uploadVideo.mockRejectedValue(failure);
+    const attachments = await withVideo();
+    const uploader = attachments.detach();
+    const sending = uploader.uploadAll(target);
+    await vi.waitFor(() => expect(prepareCalls).toHaveLength(1));
+    prepareCalls[0].resolve(prepared());
+
+    expect(await sending).toEqual([]);
+    expect(uploader.videoFailure()).toBe(failure);
+  });
+
+  test("an output that overshot and was made a rung lower is uploaded as it came", async () => {
+    const attachments = await withVideo();
+    const sending = attachments.uploadAll(target);
+    await vi.waitFor(() => expect(prepareCalls).toHaveLength(1));
+    const lower = { ...prepared(), width: 854, height: 480 };
+    prepareCalls[0].resolve({ plan: plan({ quality: 480 }), prepared: lower });
+    await sending;
+    expect(v.uploadVideo.mock.calls[0][1]).toMatchObject({ width: 854, height: 480 });
+  });
+
+  test("when even the lowest rung is too large, it goes as a file", async () => {
+    const attachments = await withVideo();
+    const sending = attachments.uploadAll(target);
+    await vi.waitFor(() => expect(prepareCalls).toHaveLength(1));
+    prepareCalls[0].resolve({ plan: { ...plan({}, "original"), reason: "too-large" }, prepared: null });
+    const entities = await sending;
+    expect(v.uploadVideo).not.toHaveBeenCalled();
+    expect(entities[0]).toBeInstanceOf(MessageEntityAttachment);
+  });
+
+  test("the optimistic bubble is a video entity with what the plan expects", async () => {
+    const attachments = await withVideo();
     const [entity] = attachments.buildOptimisticEntities();
     expect(v.videoEntityFromOptimistic).toHaveBeenCalledWith(
       expect.objectContaining({ fileName: "clip.mp4", width: 1280, height: 720, durationMs: 30_000 }),
@@ -406,68 +424,31 @@ describe("sending", () => {
     expect((entity as unknown as { fileSize: bigint }).fileSize).toBe(10_000_000n);
   });
 
-  test("“Send as file” stops the preparation and sends the bytes as an attachment", async () => {
-    const attachments = make();
-    await attachments.addFiles([videoFile()]);
-    await vi.waitFor(() => expect(prepareCalls).toHaveLength(1));
-
+  test("“Send as file” sends the bytes as an attachment, with nothing prepared", async () => {
+    const attachments = await withVideo();
     attachments.setVideoPrefs(0, { sendAsFile: true });
-    expect(prepareCalls[0].signal.aborted).toBe(true);
     const entities = await attachments.uploadAll(target);
 
-    expect(prepareCalls).toHaveLength(1);
+    expect(v.prepareWithinLimit).not.toHaveBeenCalled();
     expect(v.uploadVideo).not.toHaveBeenCalled();
     expect(h.begin).toHaveBeenCalled();
     expect(entities[0]).toBeInstanceOf(MessageEntityAttachment);
     expect(v.recordVideoSentAsFile).toHaveBeenCalledWith(expect.objectContaining({ reason: "user-original" }));
   });
-
-  test("a plan that cannot make it playable sends it as a file, with nothing prepared", async () => {
-    v.planVideo.mockImplementation((_probe: unknown, prefs: Record<string, unknown>) => plan(prefs, "original"));
-    const attachments = make();
-    await attachments.addFiles([videoFile()]);
-    const entry = attachments.pendingFiles.value[0];
-    await vi.waitFor(() => expect(entry.video?.fileReason).toBe("undecodable"));
-
-    expect(entry.video?.prefs.sendAsFile).toBe(true);
-    expect(v.prepareWithinLimit).not.toHaveBeenCalled();
-    // The user cannot turn a forced file back into a video.
-    attachments.setVideoPrefs(0, { sendAsFile: false });
-    expect(entry.video?.prefs.sendAsFile).toBe(true);
-
-    const entities = await attachments.uploadAll(target);
-    expect(entities[0]).toBeInstanceOf(MessageEntityAttachment);
-    expect(v.recordVideoSentAsFile).toHaveBeenCalledWith(expect.objectContaining({ mode: "original", reason: "undecodable" }));
-  });
-
-  test("a failed upload keeps its failure for the message", async () => {
-    const failure = Object.assign(new Error("TOO_LARGE"), { name: "VideoUploadFailure", code: 2 });
-    v.uploadVideo.mockRejectedValue(failure);
-    const attachments = make();
-    await attachments.addFiles([videoFile()]);
-    await vi.waitFor(() => expect(prepareCalls).toHaveLength(1));
-    prepareCalls[0].resolve(prepared());
-
-    const uploader = attachments.detach();
-    const entities = await uploader.uploadAll(target);
-    expect(entities).toEqual([]);
-    expect(uploader.hasErrors()).toBe(true);
-    expect(uploader.videoFailure()).toBe(failure);
-  });
 });
 
 describe("the target's upload limits", () => {
-  test("the plan gets the target's video size, and asking once serves every video of the target", async () => {
+  test("asked once for every video of the target", async () => {
     const attachments = make();
     await attachments.addFiles([videoFile("a.mp4"), videoFile("b.mp4")]);
     await vi.waitFor(() => expect(v.planVideo).toHaveBeenCalledTimes(2));
-
     for (const [, prefs] of v.planVideo.mock.calls) expect(prefs.maxBytes).toBe(200 * 1024 * 1024);
     expect(h.limits).toHaveBeenCalledTimes(1);
+    expect(h.limits).toHaveBeenCalledWith("s1", "c1");
     expect(attachments.pendingFiles.value[0].video?.limits).toEqual({ maxBytes: 200 * 1024 * 1024, maxDurationMs: 3_600_000 });
   });
 
-  test("a video longer than the target takes goes as a file, refused before any preparation", async () => {
+  test("a video longer than the target takes goes as a file, and nothing is prepared at send", async () => {
     v.probeVideo.mockResolvedValue({ ...PROBE, durationMs: 2 * 3_600_000 });
     const attachments = make();
     await attachments.addFiles([videoFile()]);
@@ -475,8 +456,8 @@ describe("the target's upload limits", () => {
     await vi.waitFor(() => expect(entry.video?.fileReason).toBe("too-long"));
 
     expect(entry.video?.prefs.sendAsFile).toBe(true);
-    expect(v.prepareWithinLimit).not.toHaveBeenCalled();
     const entities = await attachments.uploadAll(target);
+    expect(v.prepareWithinLimit).not.toHaveBeenCalled();
     expect(entities[0]).toBeInstanceOf(MessageEntityAttachment);
     expect(v.recordVideoSentAsFile).toHaveBeenCalledWith(expect.objectContaining({ reason: "too-long" }));
   });
@@ -489,39 +470,34 @@ describe("the target's upload limits", () => {
     await vi.waitFor(() => expect(entry.video?.fileReason).toBe("too-long"));
 
     attachments.applyVideoEdit(0, { trim: { startMs: 0, endMs: 60_000 }, crop: null, rotate: 0, flip: false, mute: false, quality: null, coverMs: null });
-    await vi.waitFor(() => expect(prepareCalls).toHaveLength(1));
-    expect(entry.video?.fileReason).toBeNull();
+    await vi.waitFor(() => expect(entry.video?.fileReason).toBeNull());
     expect(entry.video?.prefs.sendAsFile).toBe(false);
   });
 
   test("a server without GetUploadLimits does not stop sending: 100 MB and 4 h apply", async () => {
     h.limits.mockRejectedValue(new Error("Unknown method IChannelInteraction.GetUploadLimits"));
-    const attachments = make();
-    await attachments.addFiles([videoFile()]);
-    await vi.waitFor(() => expect(prepareCalls).toHaveLength(1));
-
+    const attachments = await withVideo();
     expect(v.planVideo.mock.calls[0][1].maxBytes).toBe(100 * 1024 * 1024);
-    expect(attachments.pendingFiles.value[0].video?.limits).toEqual({ maxBytes: 100 * 1024 * 1024, maxDurationMs: 4 * 3_600_000 });
+    const sending = attachments.uploadAll(target);
+    await vi.waitFor(() => expect(prepareCalls).toHaveLength(1));
     prepareCalls[0].resolve(prepared());
-    expect(await attachments.uploadAll(target)).toEqual([{ type: 25, fileId: "video-file", kind: "video" }]);
+    expect(await sending).toEqual([{ type: 25, fileId: "video-file", kind: "video" }]);
   });
 
   test("without a known target the defaults apply and nothing is asked", async () => {
     targetKnown = false;
-    const attachments = make();
-    await attachments.addFiles([videoFile()]);
-    await vi.waitFor(() => expect(v.planVideo).toHaveBeenCalled());
+    await withVideo();
     expect(v.planVideo.mock.calls[0][1].maxBytes).toBe(100 * 1024 * 1024);
     expect(h.limits).not.toHaveBeenCalled();
   });
 
   test("a TOO_LARGE refusal drops the target's limits, so the next video asks again", async () => {
     v.uploadVideo.mockRejectedValue(Object.assign(new Error("TOO_LARGE"), { name: "VideoUploadFailure", code: VideoUploadError.TOO_LARGE }));
-    const attachments = make();
-    await attachments.addFiles([videoFile()]);
+    const attachments = await withVideo();
+    const sending = attachments.uploadAll(target);
     await vi.waitFor(() => expect(prepareCalls).toHaveLength(1));
     prepareCalls[0].resolve(prepared());
-    await attachments.uploadAll(target);
+    await sending;
     expect(h.limits).toHaveBeenCalledTimes(1);
 
     await attachments.addFiles([videoFile("next.mp4")]);
@@ -529,45 +505,9 @@ describe("the target's upload limits", () => {
   });
 });
 
-describe("with af.chat.video off", () => {
-  test("a video/mp4 file takes the plain attachment path: no probe, no preparation, no video entity", async () => {
-    flagOn = false;
-    // happy-dom loads no media: the element errors, and the generic path goes on without a preview.
-    const create = document.createElement.bind(document);
-    vi.spyOn(document, "createElement").mockImplementation(((tag: string) => {
-      const el = create(tag);
-      if (tag === "video") {
-        Object.defineProperty(el, "src", {
-          set() {
-            queueMicrotask(() => (el as HTMLVideoElement).onerror?.(new Event("error")));
-          },
-        });
-      }
-      return el;
-    }) as typeof document.createElement);
-
-    const attachments = make();
-    await attachments.addFiles([videoFile()]);
-    const entry = attachments.pendingFiles.value[0];
-    expect(v.probeVideo).not.toHaveBeenCalled();
-    expect(entry.video).toBeUndefined();
-    expect(h.sha).toHaveBeenCalled();
-
-    const [optimistic] = attachments.buildOptimisticEntities();
-    expect(optimistic).toBeInstanceOf(MessageEntityAttachment);
-    const entities = await attachments.uploadAll(target);
-    expect(v.prepareWithinLimit).not.toHaveBeenCalled();
-    expect(v.uploadVideo).not.toHaveBeenCalled();
-    expect(entities[0]).toBeInstanceOf(MessageEntityAttachment);
-  });
-});
-
 describe("an edit from the media editor", () => {
-  test("trim / crop / turn go into the preferences and the source is prepared again with them", async () => {
-    const attachments = make();
-    await attachments.addFiles([videoFile()]);
-    await vi.waitFor(() => expect(prepareCalls).toHaveLength(1));
-
+  test("trim / crop / turn become preferences of the source, prepared with them only at send", async () => {
+    const attachments = await withVideo();
     attachments.applyVideoEdit(0, {
       trim: { startMs: 1_000, endMs: 9_000 },
       crop: { left: 0, top: 0, width: 1080, height: 1080 },
@@ -577,12 +517,17 @@ describe("an edit from the media editor", () => {
       quality: 480,
       coverMs: 2_000,
     });
-    expect(prepareCalls[0].signal.aborted).toBe(true);
-    await vi.waitFor(() => expect(prepareCalls).toHaveLength(2));
-
     const entry = attachments.pendingFiles.value[0];
-    expect(prepareCalls[1].file).toBe(toRaw(entry.video?.source));
-    expect(prepareCalls[1].plan.prefs).toMatchObject({
+    await vi.waitFor(() => expect(v.planVideo).toHaveBeenCalledTimes(2));
+    expect(v.prepareWithinLimit).not.toHaveBeenCalled();
+    expect(entry.sha256).toBeNull();
+    expect(entry.link).toBeNull();
+    expect(entry.video?.prefs.coverMs).toBe(2_000);
+
+    const sending = attachments.uploadAll(target);
+    await vi.waitFor(() => expect(prepareCalls).toHaveLength(1));
+    expect(prepareCalls[0].file).toBe(toRaw(entry.video?.source));
+    expect(prepareCalls[0].plan.prefs).toMatchObject({
       quality: 480,
       mute: true,
       trim: { startMs: 1_000, endMs: 9_000 },
@@ -590,50 +535,60 @@ describe("an edit from the media editor", () => {
       rotate: 90,
       flip: true,
     });
-    expect(entry.video?.prefs.coverMs).toBe(2_000);
-    expect(entry.sha256).toBeNull();
-    expect(entry.link).toBeNull();
+    prepareCalls[0].resolve(prepared());
+    await sending;
   });
 
-  test("a render replaces the bytes with what the editor rendered, then prepares that", async () => {
-    const attachments = make();
-    await attachments.addFiles([videoFile("trip.mov", "video/quicktime")]);
+  test("a painted edit is rendered only at send; then what it rendered is prepared and uploaded", async () => {
+    const attachments = await withVideo("trip.mov", "video/quicktime");
+    let finish!: (value: { blob: Blob; hasSound: boolean }) => void;
+    const getResult = vi.fn(() => new Promise<{ blob: Blob; hasSound: boolean }>((resolve) => (finish = resolve)));
+    const creationProgress = { value: 0 };
+    attachments.renderVideoEdit(0, { getResult, cancel: vi.fn(), creationProgress });
+    await new Promise((r) => setTimeout(r, 10));
+    expect(getResult).not.toHaveBeenCalled();
+    expect(v.prepareWithinLimit).not.toHaveBeenCalled();
+
+    const entry: PendingAttachment = attachments.pendingFiles.value[0];
+    const { seen, report } = bubble();
+    const sending = attachments.uploadAll(target, report);
+    await vi.waitFor(() => expect(getResult).toHaveBeenCalledTimes(1));
+    finish({ blob: new Blob([new Uint8Array(10)], { type: "video/mp4" }), hasSound: true });
     await vi.waitFor(() => expect(prepareCalls).toHaveLength(1));
 
-    let finish!: (v: { blob: Blob; hasSound: boolean }) => void;
-    const rendered = new Blob([new Uint8Array(10)], { type: "video/mp4" });
-    attachments.renderVideoEdit(0, {
-      getResult: () => new Promise((resolve) => (finish = resolve)),
-      cancel: vi.fn(),
-      creationProgress: { value: 0 },
-    });
-    const entry = attachments.pendingFiles.value[0];
-    expect(entry.video?.preparing?.phase).toBe("render");
-
-    finish({ blob: rendered, hasSound: true });
-    await vi.waitFor(() => expect(prepareCalls).toHaveLength(2));
     expect(entry.file.name).toBe("trip.mp4");
     expect(entry.file.size).toBe(10);
     expect(entry.video?.source.name).toBe("trip.mov");
-    expect(prepareCalls[1].file).toBe(toRaw(entry.file));
+    expect(prepareCalls[0].file).toBe(toRaw(entry.file));
+    prepareCalls[0].resolve(prepared());
+    await sending;
+    expect(v.uploadVideo).toHaveBeenCalledTimes(1);
+    expect(seen[0][0]).toBe("render");
+    // Rendered: compress 0.6, of which the render is 0.75.
+    expect(seen).toContainEqual(["render", expect.closeTo(0.45, 5)]);
   });
 
-  test("cancelling a render drops the edit and the video is prepared as it was", async () => {
-    const attachments = make();
-    await attachments.addFiles([videoFile()]);
-    await vi.waitFor(() => expect(prepareCalls).toHaveLength(1));
-    const entry = attachments.pendingFiles.value[0];
-    const before = entry.previewUrl;
+  test("a render that fails at send fails the message", async () => {
+    const attachments = await withVideo();
+    attachments.renderVideoEdit(0, { getResult: () => Promise.reject(new Error("GPU lost")), cancel: vi.fn() });
+    const uploader = attachments.detach();
+    expect(await uploader.uploadAll(target)).toEqual([]);
+    expect((uploader.videoFailure() as Error).name).toBe("VideoRenderError");
+    expect(v.prepareWithinLimit).not.toHaveBeenCalled();
+  });
 
-    let fail!: (e: unknown) => void;
-    const cancel = vi.fn(() => fail(new DOMException("cancelled", "AbortError")));
-    attachments.renderVideoEdit(0, { getResult: () => new Promise((_, reject) => (fail = reject)), cancel });
-    attachments.cancelVideoPreparation(0);
+  test("a painted edit not sent is cancelled when the video is removed, or replaced by another edit", async () => {
+    const attachments = await withVideo();
+    const first = { getResult: vi.fn(), cancel: vi.fn() };
+    attachments.renderVideoEdit(0, first);
+    attachments.applyVideoEdit(0, { trim: null, crop: null, rotate: 0, flip: false, mute: true, quality: null, coverMs: null });
+    expect(first.cancel).toHaveBeenCalled();
 
-    expect(cancel).toHaveBeenCalled();
-    await vi.waitFor(() => expect(prepareCalls).toHaveLength(2));
-    expect(entry.previewUrl).toBe(before);
-    expect(toRaw(entry.file)).toBe(toRaw(entry.video?.source));
-    expect(entry.video?.error).toBeNull();
+    const second = { getResult: vi.fn(), cancel: vi.fn() };
+    attachments.renderVideoEdit(0, second);
+    attachments.removeFile(0);
+    expect(second.cancel).toHaveBeenCalled();
+    expect(first.getResult).not.toHaveBeenCalled();
+    expect(second.getResult).not.toHaveBeenCalled();
   });
 });

@@ -44,6 +44,9 @@ export function videoSendErrorKey(error: unknown): string {
   if (e && typeof e === "object") {
     if (e.name === "VideoUploadFailure" || (e.name === "AbortError" && isUploadCode(e.code))) return videoUploadErrorKey(e.code as VideoUploadFailureCode);
     if (e.name === "VideoPrepareError") return e.code === "output-too-large" ? "video_send_error_output_too_large" : "video_send_error_prepare";
+    // The editor's render of a painted edit, or a plan that refused the edits, at send.
+    if (e.name === "VideoRenderError") return "video_send_error_render";
+    if (e.name === "VideoPlanError") return "video_send_error_prepare";
     if (e.name === "AbortError") return "video_upload_error_aborted";
   }
   return "video_upload_error_generic";

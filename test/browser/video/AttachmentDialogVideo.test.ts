@@ -1,19 +1,28 @@
 /**
  * The attach window's controls for a video, in a real browser: the quality (the rungs the source
- * reaches, plus Auto and Original), sound, "Send as file", the preparation's progress ring with its
- * stop, the length and expected size, the reason a video goes as a file, and the edit button that is
- * off — with the reason — where the editor cannot run.
+ * reaches, plus Auto and Original), sound, "Send as file", the length and expected size, the reason
+ * a video goes as a file, and the edit button that is off — with the reason — where the editor cannot
+ * run. Nothing is compressed before Send: a real video added through the composer is probed, given
+ * its poster and planned, and no preparation starts.
  */
 
 import "../../../packages/assets/styles/index.css";
 import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
 import { mount, flushPromises, type VueWrapper } from "@vue/test-utils";
-import { nextTick, reactive } from "vue";
+import { effectScope, nextTick, reactive } from "vue";
 import { userEvent } from "vitest/browser";
-import type { PendingAttachment, PendingVideo } from "@/composables/useAttachmentUpload";
+import { useAttachmentUpload, type PendingAttachment, type PendingVideo } from "@/composables/useAttachmentUpload";
+import { makeSource } from "./source";
 
 const h = vi.hoisted(() => ({
   caps: { gpu: false, videoEncode: true, audioEncode: true },
+  prepare: vi.fn(),
+}));
+
+// The real library (probe, poster, plan); only the preparation is watched.
+vi.mock("@/lib/video", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/lib/video")>()), prepareWithinLimit: h.prepare }));
+vi.mock("@/store/system/apiStore", () => ({
+  useApi: () => ({ channelInteraction: { GetUploadLimits: async () => ({ attachmentMaxBytes: 0n, videoMaxBytes: 0n, videoMaxDurationMs: 0n }) }, userChatInteractions: {} }),
 }));
 
 vi.mock("@/store/system/localeStore", () => ({
@@ -206,50 +215,35 @@ describe("a video in the attach window", () => {
     expect($("video-reason")?.textContent?.trim()).toBe('video_send_reason_too_long:{"limit":"2 GB","duration":"1:00:00"}');
   });
 
-  test("a video made again a rung lower to fit says at what height; one that could not fit names the limit", async () => {
-    await open([videoEntry({ steppedDown: true, plan: { ...PLAN, width: 854, height: 480 } as PendingVideo["plan"] })]);
+  test("a video planned a rung lower to fit says at what height", async () => {
+    await open([videoEntry({ plan: { ...PLAN, width: 854, height: 480, downscaledToFit: true } as PendingVideo["plan"] })]);
     expect($("video-reason")?.textContent?.trim()).toBe('video_send_downscaled:{"height":480}');
-    wrapper!.unmount();
-    document.body.innerHTML = "";
-
-    await open([
-      videoEntry({
-        fileReason: "failed",
-        error: "output-too-large",
-        prefs: { quality: "original", mute: false, sendAsFile: true },
-        limits: { maxBytes: 50 * 1024 * 1024, maxDurationMs: 3_600_000 },
-      }),
-    ]);
-    expect($("video-reason")?.textContent?.trim()).toBe('video_send_reason_output_too_large:{"limit":"50 MB","duration":"1:00:00"}');
   });
 
-  test("while it is compressed a ring shows how far, and stops it; stopped, it offers to compress now", async () => {
-    const entry = videoEntry();
-    const cancel = () => {};
-    entry.video!.preparing = { progress: 0.42, phase: "prepare", cancel };
-    const w = await open([entry]);
+  test("no compression before Send: a real video added is probed, given its poster and planned, and nothing more", async () => {
+    const scope = effectScope();
+    const attachments = scope.run(() => useAttachmentUpload())!;
+    const source = await makeSource({ durationSec: 3 });
+    await attachments.addFiles([new File([source], "clip.webm", { type: "video/webm" })]);
+    const entry = attachments.pendingFiles.value[0];
+    await vi.waitFor(() => expect(entry.video?.plan).toBeTruthy(), { timeout: 10_000 });
 
-    const ring = $<HTMLButtonElement>("video-prepare-progress")!;
-    expect(ring.dataset.progress).toBe("42");
-    expect($("video-prepare-stage")?.textContent).toBe('video_send_compressing:{"percent":42}');
-    await userEvent.click(ring);
-    expect(w.emitted("video-cancel")).toEqual([[0]]);
-    w.unmount();
-    document.body.innerHTML = "";
+    const w = mount(AttachmentDialog, { props: { files: attachments.pendingFiles.value, open: true }, attachTo: document.body });
+    wrapper = w;
+    await flushPromises();
 
-    const w2 = await open([videoEntry({ paused: true })]);
-    expect($("video-prepare-progress")).toBeNull();
-    expect($("video-reason")?.textContent).toContain("video_send_paused");
-    await userEvent.click($("video-prepare-now")!);
-    expect(w2.emitted("video-prepare")).toEqual([[0]]);
-  });
-
-  test("an editor render shows its own stage", async () => {
-    const entry = videoEntry();
-    entry.video!.preparing = { progress: 0.1, phase: "render", cancel: () => {} };
-    await open([entry]);
-    expect($("video-prepare-stage")?.textContent).toBe('video_send_processing:{"percent":10}');
-  });
+    expect(entry.video?.probe).toMatchObject({ container: "webm", width: 320, height: 180 });
+    expect(entry.thumbHash).toBeTruthy();
+    expect($("attachment-video-preview")?.querySelector("img")?.getAttribute("src")).toMatch(/^blob:/);
+    expect($("video-duration")?.textContent).toBe("0:03");
+    expect($("video-size")?.textContent).toContain("video_send_estimated_size");
+    // Nothing compresses, and nothing offers to: no progress, no stop.
+    await userEvent.click($("video-mute")!);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(h.prepare).not.toHaveBeenCalled();
+    expect(document.querySelector('[data-testid*="progress"], [data-testid*="prepare"]')).toBeNull();
+    scope.stop();
+  }, 30_000);
 
   test("edit is off, with the reason, without WebGPU or over 100 MB; on otherwise", async () => {
     await open([videoEntry()]);
@@ -276,7 +270,7 @@ describe("a video in the attach window", () => {
     URL.revokeObjectURL(src);
   });
 
-  test("in a batch with a picture, the picture keeps its own preview and the strip shows the video's progress", async () => {
+  test("in a batch with a picture, each keeps its own preview and the video's controls show for the video only", async () => {
     const canvas = document.createElement("canvas");
     canvas.width = 10;
     canvas.height = 10;
@@ -289,13 +283,10 @@ describe("a video in the attach window", () => {
       progress: 0,
       status: "pending",
     };
-    const video = videoEntry();
-    video.video!.preparing = { progress: 0.5, phase: "prepare", cancel: () => {} };
-    await open([image, video]);
+    await open([image, videoEntry()]);
 
     expect($("video-options")).toBeNull();
-    expect(document.querySelectorAll(".strip-thumb")).toHaveLength(2);
-    expect(document.querySelectorAll(".strip-progress")).toHaveLength(1);
+    expect(document.querySelectorAll(".strip-thumb img")).toHaveLength(2);
     await userEvent.click(document.querySelectorAll<HTMLElement>(".strip-thumb")[1]);
     expect($("video-options")).not.toBeNull();
   });

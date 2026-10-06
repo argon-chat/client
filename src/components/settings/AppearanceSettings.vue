@@ -396,7 +396,7 @@
                     <Switch v-model:checked="videoLoopShort" data-testid="setting-video-loop-short" />
                 </div>
 
-                <div v-if="chatVideoActive" class="setting-item">
+                <div class="setting-item">
                     <div class="flex-1">
                         <div class="text-sm font-medium">{{ t("video_upload_quality_setting") }}</div>
                         <div class="text-xs text-muted-foreground">{{ t("video_upload_quality_setting_desc") }}</div>
@@ -621,7 +621,6 @@ import { supports } from "@/lib/platform";
 const { t } = useLocale();
 const featureFlags = useFeatureFlags();
 const uiDensityFeatureEnabled = computed(() => featureFlags.isEnabled(FeatureFlagKeys.UI_DENSITY_ACTIVE));
-const chatVideoActive = computed(() => featureFlags.isEnabled(FeatureFlagKeys.CHAT_VIDEO));
 /** The select speaks strings; the setting keeps rungs as numbers. */
 const videoUploadQualityChoice = computed({
     get: () => String(videoUploadQuality.value),

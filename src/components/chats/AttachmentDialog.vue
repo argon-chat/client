@@ -35,33 +35,7 @@
 
           <span v-if="selectedVideo" class="video-chip video-chip--duration" data-testid="video-duration">{{ durationText }}</span>
 
-          <!-- Preparation: progress, and a stop -->
-          <div v-if="selectedVideo?.preparing" class="video-progress">
-            <button
-              type="button"
-              class="video-progress-ring"
-              :aria-label="t('video_send_stop')"
-              :title="t('video_send_stop')"
-              data-testid="video-prepare-progress"
-              :data-progress="Math.round(selectedVideo.preparing.progress * 100)"
-              @click="$emit('video-cancel', selectedIndex)"
-            >
-              <svg viewBox="0 0 48 48" aria-hidden="true">
-                <circle class="ring-track" cx="24" cy="24" r="20" />
-                <circle
-                  class="ring-fill"
-                  cx="24"
-                  cy="24"
-                  r="20"
-                  :stroke-dasharray="RING"
-                  :stroke-dashoffset="RING * (1 - Math.min(1, Math.max(0.02, selectedVideo.preparing.progress)))"
-                />
-              </svg>
-              <XIcon class="w-5 h-5" />
-            </button>
-            <span class="video-progress-label" data-testid="video-prepare-stage">{{ preparingText }}</span>
-          </div>
-          <div v-else class="video-play-badge">
+          <div class="video-play-badge">
             <PlayIcon class="w-5 h-5 fill-current" />
           </div>
 
@@ -138,12 +112,7 @@
 
         <span class="video-size" data-testid="video-size">{{ sizeText }}</span>
       </div>
-      <p v-if="selectedVideo && reasonText" class="video-reason" data-testid="video-reason">
-        {{ reasonText }}
-        <button v-if="selectedVideo.paused" type="button" class="video-reason-action" data-testid="video-prepare-now" @click="$emit('video-prepare', selectedIndex)">
-          {{ t('video_send_compress_now') }}
-        </button>
-      </p>
+      <p v-if="selectedVideo && reasonText" class="video-reason" data-testid="video-reason">{{ reasonText }}</p>
 
       <!-- Thumbnails strip -->
       <div v-if="files.length > 1" class="thumb-strip">
@@ -157,11 +126,6 @@
           <img v-if="(isImage(file) || isVideo(file)) && file.previewUrl" :src="file.previewUrl" alt="" class="strip-thumb-img" />
           <FilmIcon v-else-if="isVideo(file)" class="w-4 h-4 text-muted-foreground" />
           <FileIcon v-else class="w-4 h-4 text-muted-foreground" />
-          <span
-            v-if="file.video?.preparing"
-            class="strip-progress"
-            :style="{ transform: `scaleX(${Math.max(0.04, file.video.preparing.progress)})` }"
-          />
           <div role="button" class="strip-remove" @click.stop="$emit('remove', i)">
             <XIcon class="w-2.5 h-2.5" />
           </div>
@@ -234,8 +198,6 @@ import EnterText from "./EnterText.vue";
 
 const { t } = useLocale();
 
-const RING = 2 * Math.PI * 20;
-
 const props = defineProps<{
   files: PendingAttachment[];
   open: boolean;
@@ -254,8 +216,6 @@ const emit = defineEmits<{
   (e: "replace-file", index: number, file: File, previewUrl: string): void;
   (e: "open-editor", index: number, src: string, mediaType: "image" | "video"): void;
   (e: "video-prefs", index: number, patch: Partial<Pick<PendingVideoPrefs, "quality" | "mute" | "sendAsFile">>): void;
-  (e: "video-cancel", index: number): void;
-  (e: "video-prepare", index: number): void;
 }>();
 
 const captionInputRef = ref<InstanceType<typeof EnterText> | null>(null);
@@ -263,7 +223,7 @@ const selectedIndex = ref(0);
 const isDragging = ref(false);
 
 const selectedFile = computed(() => props.files[selectedIndex.value] ?? null);
-/** The selected file's video state, when it is sent as a video (af.chat.video). */
+/** The selected file's video state (a video the probe could read); nothing is compressed before Send. */
 const selectedVideo = computed<PendingVideo | null>(() => selectedFile.value?.video ?? null);
 
 watch(() => props.open, (v) => {
@@ -338,18 +298,10 @@ function onQuality(value: unknown) {
   emit("video-prefs", selectedIndex.value, { quality });
 }
 
-const preparingText = computed(() => {
-  const preparing = selectedVideo.value?.preparing;
-  if (!preparing) return "";
-  const percent = Math.round(preparing.progress * 100);
-  return preparing.phase === "render" ? t("video_send_processing", { percent }) : t("video_send_compressing", { percent });
-});
-
 const sizeText = computed(() => {
   const v = selectedVideo.value;
   const file = selectedFile.value;
   if (!v || !file) return "";
-  if (v.prepared) return formatSize(v.prepared.blob.size);
   if (v.prefs.sendAsFile && !(v.prefs.trim || v.prefs.crop || v.prefs.rotate || v.prefs.flip)) return formatSize(file.file.size);
   if (v.plan) return t("video_send_estimated_size", { size: formatSize(estimateOutputBytes(v.plan)) });
   return "";
@@ -360,7 +312,6 @@ const REASON_KEYS: Record<string, string> = {
   undecodable: "video_send_reason_undecodable",
   "too-large": "video_send_reason_too_large",
   "user-original": "video_send_reason_original",
-  failed: "video_send_reason_failed",
   "too-long": "video_send_reason_too_long",
 };
 
@@ -369,15 +320,10 @@ const reasonText = computed(() => {
   if (!v) return "";
   const limits = v.limits ?? { maxBytes: DEFAULT_UPLOAD_LIMITS.videoMaxBytes, maxDurationMs: DEFAULT_UPLOAD_LIMITS.videoMaxDurationMs };
   const params = { limit: formatLimitBytes(limits.maxBytes), duration: formatLimitDuration(limits.maxDurationMs) };
-  if (v.fileReason === "failed" && v.error === "output-too-large") return t("video_send_reason_output_too_large", params);
-  if (v.fileReason) return t(REASON_KEYS[v.fileReason] ?? "video_send_reason_failed", params);
-  if (v.error === "render-failed") return t("video_send_reason_render_failed");
+  if (v.fileReason) return t(REASON_KEYS[v.fileReason] ?? "video_send_reason_too_large", params);
   if (v.error === "invalid-trim") return t("video_send_reason_invalid_trim");
-  if (v.paused && !v.prefs.sendAsFile) return t("video_send_paused");
-  // Lowered to fit: when planned, or when the output overshot and was made again a rung lower.
-  if (v.plan && (v.plan.downscaledToFit || v.steppedDown) && !v.prefs.sendAsFile) {
-    return t("video_send_downscaled", { height: Math.min(v.plan.width, v.plan.height) });
-  }
+  // Planned a rung lower to fit the target's size limit.
+  if (v.plan?.downscaledToFit && !v.prefs.sendAsFile) return t("video_send_downscaled", { height: Math.min(v.plan.width, v.plan.height) });
   return "";
 });
 
@@ -572,68 +518,6 @@ function onDrop(e: DragEvent) {
   left: 10px;
 }
 
-.video-progress {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
-
-.video-progress-ring {
-  position: relative;
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  border: none;
-  background: rgb(0 0 0 / 0.5);
-  color: #fff;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  backdrop-filter: blur(4px);
-}
-
-.video-progress-ring:focus-visible {
-  outline: 2px solid hsl(var(--ring));
-  outline-offset: 2px;
-}
-
-.video-progress-ring svg {
-  position: absolute;
-  inset: 0;
-  transform: rotate(-90deg);
-}
-
-.ring-track {
-  fill: none;
-  stroke: rgb(255 255 255 / 0.25);
-  stroke-width: 3;
-}
-
-.ring-fill {
-  fill: none;
-  stroke: #fff;
-  stroke-width: 3;
-  stroke-linecap: round;
-  transition: stroke-dashoffset 0.2s linear;
-}
-
-.video-progress-label {
-  padding: 0 8px;
-  border-radius: 10px;
-  background: rgb(0 0 0 / 0.5);
-  color: #fff;
-  font-size: 12px;
-  line-height: 20px;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
 .video-options {
   display: flex;
   align-items: center;
@@ -694,20 +578,6 @@ function onDrop(e: DragEvent) {
   padding: 0 12px 8px;
   font-size: 12px;
   color: hsl(var(--muted-foreground));
-}
-
-.video-reason-action {
-  margin-left: 4px;
-  border: none;
-  background: none;
-  padding: 0;
-  color: hsl(var(--primary));
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.video-reason-action:hover {
-  text-decoration: underline;
 }
 
 .file-preview {
@@ -778,17 +648,6 @@ function onDrop(e: DragEvent) {
   width: 100%;
   height: 100%;
   object-fit: cover;
-}
-
-.strip-progress {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 3px;
-  background: hsl(var(--primary));
-  transform-origin: left center;
-  transition: transform 0.2s linear;
 }
 
 .strip-remove {
