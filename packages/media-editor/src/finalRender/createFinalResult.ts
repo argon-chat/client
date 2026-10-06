@@ -1,10 +1,10 @@
-import { toRaw } from 'vue';
+import { shallowRef, toRaw, type Ref } from 'vue';
+import { ALL_FORMATS, BlobSource, CanvasSink, Input } from 'mediabunny';
 import { isExpressionMode, type EditorLayer, type EditorMode, type ExpressionEditorMode, type ExpressionExportFormat, type MaskRaster, type Vec2 } from '../types';
-import type { BrushDrawnLine } from '../canvas/brushPainter';
 import type { RenderingPayload } from '../webgpu/initWebGPU';
 import { initWebGPU, cleanupWebGPU, uploadMask, uploadColour } from '../webgpu/initWebGPU';
 import { draw, type DrawingParameters } from '../webgpu/draw';
-import { updateVideoTexture } from '../webgpu/loadTexture';
+import { updateFrameTexture, updateVideoTexture } from '../webgpu/loadTexture';
 import { resolveOutputQuality } from '../constants';
 import type { AdjustmentKey } from '../adjustments';
 import { createBrushPainter } from '../canvas/brushPainter';
@@ -19,6 +19,8 @@ import { encodeTransparentImage } from './encodeImage';
 import { createMaskRaster } from '../mask/maskRaster';
 import { maskResolution } from '../mask/maskMath';
 import type { EditingMediaState } from '../store/editorStore';
+import { composeVideo, type ComposeFrame } from './composeVideo';
+import { hasPixelEdits, sourceVideoTransform, type SourceVideoTransform } from './videoTransform';
 
 export type MediaEditorFinalResultPayload = {
   blob: Blob;
@@ -27,6 +29,21 @@ export type MediaEditorFinalResultPayload = {
     blob: Blob;
     size: { width: number; height: number };
   };
+};
+
+/**
+ * What a video edit amounts to without rendering it, so a host can apply trim, crop, turn and mirror
+ * with a converter instead of the frame-by-frame export.
+ */
+export type VideoEditSummary = {
+  /** null: the view is turned by a free angle or tilted, so only rendering reproduces it. */
+  transform: SourceVideoTransform | null;
+  /** Drawing, text, stickers, adjustments or curves: only rendering reproduces them. */
+  pixelEdits: boolean;
+  /** The output height picked in the editor, or null when the default was left. */
+  quality: number | null;
+  /** Seconds of the source the fractions in the state are of. */
+  duration: number;
 };
 
 export type MediaEditorFinalResult = {
@@ -38,8 +55,13 @@ export type MediaEditorFinalResult = {
   height: number;
   originalSrc: string;
   editingMediaState: EditingMediaState;
-  creationProgress?: { value: number };
+  /** 0..1 while `getResult()` renders a video. */
+  creationProgress?: Ref<number>;
+  videoEdit?: VideoEditSummary;
 };
+
+/** Bits per second for a rendered video of this size and frame rate. */
+export type VideoBitrateFn = (width: number, height: number, frameRate: number) => number;
 
 type CreateFinalResultArgs = {
   mediaSrc: string;
@@ -48,7 +70,10 @@ type CreateFinalResultArgs = {
   canvasSize: Vec2;
   mediaRatio: number;
   renderingPayload: Pick<RenderingPayload, 'media'>;
+  /** The source file: its audio goes into a rendered video, and its frames are decoded from it. */
   getMediaBlob?: () => Promise<Blob | null>;
+  /** A rendered video's bitrate; the editor's own profile by default. */
+  videoBitrate?: VideoBitrateFn;
   mode?: EditorMode;
   /** Rasters behind `mediaState.mask.source`. */
   getMaskSource?: (id: number | null) => MaskRaster | null;
@@ -58,6 +83,9 @@ type CreateFinalResultArgs = {
   /** The editor's device pixel ratio: brush lines are stored in device pixels. */
   pixelRatio?: number;
 };
+
+/** The rendered video's frame rate cap: a faster source loses frames, a slower one keeps its own. */
+export const RENDER_MAX_FPS = 30;
 
 // Export canvases are full output resolution; a zero size drops the backing store now, not at GC.
 function releaseCanvas(canvas: HTMLCanvasElement): void {
@@ -95,29 +123,45 @@ export async function createFinalResult(args: CreateFinalResultArgs): Promise<Me
 
   const videoType = mediaType === 'video' ? 'video' as const : undefined;
   const newRatio = mediaState.currentImageRatio || mediaRatio;
-
-  const [scaledWidth, scaledHeight] = computeExportDimensions({
+  const sizeConstraints = {
     sourceWidth: renderingPayload.media.width,
     sourceAspectRatio: mediaRatio,
     cropAspectRatio: newRatio,
     cropAreaSize: cropOffset,
     zoomScale: mediaState.scale,
-    outputMode: videoType,
-    forcedQuality: videoType ? resolveOutputQuality(
-      computeExportDimensions({ sourceWidth: renderingPayload.media.width, sourceAspectRatio: mediaRatio, cropAspectRatio: newRatio, cropAreaSize: cropOffset, zoomScale: mediaState.scale, outputMode: videoType })[1]
-    ) : undefined
-  });
+    outputMode: videoType
+  };
+
+  // A video goes out at the quality picked in the Adjustments tab (an output height), never above the
+  // crop's own size; the default is the preset the source snaps to, as the tab shows it.
+  let forcedQuality: number | undefined;
+  let pickedQuality: number | null = null;
+  if (videoType) {
+    const naturalHeight = computeExportDimensions(sizeConstraints)[1];
+    const defaultQuality = resolveOutputQuality(renderingPayload.media.height);
+    const maxQuality = resolveOutputQuality(naturalHeight);
+    const quality = mediaState.videoQuality || defaultQuality;
+    if (mediaState.videoQuality && mediaState.videoQuality < defaultQuality) pickedQuality = mediaState.videoQuality;
+    forcedQuality = Math.min(maxQuality, quality, naturalHeight);
+  }
+
+  const [scaledWidth, scaledHeight] = computeExportDimensions({ ...sizeConstraints, forcedQuality });
 
   // Create offscreen canvas for rendering
   const resultCanvas = document.createElement('canvas');
   resultCanvas.width = scaledWidth;
   resultCanvas.height = scaledHeight;
 
+  // A video's preview is its cover frame (the trim start until a cover is picked).
+  const sourceDuration = renderingPayload.media.video?.duration;
+  const duration = sourceDuration && Number.isFinite(sourceDuration) ? sourceDuration : 0;
+  const coverPosition = clampToTrim(mediaState.videoThumbnailPosition, mediaState);
+
   const { payload: gpuPayload, context: gpuContext } = await initWebGPU({
     canvas: resultCanvas,
     mediaSrc,
     mediaType,
-    videoTime: mediaState.videoCropStart,
+    videoTime: coverPosition * duration,
     waitToSeek: true
   });
 
@@ -226,16 +270,118 @@ export async function createFinalResult(args: CreateFinalResultArgs): Promise<Me
       scaledWidth,
       scaledHeight,
       scaledLayers,
-      scaledLines,
       mediaState,
       mediaSrc,
       drawParams,
       args,
-      release
+      release,
+      videoEdit: {
+        transform: sourceVideoTransform(mediaState, [renderingPayload.media.width, renderingPayload.media.height], cropOffset),
+        pixelEdits: hasPixelEdits(mediaState),
+        quality: pickedQuality,
+        duration
+      }
     });
   } catch (e) {
     release();
     throw e;
+  }
+}
+
+/** A position (0..1 of the source) moved inside the trimmed range. */
+function clampToTrim(position: number, state: Pick<EditingMediaState, 'videoCropStart' | 'videoCropLength'>): number {
+  const start = state.videoCropStart;
+  const end = state.videoCropStart + state.videoCropLength;
+  return Math.min(end, Math.max(start, position || 0));
+}
+
+async function sourceBlob(args: CreateFinalResultArgs): Promise<Blob | null> {
+  try {
+    if (args.getMediaBlob) return await args.getMediaBlob();
+    const response = await fetch(args.mediaSrc);
+    return response.ok ? await response.blob() : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The source's frames over [start, end) seconds, at most {@link RENDER_MAX_FPS} a second (a slower
+ * source keeps its own rate: no frame is made up), each handed to `render` and yielded as what it drew.
+ * Decoded with WebCodecs from the file when it can be; otherwise the `<video>` is stepped by seeking.
+ */
+async function* sourceFrames(opts: {
+  blob: Blob | null;
+  video: HTMLVideoElement;
+  size: Vec2;
+  start: number;
+  end: number;
+  signal: AbortSignal;
+  render: (frame: HTMLCanvasElement | OffscreenCanvas | HTMLVideoElement) => Promise<CanvasImageSource>;
+}): AsyncGenerator<ComposeFrame> {
+  const { blob, video, size, start, end, signal, render } = opts;
+  let lastSlot = -1;
+  const takes = (t: number): boolean => {
+    const slot = Math.floor(t * RENDER_MAX_FPS + 1e-6);
+    if (slot <= lastSlot) return false;
+    lastSlot = slot;
+    return true;
+  };
+
+  if (blob) {
+    const input = new Input({ source: new BlobSource(blob), formats: ALL_FORMATS });
+    try {
+      const track = await input.getPrimaryVideoTrack();
+      if (track && (await track.canDecode().catch(() => false))) {
+        const sink = new CanvasSink(track, { width: size[0], height: size[1], fit: 'fill', poolSize: 2 });
+        for await (const { canvas, timestamp, duration } of sink.canvases(start, end)) {
+          if (signal.aborted) return;
+          const t = Math.max(0, timestamp - start);
+          if (!takes(t)) continue;
+          const image = await render(canvas);
+          yield { image, timestamp: t, duration: Math.max(duration, 1 / RENDER_MAX_FPS) };
+        }
+        return;
+      }
+    } finally {
+      input.dispose();
+    }
+  }
+
+  // Seeking: one frame per step of the source's rate, as far as the element tells.
+  const step = 1 / RENDER_MAX_FPS;
+  for (let time = start; time < end - 1e-4; time += step) {
+    if (signal.aborted) return;
+    video.currentTime = time;
+    await new Promise<void>((resolve) => {
+      const done = () => {
+        signal.removeEventListener('abort', done);
+        resolve();
+      };
+      video.addEventListener('seeked', done, { once: true });
+      signal.addEventListener('abort', done, { once: true });
+    });
+    if (signal.aborted) return;
+    const t = time - start;
+    if (!takes(t)) continue;
+    const image = await render(video);
+    yield { image, timestamp: t, duration: step };
+  }
+}
+
+/** The source's frame rate, when the file says. */
+async function sourceFrameRate(blob: Blob | null): Promise<number | null> {
+  if (!blob) return null;
+  const input = new Input({ source: new BlobSource(blob), formats: ALL_FORMATS });
+  try {
+    const track = await input.getPrimaryVideoTrack();
+    if (!track) return null;
+    const stats = await track.computePacketStats(120);
+    return stats.averagePacketRate > 0 ? stats.averagePacketRate : null;
+  } catch {
+    return null;
+  } finally {
+    input.dispose();
   }
 }
 
@@ -248,122 +394,103 @@ async function renderVideoResult(opts: {
   scaledWidth: number;
   scaledHeight: number;
   scaledLayers: EditorLayer[];
-  scaledLines: BrushDrawnLine[];
   mediaState: EditingMediaState;
   mediaSrc: string;
   drawParams: DrawingParameters;
   args: CreateFinalResultArgs;
   release: () => void;
+  videoEdit: VideoEditSummary;
 }): Promise<MediaEditorFinalResult> {
-  const { payload, device, context, resultCanvas, brushResultCanvas, scaledWidth, scaledHeight, scaledLayers, scaledLines, mediaState, mediaSrc, drawParams, args, release } = opts;
+  const { payload, device, context, resultCanvas, brushResultCanvas, scaledWidth, scaledHeight, scaledLayers, mediaState, mediaSrc, drawParams, args, release, videoEdit } = opts;
 
   const video = payload.media.video!;
-  const startTime = video.duration * mediaState.videoCropStart;
-  const endTime = video.duration * (mediaState.videoCropStart + mediaState.videoCropLength);
-  const duration = endTime - startTime;
+  const sourceDuration = video.duration;
+  const startTime = sourceDuration * mediaState.videoCropStart;
+  const endTime = sourceDuration * (mediaState.videoCropStart + mediaState.videoCropLength);
+  const coverTime = clampToTrim(mediaState.videoThumbnailPosition, mediaState) * sourceDuration;
 
-  const progress = { value: 0 };
-  let canceled = false;
+  const progress = shallowRef(0);
+  const controller = new AbortController();
   let exporting = false;
 
-  // Generate preview from first frame
+  // Brush lines and layers do not move over time: drawn once, laid over every frame.
+  const overlayCanvas = document.createElement('canvas');
+  overlayCanvas.width = scaledWidth;
+  overlayCanvas.height = scaledHeight;
+  const overlayCtx = overlayCanvas.getContext('2d')!;
+  overlayCtx.drawImage(brushResultCanvas, 0, 0);
+  await drawLayers(overlayCtx, scaledLayers);
+  const hasOverlay = scaledLayers.length > 0 || mediaState.brushDrawnLines.length > 0;
+
+  // The preview is the cover frame, as initWebGPU seeked to it.
   const previewCanvas = document.createElement('canvas');
   previewCanvas.width = scaledWidth;
   previewCanvas.height = scaledHeight;
   const previewCtx = previewCanvas.getContext('2d')!;
   previewCtx.drawImage(resultCanvas, 0, 0);
-  previewCtx.drawImage(brushResultCanvas, 0, 0);
-  await drawLayers(previewCtx, scaledLayers);
-
+  if (hasOverlay) previewCtx.drawImage(overlayCanvas, 0, 0);
   const previewBlob = await new Promise<Blob>((resolve) =>
     previewCanvas.toBlob((b) => resolve(b!), 'image/jpeg', 0.8)
   );
   releaseCanvas(previewCanvas);
 
+  const releaseAll = (): void => {
+    releaseCanvas(overlayCanvas);
+    release();
+  };
+
   const getResult = async (): Promise<MediaEditorFinalResultPayload> => {
+    if (controller.signal.aborted) throw new DOMException('The export was cancelled.', 'AbortError');
     exporting = true;
     const compositeCanvas = document.createElement('canvas');
     compositeCanvas.width = scaledWidth;
     compositeCanvas.height = scaledHeight;
-    let encoder: VideoEncoder | undefined;
+    const compositeCtx = compositeCanvas.getContext('2d')!;
 
     try {
-      const { Muxer, ArrayBufferTarget } = await import('mp4-muxer');
+      const blob = await sourceBlob(args);
+      const fps = Math.min(RENDER_MAX_FPS, (await sourceFrameRate(blob)) ?? RENDER_MAX_FPS);
+      const bitrate = args.videoBitrate?.(scaledWidth, scaledHeight, fps) ?? selectEncodingProfile(scaledWidth, scaledHeight, fps).bitrate;
 
-      const target = new ArrayBufferTarget();
-      const muxer = new Muxer({
-        target,
-        video: {
-          codec: 'avc',
-          width: scaledWidth,
-          height: scaledHeight
-        },
-        fastStart: 'in-memory'
-      });
-
-      const { codec, bitrate } = selectEncodingProfile(scaledWidth, scaledHeight, 30);
-
-      encoder = new VideoEncoder({
-        output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
-        error: (e) => console.error('VideoEncoder error:', e)
-      });
-
-      encoder.configure({
-        codec,
-        width: scaledWidth,
-        height: scaledHeight,
-        bitrate
-      });
-
-      const compositeCtx = compositeCanvas.getContext('2d')!;
-
-      const expectedFps = 30;
-      const totalFrames = Math.ceil(duration * expectedFps);
-
-      for (let frameIdx = 0; frameIdx < totalFrames && !canceled; frameIdx++) {
-        const time = startTime + frameIdx / expectedFps;
-        const timestamp = (frameIdx / expectedFps) * 1e6;
-
-        // Seek video to frame
-        video.currentTime = time;
-        await new Promise<void>((resolve) => {
-          video.addEventListener('seeked', () => resolve(), { once: true });
-        });
-
-        // Update WebGPU texture
-        updateVideoTexture(device, payload.texture, video);
+      const render = async (frame: HTMLCanvasElement | OffscreenCanvas | HTMLVideoElement): Promise<CanvasImageSource> => {
+        if (frame instanceof HTMLVideoElement) updateVideoTexture(device, payload.texture, frame);
+        else updateFrameTexture(device, payload.texture, frame);
         draw(device, context, payload, drawParams);
-
-        // Compose
+        // Copied out in the task that drew it: a WebGPU canvas's texture does not outlive the task.
         compositeCtx.clearRect(0, 0, scaledWidth, scaledHeight);
         compositeCtx.drawImage(resultCanvas, 0, 0);
-        compositeCtx.drawImage(brushResultCanvas, 0, 0);
-        await drawLayers(compositeCtx, scaledLayers);
+        if (hasOverlay) compositeCtx.drawImage(overlayCanvas, 0, 0);
+        return compositeCanvas;
+      };
 
-        // Encode frame
-        const frame = new VideoFrame(compositeCanvas, {
-          timestamp,
-          duration: 1e6 / expectedFps
-        });
-        encoder.encode(frame, { keyFrame: frameIdx % 60 === 0 });
-        frame.close();
-
-        progress.value = frameIdx / totalFrames;
-      }
-
-      await encoder.flush();
-      encoder.close();
-      muxer.finalize();
-
-      const blob = new Blob([target.buffer], { type: 'video/mp4' });
-
-      return { blob, hasSound: false };
+      const result = await composeVideo({
+        frames: sourceFrames({
+          blob,
+          video,
+          size: [payload.media.width, payload.media.height],
+          start: startTime,
+          end: endTime,
+          signal: controller.signal,
+          render
+        }),
+        width: scaledWidth,
+        height: scaledHeight,
+        duration: endTime - startTime,
+        bitrate,
+        frameRate: fps,
+        audio: !mediaState.videoMuted && blob ? { source: blob, start: startTime, end: endTime } : null,
+        coverAt: coverTime - startTime,
+        signal: controller.signal,
+        onProgress: (f) => {
+          progress.value = f;
+        }
+      });
+      progress.value = 1;
+      return result;
     } finally {
       exporting = false;
-      // Left open after a failed export the encoder keeps its codec session; already closed on success.
-      if (encoder && encoder.state !== 'closed') encoder.close();
       releaseCanvas(compositeCanvas);
-      release();
+      releaseAll();
     }
   };
 
@@ -371,17 +498,17 @@ async function renderVideoResult(opts: {
     preview: previewBlob,
     getResult,
     cancel: () => {
-      canceled = true;
-      // A running export is awaiting `seeked` on the video; unloading it underneath would leave that
-      // wait hanging forever, so the export's own finally releases once the loop has bailed out.
-      if (!exporting) release();
+      controller.abort();
+      // A running export stops at its next frame and releases in its own finally.
+      if (!exporting) releaseAll();
     },
     isVideo: true,
     width: scaledWidth,
     height: scaledHeight,
     originalSrc: mediaSrc,
     editingMediaState: structuredClone(toRaw(mediaState)),
-    creationProgress: progress
+    creationProgress: progress,
+    videoEdit
   };
 }
 

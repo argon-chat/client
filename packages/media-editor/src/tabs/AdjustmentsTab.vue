@@ -3,7 +3,7 @@
     <!-- Video quality selector -->
     <StepInput
       v-if="store.mediaType === 'video' && qualitySteps.length > 1"
-      label="Quality"
+      :label="t('media_editor_video_quality')"
       :model-value="effectiveQuality"
       :steps="qualitySteps"
       @update:model-value="store.set(['videoQuality'], $event)"

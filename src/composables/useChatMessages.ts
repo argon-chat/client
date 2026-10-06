@@ -24,6 +24,7 @@ import { useNotificationStore } from "@/store/data/notificationStore";
 import { MuteLevelType } from "@argon/glue";
 import { logger } from "@argon/core";
 import type { Subscription } from "rxjs";
+import { isSendUploading, sendTimeoutLeft } from "@/lib/attachments/sendProgress";
 
 export type ChatMessage = ArgonMessage & {
   _optimistic?: true;
@@ -487,7 +488,8 @@ export function useChatMessages(
       // but optimistic has randomId as messageId so duplicate guard missed it.
       // Replace the oldest pending optimistic message with real server data.
       if (e.sender === me.me?.userId && optimisticRandomIds.size > 0) {
-        const optIdx = messages.value.findIndex((m) => m._optimistic && !m._failed);
+        // One still uploading its files has not been sent, so this cannot be it.
+        const optIdx = messages.value.findIndex((m) => m._optimistic && !m._failed && !isSendUploading(m._randomId));
         if (optIdx !== -1) {
           const optMsg = messages.value[optIdx] as ChatMessage;
           const randomId = optMsg._randomId!;
@@ -543,13 +545,17 @@ export function useChatMessages(
     messages.value.push(optimistic);
     triggerRef(messages);
 
-    // Step 5: Start timeout — auto-fail if not resolved within 30s
-    const timer = setTimeout(() => {
-      if (optimisticRandomIds.has(randomId)) {
+    // Step 5: Start timeout — auto-fail if not resolved within 30s of being sent (a video's
+    // compressing and uploading come first and do not count).
+    const arm = (ms: number) => {
+      optimisticTimers.set(randomId, setTimeout(() => {
+        if (!optimisticRandomIds.has(randomId)) return;
+        const left = sendTimeoutLeft(randomId, OPTIMISTIC_TIMEOUT_MS);
+        if (left > 0) return arm(left);
         markOptimisticFailed(randomId, "Message sending timed out");
-      }
-    }, OPTIMISTIC_TIMEOUT_MS);
-    optimisticTimers.set(randomId, timer);
+      }, ms));
+    };
+    arm(OPTIMISTIC_TIMEOUT_MS);
 
     // Sent from older history: back to the present, where it lands.
     if (!hasReachedLatest.value) void returnToPresent();
@@ -667,7 +673,7 @@ export function useChatMessages(
       // Filter out optimistic attachment entities (placeholder fileId) — only keep non-attachment entities
       // Attachments from failed messages can't be retried (upload may have failed)
       const retryEntities = (failedMsg.entities ?? []).filter(
-        (e) => e.type !== EntityType.Attachment,
+        (e) => e.type !== EntityType.Attachment && e.type !== EntityType.Video,
       );
 
       const result = await api.channelInteraction.SendMessage(

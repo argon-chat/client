@@ -166,9 +166,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, onUnmounted, type ShallowRef } from "vue";
+import { computed, ref, shallowRef, watch, onUnmounted, type ShallowRef } from "vue";
 import { CircleArrowDown, Loader2Icon } from "lucide-vue-next";
-import type { ArgonMessage, MessageEntityAttachment } from "@argon/glue";
+import type { ArgonMessage } from "@argon/glue";
+import type { ChatMediaItem } from "@/lib/media/mediaItem";
 
 import MessageItem from "@/components/MessageItem.vue";
 import ImageLightbox from "@/components/chats/ImageLightbox.vue";
@@ -265,11 +266,11 @@ function onFabClick() {
 // ── Lightbox ──
 
 const lbOpen = ref(false);
-const lbImages = ref<MessageEntityAttachment[]>([]);
+const lbImages = shallowRef<ChatMediaItem[]>([]);
 const lbIndex = ref(0);
 const lbTime = ref<Date | null>(null);
 
-function onOpenLightbox(images: MessageEntityAttachment[], index: number, timeSent: Date | null) {
+function onOpenLightbox(images: ChatMediaItem[], index: number, timeSent: Date | null) {
   lbImages.value = images;
   lbIndex.value = index;
   lbTime.value = timeSent;

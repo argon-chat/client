@@ -179,6 +179,14 @@ function share() {
   // TODO
 }
 
+const REDEEM_ERROR_KEYS: Record<RedeemError, string> = {
+  [RedeemError.NOT_FOUND]: "inventory_redeem_error_code_not_found",
+  [RedeemError.INACTIVE]: "inventory_redeem_error_inactive",
+  [RedeemError.EXPIRED]: "inventory_redeem_error_expired",
+  [RedeemError.LIMIT_REACHED]: "inventory_redeem_error_limit_reached",
+  [RedeemError.ALREADY]: "inventory_redeem_error_already_redeemed",
+};
+
 async function onRedeem(code: string) {
   const result = await api.inventoryInteraction.RedeemCode(code);
 
@@ -186,7 +194,7 @@ async function onRedeem(code: string) {
     logger.fail("Redeem failed!", RedeemError[result.error]);
     toast.toast({
       title: t('inventory_redeem_failed'),
-      description: t(`inventory_redeem_error_${RedeemError[result.error].toLowerCase()}`, RedeemError[result.error]),
+      description: t(REDEEM_ERROR_KEYS[result.error] ?? "inventory_redeem_error_code_not_found"),
       variant: "destructive",
       duration: 4500,
     });

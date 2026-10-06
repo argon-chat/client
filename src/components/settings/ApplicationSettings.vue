@@ -13,7 +13,7 @@
         <DesktopOnlyNotice v-if="isWeb" description="desktop_only_application_desc" />
         <div class="flex gap-4 flex-col">
             <div v-for="section in configStore.sections" :key="section.section" class="space-y-4">
-                <h3 class="text-lg font-semibold" v-if="section.section != 'app'">
+                <h3 class="text-lg font-semibold" v-if="section.section != 'app' && has(section.section)">
                     {{ t(section.section) }}
                 </h3>
 
@@ -21,9 +21,9 @@
                     class="flex flex-row items-center justify-between rounded-lg border p-4">
                     <div class="space-y-0.5">
                         <div class="text-base">
-                            {{ t(key.key.toLocaleLowerCase()) }}
+                            {{ settingLabel(key.key) }}
                         </div>
-                        <div class="text-xs text-gray-400">
+                        <div v-if="has(`${key.key.toLocaleLowerCase()}_desc`)" class="text-xs text-gray-400">
                             {{ t(`${key.key.toLocaleLowerCase()}_desc`) }}
                         </div>
                         <div v-if="key.requiredToRestartApp && configStore.requiresRestart.has(`${section.section}:${key.key}`)"
@@ -55,7 +55,7 @@
                         <SelectContent>
                             <SelectGroup>
                                 <SelectItem v-for="variant in key.valueEnumVariants" :key="variant" :value="variant">
-                                    {{ variant }}
+                                    {{ variantLabel(key.key, variant) }}
                                 </SelectItem>
                             </SelectGroup>
                         </SelectContent>
@@ -199,7 +199,13 @@ import { native } from "@argon/glue/native";
 import { Channel, ConfigKeyMetadata_Value, ConfigPrimitiveType, ConfigSectionMetadata_Value, SetRequest } from "@argon/glue/ipc";
 import { useConfigStore } from "@/store/ui/configStore";
 import LinuxUpdateModal from "@/components/modals/LinuxUpdateModal.vue";
-const { t } = useLocale();
+const { t, has } = useLocale();
+
+// The host names its own settings, so a build can meet one it has no text for: show the host's
+// name for it rather than a translation key.
+const settingLabel = (key: string) => (has(key.toLocaleLowerCase()) ? t(key.toLocaleLowerCase()) : key);
+const variantLabel = (key: string, variant: string) =>
+    has(`setting_variant_${key.toLocaleLowerCase()}_${variant}`) ? t(`setting_variant_${key.toLocaleLowerCase()}_${variant}`) : variant;
 const toast = useToast();
 
 const me = useMe();

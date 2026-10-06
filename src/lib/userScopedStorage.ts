@@ -1,8 +1,9 @@
 // Per-account namespacing for user-scoped localStorage keys.
 //
 // Multi-account: data that belongs to a specific signed-in user (recent spaces, server folders,
-// preferred status, per-user volumes) must not bleed across accounts. We suffix those keys with the
-// active account id. Device/app preferences (audio/video, hotkeys, locale, overlay, dashboard layout,
+// preferred status, per-user volumes, chat preferences such as video autoplay and the video player's
+// volume, mute and speed) must not bleed across accounts. We suffix those keys with the active account
+// id. Device/app preferences (audio/video devices, hotkeys, locale, overlay, dashboard layout,
 // api_endpoint) intentionally stay GLOBAL and are NOT namespaced.
 //
 // The active id is read straight from localStorage (no store import) so this stays cycle-free and
@@ -29,6 +30,13 @@ export const USER_SCOPED_BASE_KEYS = [
   "argon_emoji_suggest_custom",
   "argon_emoji_suggest_stickers",
   "argon_bot_motd_hidden",
+  "argon_video_autoplay",
+  "argon_video_autoplay_max_bytes",
+  "argon_video_loop_short",
+  "argon_video_volume",
+  "argon_video_muted",
+  "argon_video_rate",
+  "argon_video_upload_quality",
 ] as const;
 
 export function activeAccountId(): string {

@@ -146,9 +146,9 @@
         <div class="setting-card">
             <div class="flex items-center gap-2 mb-4">
                 <MonitorIcon class="w-5 h-5 text-primary" />
-                <h3 class="text-lg font-semibold">{{ tr("layout", "Layout") }}</h3>
+                <h3 class="text-lg font-semibold">{{ t("layout") }}</h3>
             </div>
-            <p class="text-xs text-muted-foreground mb-4">{{ tr("layout_desc", "On ultra-wide displays, center the app within a max width instead of stretching edge to edge.") }}</p>
+            <p class="text-xs text-muted-foreground mb-4">{{ t("layout_desc") }}</p>
 
             <div class="grid grid-cols-2 gap-3">
                 <div v-for="lm in layoutModes" :key="lm.id" class="density-card"
@@ -164,8 +164,8 @@
                 <!-- Trigger threshold -->
                 <div class="setting-item">
                     <div class="flex-1">
-                        <div class="text-sm font-medium">{{ tr("layout_threshold", "Apply on") }}</div>
-                        <div class="text-xs text-muted-foreground">{{ tr("layout_threshold_desc", "Which screens get centered") }}</div>
+                        <div class="text-sm font-medium">{{ t("layout_threshold") }}</div>
+                        <div class="text-xs text-muted-foreground">{{ t("layout_threshold_desc") }}</div>
                     </div>
                     <Select v-model="ultrawideThreshold">
                         <SelectTrigger class="w-[200px]">
@@ -173,8 +173,8 @@
                         </SelectTrigger>
                         <SelectContent>
                             <SelectGroup>
-                                <SelectItem value="ultra">{{ tr("layout_threshold_ultra", "Ultrawide only (21:9+)") }}</SelectItem>
-                                <SelectItem value="wide">{{ tr("layout_threshold_wide", "Any wide screen (16:10+)") }}</SelectItem>
+                                <SelectItem value="ultra">{{ t("layout_threshold_ultra") }}</SelectItem>
+                                <SelectItem value="wide">{{ t("layout_threshold_wide") }}</SelectItem>
                             </SelectGroup>
                         </SelectContent>
                     </Select>
@@ -185,8 +185,8 @@
                     <div class="w-full">
                         <div class="flex items-center justify-between mb-2">
                             <div>
-                                <div class="text-sm font-medium">{{ tr("layout_max_width", "Max content width") }}</div>
-                                <div class="text-xs text-muted-foreground">{{ tr("layout_max_width_desc", "Cap the centered column") }}</div>
+                                <div class="text-sm font-medium">{{ t("layout_max_width") }}</div>
+                                <div class="text-xs text-muted-foreground">{{ t("layout_max_width_desc") }}</div>
                             </div>
                             <span class="text-sm font-mono text-primary">{{ ultrawideMaxWidth }}px</span>
                         </div>
@@ -201,8 +201,8 @@
                 <!-- Center titlebar -->
                 <div class="setting-item">
                     <div class="flex-1">
-                        <div class="text-sm font-medium">{{ tr("layout_center_titlebar", "Align titlebar to content") }}</div>
-                        <div class="text-xs text-muted-foreground">{{ tr("layout_center_titlebar_desc", "Keep the titlebar content above the centered column") }}</div>
+                        <div class="text-sm font-medium">{{ t("layout_center_titlebar") }}</div>
+                        <div class="text-xs text-muted-foreground">{{ t("layout_center_titlebar_desc") }}</div>
                     </div>
                     <Switch v-model:checked="ultrawideCenterTitlebar" />
                 </div>
@@ -213,13 +213,13 @@
         <div class="setting-card">
             <div class="flex items-center gap-2 mb-4">
                 <MaximizeIcon class="w-5 h-5 text-primary" />
-                <h3 class="text-lg font-semibold">{{ tr("ui_scale", "Interface scale") }}</h3>
+                <h3 class="text-lg font-semibold">{{ t("ui_scale") }}</h3>
             </div>
 
             <div class="setting-item flex-col items-start gap-3">
                 <div class="w-full">
                     <div class="flex items-center justify-between mb-2">
-                        <div class="text-xs text-muted-foreground">{{ tr("ui_scale_desc", "Zoom the whole interface (useful on high-DPI / ultrawide displays).") }}</div>
+                        <div class="text-xs text-muted-foreground">{{ t("ui_scale_desc") }}</div>
                         <span class="text-sm font-mono text-primary">{{ uiScale }}%</span>
                     </div>
                     <div class="flex items-center gap-4">
@@ -235,13 +235,13 @@
         <div v-if="splitFeatureEnabled" class="setting-card">
             <div class="flex items-center gap-2 mb-4">
                 <LayoutGridIcon class="w-5 h-5 text-primary" />
-                <h3 class="text-lg font-semibold">{{ tr("split_view", "Split view") }}</h3>
+                <h3 class="text-lg font-semibold">{{ t("split_view") }}</h3>
             </div>
 
             <div class="setting-item">
                 <div class="flex-1">
-                    <div class="text-sm font-medium">{{ tr("split_trigger", "Open a second channel beside the first") }}</div>
-                    <div class="text-xs text-muted-foreground">{{ tr("split_trigger_desc", "How to open a channel in a split pane") }}</div>
+                    <div class="text-sm font-medium">{{ t("split_trigger") }}</div>
+                    <div class="text-xs text-muted-foreground">{{ t("split_trigger_desc") }}</div>
                 </div>
                 <Select v-model="splitTrigger">
                     <SelectTrigger class="w-[200px]">
@@ -249,10 +249,10 @@
                     </SelectTrigger>
                     <SelectContent>
                         <SelectGroup>
-                            <SelectItem value="off">{{ tr("split_off", "Off") }}</SelectItem>
-                            <SelectItem value="ctrlclick">{{ tr("split_ctrlclick", "Ctrl/Cmd + click") }}</SelectItem>
-                            <SelectItem value="button">{{ tr("split_button", "Hover button + menu") }}</SelectItem>
-                            <SelectItem value="both">{{ tr("split_both", "Both") }}</SelectItem>
+                            <SelectItem value="off">{{ t("split_off") }}</SelectItem>
+                            <SelectItem value="ctrlclick">{{ t("split_ctrlclick") }}</SelectItem>
+                            <SelectItem value="button">{{ t("split_button") }}</SelectItem>
+                            <SelectItem value="both">{{ t("split_both") }}</SelectItem>
                         </SelectGroup>
                     </SelectContent>
                 </Select>
@@ -375,6 +375,41 @@
                             <SelectGroup>
                                 <SelectItem value="comfortable">{{ t("chat_density_comfortable") }}</SelectItem>
                                 <SelectItem value="compact">{{ t("chat_density_compact") }}</SelectItem>
+                            </SelectGroup>
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                <div class="setting-item">
+                    <div class="flex-1">
+                        <div class="text-sm font-medium">{{ t("video_autoplay_in_chat") }}</div>
+                        <div class="text-xs text-muted-foreground">{{ t("video_autoplay_in_chat_desc") }}</div>
+                    </div>
+                    <Switch v-model:checked="videoAutoplayInChat" data-testid="setting-video-autoplay" />
+                </div>
+
+                <div class="setting-item">
+                    <div class="flex-1">
+                        <div class="text-sm font-medium">{{ t("video_loop_short") }}</div>
+                        <div class="text-xs text-muted-foreground">{{ t("video_loop_short_desc") }}</div>
+                    </div>
+                    <Switch v-model:checked="videoLoopShort" data-testid="setting-video-loop-short" />
+                </div>
+
+                <div v-if="chatVideoActive" class="setting-item">
+                    <div class="flex-1">
+                        <div class="text-sm font-medium">{{ t("video_upload_quality_setting") }}</div>
+                        <div class="text-xs text-muted-foreground">{{ t("video_upload_quality_setting_desc") }}</div>
+                    </div>
+                    <Select v-model="videoUploadQualityChoice">
+                        <SelectTrigger class="w-[150px]" data-testid="setting-video-upload-quality">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectGroup>
+                                <SelectItem value="auto">{{ t("video_send_quality_auto") }}</SelectItem>
+                                <SelectItem v-for="rung in VIDEO_LADDER" :key="rung" :value="String(rung)">{{ t("video_send_quality_rung", { height: rung }) }}</SelectItem>
+                                <SelectItem value="original">{{ t("video_send_quality_original") }}</SelectItem>
                             </SelectGroup>
                         </SelectContent>
                     </Select>
@@ -560,6 +595,9 @@ import {
 import { persistedValue } from "@argon/storage";
 import { reduceMotion as sharedReduceMotion } from "@/composables/useReducedMotion";
 import { animationsChoice, pickerAutoplay, resetExpressionAnimationChoices } from "@/lib/expressions/settings";
+import { resetVideoChatChoices, videoAutoplayInChat, videoLoopShort } from "@/lib/video/playerSettings";
+import { videoUploadQuality } from "@/lib/video/settings";
+import { VIDEO_LADDER, type VideoQuality } from "@/lib/video/plan";
 import { powerSaveReason } from "@/lib/powerSaver";
 import { useToast } from "@argon/ui/toast";
 import { useTheme, systemAccent, type ThemeId } from "@/composables/useTheme";
@@ -583,6 +621,14 @@ import { supports } from "@/lib/platform";
 const { t } = useLocale();
 const featureFlags = useFeatureFlags();
 const uiDensityFeatureEnabled = computed(() => featureFlags.isEnabled(FeatureFlagKeys.UI_DENSITY_ACTIVE));
+const chatVideoActive = computed(() => featureFlags.isEnabled(FeatureFlagKeys.CHAT_VIDEO));
+/** The select speaks strings; the setting keeps rungs as numbers. */
+const videoUploadQualityChoice = computed({
+    get: () => String(videoUploadQuality.value),
+    set: (value: string) => {
+        videoUploadQuality.value = value === "auto" || value === "original" ? value : (Number(value) as VideoQuality);
+    },
+});
 const toast = useToast();
 const { applyTheme: applyThemeController, applyAppearanceSettings: applyAppearanceSettingsController } = useTheme();
 const configStore = useConfigStore();
@@ -640,10 +686,9 @@ const densities = [
 ];
 
 // Layout modes (ultrawide support)
-const tr = (key: string, fallback: string) => (t(key) === key ? fallback : t(key));
 const layoutModes = [
-    { id: "default", name: tr("layout_default", "Default"), description: tr("layout_default_desc", "Use the full window width"), icon: MaximizeIcon },
-    { id: "ultrawide", name: tr("layout_ultrawide", "Follow ultrawide"), description: tr("layout_ultrawide_desc", "Center content on ultra-wide screens"), icon: MinimizeIcon }
+    { id: "default", name: t("layout_default"), description: t("layout_default_desc"), icon: MaximizeIcon },
+    { id: "ultrawide", name: t("layout_ultrawide"), description: t("layout_ultrawide_desc"), icon: MinimizeIcon }
 ];
 
 // Color blind modes with color palette visualization
@@ -935,6 +980,7 @@ const resetToDefaults = () => {
     accentColor.value = "blue";
     reduceMotion.value = false;
     resetExpressionAnimationChoices();
+    resetVideoChatChoices();
     chatDensity.value = "comfortable";
 
     // Reset accessibility settings

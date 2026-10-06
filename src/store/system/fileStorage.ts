@@ -142,7 +142,7 @@ export async function getStorageUsageReport(): Promise<StorageUsageReport> {
     const media = await mediaCacheStats();
     if (media)
       groups.push({
-        name: "Media cache",
+        name: "mediaCache",
         usedBytes: media.usedBytes ?? 0,
         percentOfQuota:
           quota && media.usedBytes ? round2((media.usedBytes / quota) * 100) : null,
@@ -176,11 +176,15 @@ export const pruneIndexDb = async () => {
 };
 
 /**
- * Clear a single storage category by name (native only).
+ * Clear a single storage category by name. On the web only `mediaCache` exists.
  * `database` clears IndexedDB and requires a reload to drop open connections —
  * the caller is responsible for reloading.
  */
 export const pruneStorageCategory = async (category: string) => {
+  if (isWeb && category === "mediaCache") {
+    try { await clearMediaCache(); } catch (e) { logger.error(e); }
+    return;
+  }
   if (!isNative) return;
   try {
     await (window as any).argonIpc.invoke("Storage", "clear", [category]);

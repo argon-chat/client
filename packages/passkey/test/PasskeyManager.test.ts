@@ -9,7 +9,7 @@
  */
 
 import { describe, test, expect, vi, beforeEach } from "vitest";
-import { PasskeyManager } from "../src/PasskeyManager";
+import { PasskeyManager, getPasskeyAssertion } from "../src/PasskeyManager";
 
 vi.mock("@argon/core", () => ({
   logger: { info() {}, warn() {}, error() {}, debug() {} },
@@ -315,6 +315,30 @@ describe("validatePasskey", () => {
       const result = await new PasskeyManager(makeApi()).validatePasskey();
       expect(result.errorCode, name).toBe(code);
     }
+  });
+});
+
+describe("getPasskeyAssertion", () => {
+  test("decodes the options and returns the assertion encoded for the server", async () => {
+    const result = await getPasskeyAssertion(requestOptions());
+
+    const { publicKey } = credentials.get.mock.calls[0][0];
+    expect(textOf(publicKey.challenge)).toBe("chal-2");
+    expect(result.success).toBe(true);
+    const sent = JSON.parse((result as { response: string }).response);
+    expect(sent.rawId).toBe(b64url("raw-id"));
+    expect(sent.response.signature).toBe(b64url("signature"));
+    expect(sent.response.userHandle).toBe(b64url("user-7"));
+  });
+
+  test("a cancelled prompt or a missing credential is a failure with a code, never a throw", async () => {
+    const err = new Error("x");
+    err.name = "NotAllowedError";
+    credentials.get = vi.fn(async () => { throw err; });
+    expect(await getPasskeyAssertion(requestOptions())).toMatchObject({ success: false, errorCode: "CANCELLED" });
+
+    credentials.get = vi.fn(async () => null);
+    expect(await getPasskeyAssertion(requestOptions())).toMatchObject({ success: false, errorCode: "UNKNOWN" });
   });
 });
 

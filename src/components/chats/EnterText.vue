@@ -319,12 +319,15 @@
             :space-id="spaceId"
             :receiver-id="receiverId"
             @send="onAttachmentDialogSend"
-            @close="showAttachmentDialog = false"
+            @close="onAttachmentDialogClose"
             @add-more="openFilePicker"
             @remove="attachments.removeFile"
             @add-files="onDialogAddFiles"
             @replace-file="onReplaceFile"
             @open-editor="onOpenAttachmentEditor"
+            @video-prefs="attachments.setVideoPrefs"
+            @video-cancel="attachments.cancelVideoPreparation"
+            @video-prepare="attachments.prepareVideoNow"
         />
 
         <!-- Media Editor for attachment editing -->
@@ -335,13 +338,16 @@
             :media-type="attachmentEditorMediaType"
             :dev-mode="configStore.devModeEnabled"
             :confirm-discard="confirmAttachmentDiscard"
+            :initial-state="attachmentEditorState"
+            :media-blob="attachmentEditorBlob"
+            :video-bitrate="attachmentEditorBitrate"
             @done="onAttachmentEditorDone"
         />
         <MediaEditorCloseConfirm ref="attachmentCloseConfirm" />
     </div>
 </template>
 <script setup lang="ts">
-import { onMounted, onUnmounted, reactive, ref, shallowRef, watch, nextTick, computed } from "vue";
+import { onMounted, onUnmounted, reactive, ref, shallowRef, toRaw, watch, nextTick, computed } from "vue";
 import {
   Popover,
   PopoverContent,
@@ -391,12 +397,22 @@ import { ArgonMessage, EntityType, IMessageEntity, MessageEntityBold, MessageEnt
 import type { ExpressionItem, GifItem, MessageEntityCustomEmoji, SavedGif } from "@argon/glue";
 import { Guid, IonDateTime } from "@argon-chat/ion.webcore";
 import { useLocale } from "@/store/system/localeStore";
-import { useAttachmentUpload, type UploadTarget } from "@/composables/useAttachmentUpload";
+import { useAttachmentUpload, type UploadTarget, type VideoSendPhase } from "@/composables/useAttachmentUpload";
 import { readAttachmentRefs, type AttachmentRef } from "@/lib/attachments/clipboard";
 import { useMe } from "@/store/auth/meStore";
 import AttachmentDialog from "./AttachmentDialog.vue";
 import { MediaEditor } from "@argon/media-editor";
-import type { MediaEditorFinalResult } from "@argon/media-editor";
+import type { EditingMediaState, MediaEditorFinalResult, VideoBitrateFn } from "@argon/media-editor";
+import { videoEditDecision } from "@/lib/attachments/videoEdit";
+import { videoSendErrorKey } from "@/lib/attachments/videoSendErrors";
+import { formatLimitBytes, formatLimitDuration, resolveUploadLimits } from "@/lib/attachments/uploadLimits";
+import {
+  clearAttachmentSendProgress,
+  markSendUploaded,
+  markSendUploading,
+  setAttachmentSendProgress,
+} from "@/lib/attachments/sendProgress";
+import { videoBitrate } from "@/lib/video/plan";
 import MediaEditorCloseConfirm from "@/components/common/MediaEditorCloseConfirm.vue";
 import { useMediaEditorCloseGuard } from "@/components/common/mediaEditorCloseGuard";
 import { usePexStore } from "@/store/data/permissionStore";
@@ -426,7 +442,7 @@ const { t } = localeStore;
 
 const configStore = useConfigStore();
 
-const { gifsSelectorActive } = storeToRefs(useFeatureFlags());
+const { gifsSelectorActive, chatVideoActive } = storeToRefs(useFeatureFlags());
 
 // ── GIFs (gated behind af.chat.gifs-selector): a message of one GIF entity and no text ──
 const canSendGifs = computed(
@@ -775,7 +791,15 @@ const isDragging = ref(false);
 const api = useApi();
 const pool = usePoolStore();
 const me = useMe();
-const attachments = useAttachmentUpload();
+// Videos go as videos only behind af.chat.video: older clients cannot decode the video entity.
+const attachments = useAttachmentUpload({
+  videoSending: () => !!chatVideoActive?.value,
+  // Its upload limits (video size and length) are the target's own.
+  uploadTarget: () => {
+    const targetId = resolveTargetId();
+    return targetId ? uploadTarget(targetId) : null;
+  },
+});
 
 const hasContent = computed(() => messageText.value.trim().length > 0 || attachments.hasFiles.value);
 
@@ -1490,24 +1514,25 @@ async function onDialogAddFiles(files: FileList) {
   for (const err of errors) logger.warn(err);
 }
 
-function onReplaceFile(index: number, file: File, previewUrl: string) {
-  const pending = attachments.pendingFiles.value[index];
-  if (!pending) return;
-  // Revoke old preview URL
-  if (pending.previewUrl) URL.revokeObjectURL(pending.previewUrl);
-  // Replace the file and preview in-place
-  pending.file = file;
-  pending.previewUrl = previewUrl;
-  pending.width = null;
-  pending.height = null;
-  // Re-read dimensions from the new image
-  const img = new Image();
-  img.onload = () => {
-    pending.width = img.naturalWidth;
-    pending.height = img.naturalHeight;
-  };
-  img.src = previewUrl;
+/** Other bytes in an attachment's place: described again from scratch (hash, link, size, video state). */
+function onReplaceFile(index: number, file: File, previewUrl?: string | null, size?: { width: number; height: number }) {
+  void attachments.replaceFile(index, file, { previewUrl, width: size?.width, height: size?.height });
 }
+
+function onAttachmentDialogClose() {
+  showAttachmentDialog.value = false;
+  // Nothing is sent while it is closed: compressing stops and starts again when it opens.
+  attachments.pausePreparations();
+}
+
+watch(showAttachmentDialog, (open) => {
+  if (open) attachments.resumePreparations();
+});
+
+/** The editor's still as a preview URL, or null. */
+const stillUrl = (still: Blob | undefined) => (still ? URL.createObjectURL(still) : null);
+
+const mp4Name = (name: string) => `${name.replace(/\.[^./\\]+$/, "").trim() || "video"}.mp4`;
 
 // --- Attachment Media Editor ---
 const attachmentEditorOpen = ref(false);
@@ -1520,6 +1545,11 @@ const {
 const attachmentEditorSrc = ref("");
 const attachmentEditorMediaType = ref<"image" | "video">("image");
 let attachmentEditingIndex = -1;
+// A video reopens where its last edit left it, with the file as picked (its audio goes into a
+// render) and a bitrate the preparation will copy rather than encode again.
+const attachmentEditorState = shallowRef<Partial<EditingMediaState> | undefined>(undefined);
+const attachmentEditorBlob = shallowRef<Blob | undefined>(undefined);
+const attachmentEditorBitrate = shallowRef<VideoBitrateFn | undefined>(undefined);
 
 // A video handed to the editor is a fresh object URL over the pending file, which pins the whole
 // file until it is revoked — and it never was. Released once the editor is done with it: after
@@ -1533,37 +1563,99 @@ function releaseAttachmentEditorSrc() {
 watch(attachmentEditorOpen, (open) => {
   if (open) return;
   // Closing and `done` can arrive in either order; give a pending export the tick it needs to claim the URL.
-  setTimeout(() => { if (!attachmentEditorFinalizing) releaseAttachmentEditorSrc(); }, 0);
+  setTimeout(() => {
+    if (attachmentEditorFinalizing) return;
+    releaseAttachmentEditorSrc();
+    attachmentEditorState.value = undefined;
+    attachmentEditorBlob.value = undefined;
+    attachmentEditorBitrate.value = undefined;
+  }, 0);
 });
 
 function onOpenAttachmentEditor(index: number, src: string, mediaType: "image" | "video") {
+  const entry = attachments.pendingFiles.value[index];
+  const video = entry?.video;
   attachmentEditingIndex = index;
   attachmentEditorSrc.value = src;
   attachmentEditorMediaType.value = mediaType;
+  attachmentEditorState.value = video ? (video.editorState ?? { videoMuted: video.prefs.mute }) : undefined;
+  attachmentEditorBlob.value = mediaType === "video" && entry ? toRaw(video?.source ?? entry.file) : undefined;
+  if (video) {
+    const source = { width: video.sourceProbe.width, height: video.sourceProbe.height, bitrate: video.sourceProbe.bitrate };
+    attachmentEditorBitrate.value = (width, height) => videoBitrate(source, { width, height });
+  } else {
+    attachmentEditorBitrate.value = undefined;
+  }
   showAttachmentDialog.value = false;
   attachmentEditorOpen.value = true;
+}
+
+/** Takes the editor's source URL out of the editor's hands, for a render that reads it after the editor closed. */
+function claimAttachmentEditorSrc(): () => void {
+  const src = attachmentEditorSrc.value;
+  attachmentEditorSrc.value = "";
+  let released = false;
+  return () => {
+    if (released || !src.startsWith("blob:")) return;
+    released = true;
+    URL.revokeObjectURL(src);
+  };
 }
 
 async function onAttachmentEditorDone(result: MediaEditorFinalResult) {
   attachmentEditorFinalizing = true;
   try {
-  if (result && attachmentEditingIndex >= 0) {
-    const payload = await result.getResult();
-    const blob = payload.blob;
-    const pending = attachments.pendingFiles.value[attachmentEditingIndex];
-    const isVideo = attachmentEditorMediaType.value === "video";
-    const ext = isVideo ? "mp4" : "png";
-    const mime = isVideo ? "video/mp4" : "image/png";
-    const originalName = pending?.file.name ?? `edited.${ext}`;
-    const editedFile = new File([blob], originalName, { type: mime });
-    const previewUrl = URL.createObjectURL(blob);
-    onReplaceFile(attachmentEditingIndex, editedFile, previewUrl);
-  }
-  attachmentEditingIndex = -1;
-  showAttachmentDialog.value = true;
+    const index = attachmentEditingIndex;
+    const entry = index >= 0 ? attachments.pendingFiles.value[index] : undefined;
+    if (result && entry) {
+      if (result.isVideo && entry.video && result.videoEdit) {
+        const decision = videoEditDecision(result.editingMediaState, result.videoEdit, entry.video.sourceProbe.durationMs);
+        metrics.count("video.edit", { path: decision.path, reason: decision.path === "render" ? decision.reason : undefined });
+        if (decision.path === "convert") {
+          // Trim, crop, turns, mirror, sound, quality: the converter applies them to the source; nothing is rendered.
+          result.cancel?.();
+          attachments.applyVideoEdit(index, decision.prefs, { still: result.preview, editorState: result.editingMediaState });
+        } else {
+          const releaseSrc = claimAttachmentEditorSrc();
+          attachments.renderVideoEdit(
+            index,
+            {
+              getResult: async () => {
+                try {
+                  return await result.getResult();
+                } finally {
+                  releaseSrc();
+                }
+              },
+              cancel: () => {
+                result.cancel?.();
+                releaseSrc();
+              },
+              creationProgress: result.creationProgress,
+              preview: result.preview,
+            },
+            { editorState: result.editingMediaState },
+          );
+        }
+      } else if (result.isVideo) {
+        // A video sent as a plain attachment: the editor's render takes the file's place.
+        const payload = await result.getResult();
+        const file = new File([payload.blob], mp4Name(entry.file.name), { type: "video/mp4" });
+        onReplaceFile(index, file, stillUrl(result.preview), { width: result.width, height: result.height });
+      } else {
+        const payload = await result.getResult();
+        const file = new File([payload.blob], entry.file.name || "edited.png", { type: "image/png" });
+        onReplaceFile(index, file, URL.createObjectURL(payload.blob), { width: result.width, height: result.height });
+      }
+    }
+    attachmentEditingIndex = -1;
+    showAttachmentDialog.value = true;
   } finally {
     attachmentEditorFinalizing = false;
     releaseAttachmentEditorSrc();
+    attachmentEditorState.value = undefined;
+    attachmentEditorBlob.value = undefined;
+    attachmentEditorBitrate.value = undefined;
   }
 }
 
@@ -1643,6 +1735,9 @@ const handleSend = async (captionContent?: { text: string; entities: IMessageEnt
   // Detach files from composable BEFORE creating optimistic message
   // This gives us a standalone uploader snapshot and frees the composable for new files
   const detachedUploader = hasAttachments ? attachments.detach() : null;
+  // Until its files are up the message is not on its way: it neither times out nor is it what an
+  // echo of one of our messages stands for. A video can take minutes to compress and upload.
+  if (detachedUploader) markSendUploading(randomId);
 
   // Create optimistic message — appears in chat immediately
   const optimisticMsg = {
@@ -1672,19 +1767,30 @@ const handleSend = async (captionContent?: { text: string; entities: IMessageEnt
 
   // Fire-and-forget: upload + send in background
   (async () => {
-    const kind = detachedUploader ? "attachments" : "text";
+    const kind = detachedUploader?.hasVideo ? "video" : detachedUploader ? "attachments" : "text";
     const sendAttrs = { kind, reply: replyTo !== null };
     const sendTimer = metrics.startTimer("message.send.duration", sendAttrs);
     metrics.distribution("message.text.length", plainText.length, "none", { kind });
+    const uploaded = () => {
+      markSendUploaded(randomId);
+      for (const entity of detachedUploader?.optimisticEntities() ?? []) clearAttachmentSendProgress(entity);
+    };
     try {
       let finalEntities = [...entities];
 
       // Upload attachments if any
       if (detachedUploader) {
-        const realAttachEntities = await detachedUploader.uploadAll(uploadTarget(channelId));
+        const realAttachEntities = await detachedUploader.uploadAll(uploadTarget(channelId), (entity, phase, fraction) => {
+          if (entity) setAttachmentSendProgress(entity, fraction, videoSendStage(phase, fraction));
+        });
+        uploaded();
 
         if (detachedUploader.hasErrors()) {
-          emit("mark-optimistic-failed", randomId, "Failed to upload attachments");
+          const failure = detachedUploader.videoFailure();
+          // A refusal names the target's limits, asked afresh (a refusal drops the ones known here).
+          const limits = failure ? await resolveUploadLimits(api, uploadTarget(channelId)) : null;
+          const params = limits ? { limit: formatLimitBytes(limits.videoMaxBytes), duration: formatLimitDuration(limits.videoMaxDurationMs) } : {};
+          emit("mark-optimistic-failed", randomId, t(failure ? videoSendErrorKey(failure) : "video_upload_attachments_failed", params));
           detachedUploader.cleanup();
           sendTimer.end({ result: "failed", error: "upload" });
           metrics.count("message.sent", { ...sendAttrs, result: "failed", error: "upload" });
@@ -1707,11 +1813,13 @@ const handleSend = async (captionContent?: { text: string; entities: IMessageEnt
       // Step 1: Resolve optimistic → replace placeholder with real messageId
       emit("resolve-optimistic", randomId, sent.readback);
 
-      detachedUploader?.cleanup();
+      // The bubble shows the local poster until the server's copy of the message replaces it.
+      detachedUploader?.cleanup(OPTIMISTIC_PREVIEW_HOLD_MS);
       sendTimer.end({ result: "ok" });
       metrics.count("message.sent", { ...sendAttrs, result: "ok" });
     } catch (e: any) {
       logger.error("Failed to send message:", e);
+      uploaded();
       emit("mark-optimistic-failed", randomId, e?.message ?? "Send failed");
       detachedUploader?.cleanup();
       sendTimer.end({ result: "failed", error: errorKind(e) });
@@ -1719,6 +1827,17 @@ const handleSend = async (captionContent?: { text: string; entities: IMessageEnt
     }
   })();
 };
+
+/** How long the local previews of a sent message outlive the send (the server's copy arrives by then). */
+const OPTIMISTIC_PREVIEW_HOLD_MS = 15_000;
+
+/** What a video in the optimistic bubble is doing, in the user's language. */
+function videoSendStage(phase: VideoSendPhase, fraction: number | null): string {
+  const percent = Math.round((fraction ?? 0) * 100);
+  if (phase === "render") return t("video_send_processing", { percent });
+  if (phase === "prepare") return t("video_send_compressing", { percent });
+  return fraction === null ? t("video_send_preparing_upload") : t("video_send_uploading", { percent });
+}
 
 async function handleExternalFiles(files: FileList) {
   if (!canAttachFiles.value || props.editing) return;

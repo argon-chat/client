@@ -149,6 +149,19 @@ const METRICS = {
   "activity.start": C,
   "activity.stop": C,
   "activity.duration": SEC,
+  // video playback (source: inline | viewer)
+  "video.play": C,
+  "video.playback.start": MS,
+  "video.playback.stall": C,
+  // video preparation & upload (mode: copy | remux | transcode | original; transport: single | multipart | stored | none)
+  "video.prepare": C,
+  "video.prepare.duration": MS,
+  "video.prepare.speed": NUM,
+  "video.bytes": BYTES,
+  "video.upload": C,
+  "video.upload.duration": MS,
+  // a video edited in the composer's editor (path: convert = trim/crop/turn applied by the converter | render = frames rendered; reason: pixels | angle)
+  "video.edit": C,
 } as const satisfies Record<string, MetricSpec>;
 
 type MetricName = keyof typeof METRICS;
@@ -328,6 +341,9 @@ const PRODUCT: WidgetDraft[] = [
   bars("Follows by scope", M("announcement.followed", "result:ok"), "scope", "sum", { w: 3 }),
   area("Sticker / emoji uploads by kind", [q(M("expression.upload", "result:ok"), ["sum"], { columns: ["kind"] })], { w: 3 }),
   bars("Sticker / emoji uploads by format", M("expression.upload", "result:ok"), "format", "sum", { w: 3 }),
+  by("Video plays by source", M("video.play", "result:ok"), "source", { w: 3, description: "inline: silent autoplay in the chat; viewer: opened full size" }),
+  by("Video edits by path", M("video.edit"), "path", { w: 3, description: "convert: trim/crop/turn applied by the converter, no frame rendered; render: drawn on, frames rendered" }),
+  bars("Video edits rendered by reason", M("video.edit", "path:render"), "reason", "sum", { w: 3, description: "pixels: drawing, text, stickers, adjustments; angle: a free rotation" }),
 ];
 
 const CALLS: WidgetDraft[] = [
@@ -420,6 +436,23 @@ const RELIABILITY: WidgetDraft[] = [
     ["failed", M("expression.upload", "result:failed")],
   ], { w: 3 }),
   line("Sticker / emoji upload p95 by format (ms)", [q(M("expression.upload.duration", "result:ok"), ["p95"], { columns: ["format"] })], { w: 3 }),
+  bars("Video playback failures by error", M("video.play", "result:failed"), "error", "sum", { w: 3 }),
+  line("Video start p95 by source (ms)", [q(M("video.playback.start"), ["p95"], { columns: ["source"] })], { w: 3 }),
+  series("Video plays ok / failed", [
+    ["ok", M("video.play", "result:ok")],
+    ["failed", M("video.play", "result:failed")],
+  ], { w: 3 }),
+  by("Video stalls by source", M("video.playback.stall"), "source", { w: 3 }),
+  bars("Video prepare failures by mode", M("video.prepare", "result:failed"), "mode", "sum", { w: 3 }),
+  line("Video prepare speed p95 by mode (× realtime)", [q(M("video.prepare.speed"), ["p95"], { columns: ["mode"] })], {
+    w: 3,
+    description: "Seconds of video prepared per second of wall time",
+  }),
+  line("Video prepare p95 by output height (ms)", [q(M("video.prepare.duration"), ["p95"], { columns: ["height"] })], { w: 3 }),
+  bars("Video size p50 by mode (MB)", M("video.bytes"), "mode", `equation|${F(M("video.bytes"), "p50")} / 1048576`, { w: 3 }),
+  bars("Videos sent as plain files by reason", M("video.prepare", "mode:original"), "reason", "sum", { w: 3 }),
+  bars("Video upload failures by transport", M("video.upload", "result:failed"), "transport", "sum", { w: 3 }),
+  line("Video upload p95 by transport (ms)", [q(M("video.upload.duration", "result:ok"), ["p95"], { columns: ["transport"] })], { w: 3 }),
 ];
 
 const ULTIMA: WidgetDraft[] = [

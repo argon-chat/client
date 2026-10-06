@@ -1,11 +1,16 @@
 import {
   ArchetypeError,
   ChannelLayoutError,
+  EmailChangeError,
   ExpressionError,
+  RegistrationError,
   SendMessageError,
   SpaceManageError,
   UpdateMeError,
+  VerificationError,
+  VerificationFactor,
   type IChannelLayoutResult,
+  type IConfirmEmailChangeResult,
   type ISpaceManageResult,
 } from "@argon/glue";
 
@@ -61,6 +66,53 @@ const UPDATE_ME: Partial<Record<UpdateMeError, string>> = {
   [UpdateMeError.INVALID_STATUS_EMOJI]: "status_emoji_invalid",
 };
 
+const VERIFICATION: Partial<Record<VerificationError, string>> = {
+  [VerificationError.FLOW_EXPIRED]: "verify_error_flow_expired",
+  [VerificationError.FACTOR_NOT_ALLOWED]: "verify_error_factor_not_allowed",
+  [VerificationError.INVALID_PROOF]: "verify_error_invalid_code",
+  [VerificationError.CHALLENGE_REQUIRED]: "verify_error_challenge_required",
+  [VerificationError.TOO_MANY_ATTEMPTS]: "verify_error_too_many_attempts",
+  [VerificationError.RATE_LIMITED]: "verify_error_rate_limited",
+  [VerificationError.INTERNAL_ERROR]: "verify_error_internal",
+};
+
+/** A wrong proof reads differently per factor; the codes share the default. */
+const INVALID_PROOF: Partial<Record<VerificationFactor, string>> = {
+  [VerificationFactor.PASSWORD]: "verify_error_invalid_password",
+  [VerificationFactor.PASSKEY]: "verify_error_invalid_passkey",
+};
+
+const EMAIL_CHANGE: Partial<Record<EmailChangeError, string>> = {
+  [EmailChangeError.INVALID_EMAIL]: "email_change_error_invalid_email",
+  [EmailChangeError.EMAIL_ALREADY_USED]: "email_change_error_already_used",
+  [EmailChangeError.INVALID_PASSWORD]: "email_change_error_invalid_password",
+  [EmailChangeError.INVALID_VERIFICATION_CODE]: "email_change_error_invalid_code",
+  [EmailChangeError.VERIFICATION_CODE_EXPIRED]: "email_change_error_code_expired",
+  [EmailChangeError.RATE_LIMITED]: "email_change_error_rate_limited",
+  [EmailChangeError.INTERNAL_ERROR]: "email_change_error_internal",
+  [EmailChangeError.VERIFICATION_REQUIRED]: "email_change_error_verification_required",
+};
+
+const REGISTRATION: Partial<Record<RegistrationError, string>> = {
+  [RegistrationError.EMAIL_ALREADY_REGISTERED]: "register_error_email_taken",
+  [RegistrationError.USERNAME_ALREADY_TAKEN]: "register_error_username_taken",
+  [RegistrationError.USERNAME_RESERVED]: "register_error_username_reserved",
+  [RegistrationError.EMAIL_BANNED]: "register_error_email_banned",
+  [RegistrationError.SSO_EMAILS_NOT_ALLOWED]: "register_error_sso_email",
+  [RegistrationError.REGION_BANNED]: "register_error_region_banned",
+};
+
+/** A validation refusal names the field it is about; `rate_limit` is the server's marker for "slow down". */
+const REGISTRATION_FIELD: Readonly<Record<string, string>> = {
+  rate_limit: "register_error_rate_limited",
+  email: "register_error_invalid_email",
+  username: "register_error_invalid_username",
+  password: "register_error_invalid_password",
+  displayName: "register_error_invalid_displayName",
+  birthDate: "register_error_invalid_birthDate",
+  argreeTos: "register_error_invalid_argreeTos",
+};
+
 export function sendMessageErrorKey(error: SendMessageError): string {
   return SEND_MESSAGE[error] ?? "send_error_unknown";
 }
@@ -85,6 +137,21 @@ export function updateMeErrorKey(error: UpdateMeError): string {
   return UPDATE_ME[error] ?? "profile_update_failed";
 }
 
+/** `factor` is the one the refused proof was for, when there was one. */
+export function verificationErrorKey(error: VerificationError, factor: VerificationFactor | null = null): string {
+  const perFactor = error === VerificationError.INVALID_PROOF && factor !== null ? INVALID_PROOF[factor] : undefined;
+  return perFactor ?? VERIFICATION[error] ?? "verification_failed";
+}
+
+export function emailChangeErrorKey(error: EmailChangeError): string {
+  return EMAIL_CHANGE[error] ?? "email_change_failed";
+}
+
+export function registrationErrorKey(error: RegistrationError, field: string | null = null): string {
+  const perField = error === RegistrationError.VALIDATION_FAILED && field ? REGISTRATION_FIELD[field] : undefined;
+  return perField ?? REGISTRATION[error] ?? "register_failed";
+}
+
 /** A custom emoji / sticker call the server refused; `key` is the i18n key for the reason. */
 export class ExpressionRefusal extends Error {
   readonly key: string;
@@ -107,4 +174,10 @@ export function channelLayoutRefusal(result: IChannelLayoutResult): ChannelLayou
 export function spaceManageRefusal(result: ISpaceManageResult): SpaceManageError | null {
   if (result.isFailedSpaceManage()) return result.error;
   return result.isSuccessSpaceManage() ? null : SpaceManageError.NONE;
+}
+
+/** Why confirming a new email address was refused, or null when the address changed. */
+export function confirmEmailChangeRefusal(result: IConfirmEmailChangeResult): EmailChangeError | null {
+  if (result.isFailedConfirmEmailChange()) return result.error;
+  return result.isSuccessConfirmEmailChange() ? null : EmailChangeError.NONE;
 }

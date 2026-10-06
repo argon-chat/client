@@ -43,7 +43,7 @@ const items = computed(() => sortByProvider(props.connections).filter((c) => pro
 
 /** "245 games · since Mar 2012": the first three facts, each with its label. */
 function facts(item: ProfileConnection): string[] {
-  return visibleDetails(item.details)
+  return visibleDetails(item.details, locale.has)
     .slice(0, 3)
     .map((d) => d.kind === ConnectionDetailKind.FLAG
       ? t(`connection_detail_${detailSlug(d.key)}`)

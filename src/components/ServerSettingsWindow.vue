@@ -22,7 +22,7 @@
                         :class="{ 'nav-item--active': selectedCategory === category.id }"
                     >
                         <component :is="category.icon" class="w-4 h-4 shrink-0" />
-                        <span>{{ category.labelKey ? t(category.labelKey) : category.label }}</span>
+                        <span>{{ t(category.labelKey) }}</span>
                     </button>
                 </nav>
                 <div class="settings-content flex-1 p-6 pb-8 text-foreground overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
@@ -64,12 +64,11 @@ const { t } = useLocale();
 
 // Each category declares the permission required to see it, so the nav adapts
 // to what the current member is actually allowed to manage.
-// `perm` may list several flags: any one of them shows the category. `labelKey` is translated.
+// `perm` may list several flags: any one of them shows the category.
 // `feature`, when set, hides the category until that feature is on.
 type Category = {
     id: ServerSettingsCategory;
-    label?: string;
-    labelKey?: string;
+    labelKey: string;
     icon: Component;
     perm: ArgonEntitlementFlag | readonly ArgonEntitlementFlag[];
     feature?: () => boolean;
@@ -77,9 +76,9 @@ type Category = {
 };
 
 const allCategories: readonly Category[] = [
-    { id: "profile", label: "Profile", icon: UserIcon, perm: "ManageServer", component: ServerProfile },
-    { id: "invites", label: "Invites", icon: LinkIcon, perm: "ManageServer", component: Invites },
-    { id: "archetypes", label: "Roles", icon: ShieldIcon, perm: "ManageArchetype", component: RolesSettings },
+    { id: "profile", labelKey: "profile", icon: UserIcon, perm: "ManageServer", component: ServerProfile },
+    { id: "invites", labelKey: "server_settings_nav_invites", icon: LinkIcon, perm: "ManageServer", component: Invites },
+    { id: "archetypes", labelKey: "server_settings_nav_roles", icon: ShieldIcon, perm: "ManageArchetype", component: RolesSettings },
     {
         id: "expressions",
         labelKey: "expression_settings_nav",
@@ -88,7 +87,7 @@ const allCategories: readonly Category[] = [
         feature: () => !!features.stickersAndEmojiActive,
         component: ExpressionsSettings,
     },
-    { id: "bots", label: "Bots", icon: BotIcon, perm: "ManageBots", component: BotsSettings },
+    { id: "bots", labelKey: "server_settings_nav_bots", icon: BotIcon, perm: "ManageBots", component: BotsSettings },
 ];
 
 const categories = computed(() =>

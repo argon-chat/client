@@ -87,6 +87,8 @@ export default defineConfig({
         },
       },
       "packages/*/vitest.config.ts",
+      // A package's real-browser tests, when it has any.
+      "packages/*/vitest.browser.config.ts",
     ],
   },
 });

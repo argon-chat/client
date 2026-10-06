@@ -605,67 +605,7 @@
       </DialogContent>
     </Dialog>
 
-    <!-- Change Email Dialog -->
-    <Dialog v-model:open="showChangeEmailDialog">
-      <DialogContent class="max-w-[480px]" @interactOutside.prevent>
-        <DialogHeader>
-          <DialogTitle>{{ t("change_email") }}</DialogTitle>
-        </DialogHeader>
-        <div class="space-y-4">
-          <div class="text-sm text-muted-foreground">
-            {{ t("change_email_instructions") }}
-          </div>
-          <InputWithError v-model="newEmail" type="email" :placeholder="t('new_email_placeholder')"
-            :error="validateEmail">
-            <template #label>
-              <label class="text-sm font-medium">{{ t("new_email") }}</label>
-            </template>
-          </InputWithError>
-
-          <InputWithError v-model="emailPassword" type="password" :placeholder="t('confirm_with_password')"
-            :error="emailErrors.password" @clear-error="emailErrors.password = null">
-            <template #label>
-              <label class="text-sm font-medium">{{ t("current_password") }}</label>
-            </template>
-          </InputWithError>
-        </div>
-        <DialogFooter>
-          <Button @click="showChangeEmailDialog = false" variant="outline">
-            {{ t("cancel") }}
-          </Button>
-          <Button @click="requestEmailChange" :disabled="isChangingEmail || !!validateEmail">
-            {{ isChangingEmail ? t("sending") : t("send_code") }}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-
-    <!-- Email Verification Dialog -->
-    <Dialog v-model:open="showEmailVerificationDialog">
-      <DialogContent class="max-w-[480px]" @interactOutside.prevent>
-        <DialogHeader>
-          <DialogTitle>{{ t("verify_email") }}</DialogTitle>
-        </DialogHeader>
-        <div class="space-y-4">
-          <div class="text-sm text-muted-foreground">
-            {{ t("verification_code_sent_to") }} <strong>{{ newEmail }}</strong>
-          </div>
-          <div>
-            <label class="text-sm font-medium">{{ t("verification_code") }}</label>
-            <Input v-model="verificationCode" type="text" :placeholder="t('enter_6_digit_code')" class="mt-2"
-              maxlength="6" />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button @click="showEmailVerificationDialog = false" variant="outline">
-            {{ t("cancel") }}
-          </Button>
-          <Button @click="confirmEmailChange" :disabled="isChangingEmail">
-            {{ isChangingEmail ? t("verifying") : t("verify") }}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ChangeEmailDialog v-model:open="showChangeEmailDialog" @changed="userEmail = $event" />
 
     <!-- Change Phone Dialog -->
     <Dialog v-model:open="showChangePhoneDialog">
@@ -910,6 +850,7 @@ import {
   DialogDescription,
 } from "@argon/ui/dialog";
 import AvatarCropDialog from "./AvatarCropDialog.vue";
+import ChangeEmailDialog from "./ChangeEmailDialog.vue";
 import ActiveSessions from "./ActiveSessions.vue";
 import ProfileCardPreview from "./ProfileCardPreview.vue";
 import UltimaCheckoutDialog from "@/components/modals/UltimaCheckoutDialog.vue";
@@ -1249,24 +1190,6 @@ const passkeyManager = new PasskeyManager(passkeyApiCallbacks);
 // address on file. Never a stand-in address: a plausible-looking one reads as "this is your email".
 const userEmail = ref("");
 const showChangeEmailDialog = ref(false);
-const showEmailVerificationDialog = ref(false);
-const newEmail = ref("");
-const emailPassword = ref("");
-const verificationCode = ref("");
-const isChangingEmail = ref(false);
-
-const emailErrors = reactive({
-  email: null as string | null,
-  password: null as string | null,
-  verification: null as string | null,
-});
-
-const validateEmail = computed(() => {
-  if (!newEmail.value) return null;
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(newEmail.value)) return t("invalid_email");
-  return null;
-});
 
 // Phone State
 const userPhone = ref("");
@@ -1405,95 +1328,6 @@ const updateAutoDeletePeriod = async (value: string | number | bigint | Record<s
       description: t("auto_delete_failed"),
       variant: "destructive",
     });
-  }
-};
-
-const requestEmailChange = async () => {
-  if (!newEmail.value || !emailPassword.value) {
-    toast({
-      title: t("error"),
-      description: t("fill_all_fields"),
-      variant: "destructive",
-    });
-    return;
-  }
-
-  if (validateEmail.value) {
-    return;
-  }
-
-  isChangingEmail.value = true;
-
-  try {
-    const result = await api.securityInteraction.RequestEmailChange(newEmail.value, emailPassword.value);
-
-    if (result.isSuccessRequestEmailChange()) {
-      showChangeEmailDialog.value = false;
-      showEmailVerificationDialog.value = true;
-
-      toast({
-        title: t("verification_code_sent"),
-        description: t("check_your_email"),
-      });
-    } else {
-      toast({
-        title: t("error"),
-        description: t("email_change_failed"),
-        variant: "destructive",
-      });
-    }
-  } catch (error) {
-    toast({
-      title: t("error"),
-      description: t("email_change_failed"),
-      variant: "destructive",
-    });
-  } finally {
-    isChangingEmail.value = false;
-  }
-};
-
-const confirmEmailChange = async () => {
-  if (!verificationCode.value) {
-    toast({
-      title: t("error"),
-      description: t("enter_verification_code"),
-      variant: "destructive",
-    });
-    return;
-  }
-
-  isChangingEmail.value = true;
-
-  try {
-    const result = await api.securityInteraction.ConfirmEmailChange(verificationCode.value);
-
-    if (result.isSuccessConfirmEmailChange()) {
-      userEmail.value = newEmail.value;
-      showEmailVerificationDialog.value = false;
-      newEmail.value = "";
-      emailPassword.value = "";
-      verificationCode.value = "";
-
-      toast({
-        title: t("email_changed"),
-        description: t("email_changed_desc"),
-      });
-    } else {
-      toast({
-        title: t("error"),
-        description: t("verification_failed"),
-        variant: "destructive",
-      });
-    }
-  } catch (error) {
-    toast({
-      title: t("error"),
-      description: t("verification_failed"),
-      variant: "destructive",
-    });
-  } finally {
-    isChangingEmail.value = false;
   }
 };
 

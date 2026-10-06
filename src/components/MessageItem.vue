@@ -213,14 +213,14 @@
               <!-- ── Normal message (images + bubble + files) ── -->
               <div v-else class="flex flex-col relative" :style="mediaMaxWidth">
 
-                <!-- Images above the bubble -->
+                <!-- Images and videos above the bubble -->
                 <div
-                  v-if="imageAttachments.length"
+                  v-if="mediaItems.length"
                   class="overflow-hidden"
                   :style="{ borderRadius: mediaRadius }"
                 >
                   <AttachmentImageGrid
-                    :images="imageAttachments"
+                    :images="mediaItems"
                     @open-lightbox="onImageClick"
                   />
                 </div>
@@ -527,6 +527,7 @@ import { useUserColors } from "@/store/chat/userColors";
 import { useLocale } from "@/store/system/localeStore";
 import { fragmentMessageText, useMessageContent, type IFrag } from "@/composables/useMessageContent";
 import { EntityType, ReportTargetKind, type ArgonMessage, type ExpressionItem, type MessageEntityAttachment, type MessageEntityGif, type MessageEntityLinkPreview, type MessageEntitySticker } from "@argon/glue";
+import { isVideoEntity, type ChatMediaItem } from "@/lib/media/mediaItem";
 import { showLinkPreviews } from "@/lib/linkPreview/settings";
 import type { ChatMessage } from "@/composables/useChatMessages";
 import { jumboEmoji, stickerMedia } from "@/lib/chat/customEmoji";
@@ -676,7 +677,7 @@ const emit = defineEmits<{
   (e: "publish", message: ArgonMessage): void;
   (e: "retry", message: ArgonMessage): void;
   (e: "scroll-to-message", messageId: bigint): void;
-  (e: "open-lightbox", images: MessageEntityAttachment[], index: number, timeSent: Date | null): void;
+  (e: "open-lightbox", images: ChatMediaItem[], index: number, timeSent: Date | null): void;
 }>();
 
 // ── Reactive data ──
@@ -807,8 +808,17 @@ function isImage(a: MessageEntityAttachment): boolean {
   return !!ext && ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "avif"].includes(ext);
 }
 
-const imageAttachments = computed(() => allAttachments.value.filter(isImage));
 const fileAttachments = computed(() => allAttachments.value.filter((a) => !isImage(a)));
+
+// ── Videos: in the media grid with the pictures, in the message's order ──
+
+const videoEntities = computed(() => (props.message.entities ?? []).filter(isVideoEntity));
+
+const mediaItems = computed<ChatMediaItem[]>(() =>
+  (props.message.entities ?? []).filter(
+    (e): e is ChatMediaItem => isVideoEntity(e) || (e.type === EntityType.Attachment && isImage(e as MessageEntityAttachment)),
+  ),
+);
 
 // ── GIF entities ──
 
@@ -844,13 +854,13 @@ const linkPreview = computed<MessageEntityLinkPreview | null>(() => {
 
 const hasOnlyImages = computed(
   () =>
-    (allAttachments.value.length > 0 || gifEntities.value.length > 0) &&
+    (allAttachments.value.length > 0 || gifEntities.value.length > 0 || videoEntities.value.length > 0) &&
     fileAttachments.value.length === 0 &&
     !fragments.value.length &&
     !props.message.text?.trim(),
 );
 
-const hasMediaAbove = computed(() => imageAttachments.value.length > 0 || gifEntities.value.length > 0);
+const hasMediaAbove = computed(() => mediaItems.value.length > 0 || gifEntities.value.length > 0);
 
 // ── Stickers ──
 
@@ -860,7 +870,12 @@ const stickerEntities = computed(() =>
 
 /** A sticker and nothing else: drawn without a bubble. */
 const isStickerOnly = computed(
-  () => stickerEntities.value.length > 0 && !allAttachments.value.length && !gifEntities.value.length && !props.message.text?.trim(),
+  () =>
+    stickerEntities.value.length > 0 &&
+    !allAttachments.value.length &&
+    !videoEntities.value.length &&
+    !gifEntities.value.length &&
+    !props.message.text?.trim(),
 );
 
 const stickerSize = computed(() => (props.narrow ? EXPRESSION_SIZES.chatStickerNarrow : EXPRESSION_SIZES.chatSticker));
@@ -884,7 +899,7 @@ const textContainer = computed(() =>
 
 /** 1–7 emoji and nothing else, in a message with no media: drawn big (Telegram's sizes). */
 const jumbo = computed(() =>
-  allAttachments.value.length || gifEntities.value.length || stickerEntities.value.length
+  allAttachments.value.length || videoEntities.value.length || gifEntities.value.length || stickerEntities.value.length
     ? null
     : jumboEmoji(props.message.text, props.message.entities ?? []),
 );
@@ -998,15 +1013,17 @@ function copyText() {
   navigator.clipboard.writeText(props.message.text);
 }
 
-/** The attachment under the pointer as the menu opened, so the menu can offer to copy that one. */
-const contextAttachment = ref<MessageEntityAttachment | null>(null);
+/** The attachment or video under the pointer as the menu opened, so the menu can offer to copy that one. */
+const contextAttachment = ref<ChatMediaItem | null>(null);
 
 function rememberContextTarget(e: MouseEvent) {
   const id = (e.target as HTMLElement | null)?.closest?.("[data-attachment-id]")?.getAttribute("data-attachment-id");
-  contextAttachment.value = id ? allAttachments.value.find((a) => a.fileId === id) ?? null : null;
+  contextAttachment.value = id
+    ? allAttachments.value.find((a) => a.fileId === id) ?? videoEntities.value.find((v) => v.fileId === id) ?? null
+    : null;
 }
 
-function copyAttachment(a: MessageEntityAttachment) {
+function copyAttachment(a: ChatMediaItem) {
   void copyAttachmentToClipboard(a);
 }
 
@@ -1042,7 +1059,7 @@ function onReportProfile(userId: string) {
 }
 
 function onImageClick(index: number) {
-  emit("open-lightbox", imageAttachments.value, index, props.message.timeSent?.toDate() ?? null);
+  emit("open-lightbox", mediaItems.value, index, props.message.timeSent?.toDate() ?? null);
 }
 
 function onPickReaction(emoji: string) {

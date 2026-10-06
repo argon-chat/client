@@ -1,4 +1,4 @@
-import { ref, computed, getCurrentScope, onScopeDispose } from "vue";
+import { ref, computed, getCurrentScope, onScopeDispose, markRaw, reactive, toRaw, watch } from "vue";
 import { logger } from "@argon/core";
 import { metrics, errorKind } from "@/lib/telemetry/metrics";
 import {
@@ -7,12 +7,14 @@ import {
   MessageEntityAttachment,
   PrepareUploadError,
   SuccessUploadFile,
+  VideoUploadError,
   type AttachmentInfo,
   type IAttachExistingFileResult,
   type IMessageEntity,
   type IPrepareUploadResult,
   type IUploadFileResult,
 } from "@argon/glue";
+import type { EditingMediaState } from "@argon/media-editor";
 import { useApi } from "@/store/system/apiStore";
 import { uploadFile } from "@/lib/uploadFile";
 import { rgbaToThumbHash } from "thumbhash";
@@ -20,11 +22,35 @@ import type { Guid } from "@argon-chat/ion.webcore";
 import { sha256Hex } from "@/lib/attachments/hash";
 import { findUpload, forgetUpload, rememberUpload } from "@/lib/attachments/uploadPool";
 import type { AttachmentRef } from "@/lib/attachments/clipboard";
+import type { VideoEditPrefs } from "@/lib/attachments/videoEdit";
+import { DEFAULT_UPLOAD_LIMITS, invalidateUploadLimits, resolveUploadLimits } from "@/lib/attachments/uploadLimits";
 import { cdnFetchUrl } from "@/store/system/fileStorage";
+import { canvasToWebp, context2d, createCanvas } from "@/lib/video/image";
+import { thumbHashOf } from "@/lib/video/thumbhash";
+import type {
+  PreparedVideo,
+  VideoCrop,
+  VideoOriginalReason,
+  VideoEncoderAvailability,
+  VideoPlan,
+  VideoPoster,
+  VideoPrefs,
+  VideoPrepareErrorCode,
+  VideoProbe,
+  VideoQuality,
+  VideoRotation,
+  VideoStoryboardSprite,
+  VideoTrim,
+} from "@/lib/video";
 
 const MAX_FILE_SIZE = 8 * 1024 * 1024; // 8 MB
 const MAX_ATTACHMENTS = 10;
 const THUMBHASH_MAX_DIM = 100;
+
+/** Where the picked file's own poster is taken from: one second in, or a tenth of a shorter video. */
+const POSTER_AT_MS = 1_000;
+const POSTER_MAX_SIDE = 720;
+const POSTER_QUALITY = 0.85;
 
 export type AttachmentStatus = "pending" | "uploading" | "done" | "error";
 
@@ -43,6 +69,61 @@ export interface AttachmentLink {
   origin: LinkOrigin;
 }
 
+/** How a video is to be sent; every change starts its preparation over. */
+export interface PendingVideoPrefs {
+  quality: VideoQuality;
+  mute: boolean;
+  /** Goes as a plain file: the user's choice, or forced (see {@link PendingVideo.fileReason}). */
+  sendAsFile: boolean;
+  trim?: VideoTrim | null;
+  crop?: VideoCrop | null;
+  rotate?: VideoRotation;
+  flip?: boolean;
+  /** The cover frame, ms of the source; null for the default. */
+  coverMs?: number | null;
+}
+
+/**
+ * Why a video goes as a file although the user did not ask: the plan's reason, a failed
+ * preparation, or a length over what the target takes.
+ */
+export type VideoFileReason = VideoOriginalReason | "failed" | "too-long";
+
+/** The target's limits a video was planned against. */
+export interface VideoLimits {
+  maxBytes: number;
+  maxDurationMs: number;
+}
+
+export interface PendingVideo {
+  /** Of the bytes in `file` (the source, or what the editor rendered). */
+  probe: VideoProbe;
+  plan: VideoPlan | null;
+  prefs: PendingVideoPrefs;
+  prepared?: PreparedVideo | null;
+  /** Work in flight on this video: the editor's render, then its preparation. */
+  preparing?: { progress: number; phase: "render" | "prepare"; cancel: () => void } | null;
+  poster?: VideoPoster | null;
+  storyboard?: VideoStoryboardSprite | null;
+  /** Why the last preparation did not produce a video ("invalid-trim": the plan refused the trim). */
+  error?: VideoPrepareErrorCode | "invalid-trim" | "render-failed" | null;
+  /** Set while it goes as a file because it cannot go as a video; `prefs.sendAsFile` is then true. */
+  fileReason?: VideoFileReason | null;
+  /** The user's own "Send as file", which a forced file must not overwrite. */
+  requestedFile?: boolean;
+  /** What the target allowed when it was last planned. */
+  limits?: VideoLimits | null;
+  /** The output overshot the limit and was prepared again a rung lower (the plan has the rung it got). */
+  steppedDown?: boolean;
+  /** The user stopped the preparation: it runs again when the message is sent. */
+  paused?: boolean;
+  /** The file as picked, and what it probed as: what the editor opens and what edits apply to. */
+  source: File;
+  sourceProbe: VideoProbe;
+  /** The editor's state after the last edit, to reopen it where it was left. */
+  editorState?: EditingMediaState | null;
+}
+
 export interface PendingAttachment {
   file: File;
   previewUrl: string | null;
@@ -57,11 +138,128 @@ export interface PendingAttachment {
   sha256?: string | null;
   /** A file already on the server that these bytes are: sent as a copy of it, uploaded only when that is refused. */
   link?: AttachmentLink | null;
+  /** Set for a video sent as a video (behind `af.chat.video`). */
+  video?: PendingVideo;
+  /** What was sent for a video, once it is. */
+  entity?: IMessageEntity;
+  /** Why sending a video failed (a VideoUploadFailure, a VideoPrepareError…). */
+  failure?: unknown;
 }
 
-export function useAttachmentUpload() {
+/** Where a video's send stands, for the optimistic bubble. `fraction` null: working on it. */
+export type VideoSendPhase = "render" | "prepare" | "upload";
+export type VideoSendReporter = (entity: IMessageEntity | undefined, phase: VideoSendPhase, fraction: number | null) => void;
+
+/** The editor's render of a painted video: what onAttachmentEditorDone hands over (a MediaEditorFinalResult). */
+export interface VideoRender {
+  getResult: () => { blob: Blob; hasSound: boolean; thumb?: { blob: Blob } } | Promise<{ blob: Blob; hasSound: boolean; thumb?: { blob: Blob } }>;
+  cancel?: () => void;
+  creationProgress?: { value: number };
+  preview?: Blob;
+}
+
+export interface AttachmentUploadOptions {
+  /** Whether a video is sent as a video (af.chat.video); off, it is a plain attachment. */
+  videoSending?: () => boolean;
+  /** Where the files will go, for its upload limits; null until known (the defaults apply). */
+  uploadTarget?: () => UploadTarget | null;
+}
+
+type VideoLib = typeof import("@/lib/video");
+let videoLibPromise: Promise<VideoLib> | null = null;
+/** Set once the library has loaded; anything holding a `video` loaded it. */
+let videoLib: VideoLib | null = null;
+
+function loadVideoLib(): Promise<VideoLib> {
+  videoLibPromise ??= import("@/lib/video").then((lib) => (videoLib = lib));
+  return videoLibPromise;
+}
+
+const VIDEO_EXTENSION = /\.(mp4|m4v|mov|mkv|webm)$/i;
+
+/** A video by its type, or by its name when the browser gave it no type. */
+export function isVideoFile(file: File): boolean {
+  return file.type.startsWith("video/") || (!file.type && VIDEO_EXTENSION.test(file.name));
+}
+
+/** Whether the editor changed what the frames are (trim, crop, turn, mirror): those need a preparation even for a file. */
+export function videoIsEdited(prefs: PendingVideoPrefs): boolean {
+  return !!prefs.trim || !!prefs.crop || !!prefs.rotate || !!prefs.flip;
+}
+
+/** Whether a pending attachment goes out as a video (rather than as a file). */
+export function goesAsVideo(entry: PendingAttachment): boolean {
+  return !!entry.video && !entry.video.prefs.sendAsFile;
+}
+
+// Transcodes run one at a time across composers: each holds an encoder and a full output in memory.
+let transcodeQueue: Promise<void> = Promise.resolve();
+async function inTranscodeQueue<T>(run: () => Promise<T>, signal: AbortSignal): Promise<T> {
+  const previous = transcodeQueue;
+  let release!: () => void;
+  transcodeQueue = new Promise<void>((resolve) => (release = resolve));
+  try {
+    await previous;
+    if (signal.aborted) throw new DOMException("The preparation was cancelled.", "AbortError");
+    return await run();
+  } finally {
+    release();
+  }
+}
+
+function fitWithin(width: number, height: number, maxSide: number): { width: number; height: number } {
+  const scale = Math.min(1, maxSide / Math.max(width, height));
+  return { width: Math.max(2, Math.round(width * scale)), height: Math.max(2, Math.round(height * scale)) };
+}
+
+/** A poster (WebP ≤ 720 px + ThumbHash) from a still the editor rendered. */
+async function posterFromImage(blob: Blob): Promise<VideoPoster | null> {
+  try {
+    const bitmap = await createImageBitmap(blob);
+    try {
+      const { width, height } = fitWithin(bitmap.width, bitmap.height, POSTER_MAX_SIDE);
+      const canvas = createCanvas(width, height);
+      context2d(canvas).drawImage(bitmap, 0, 0, width, height);
+      return { blob: await canvasToWebp(canvas, POSTER_QUALITY), width, height, thumbHash: thumbHashOf(canvas, width, height) };
+    } finally {
+      bitmap.close();
+    }
+  } catch (e) {
+    logger.debug("poster from the editor's still skipped", e);
+    return null;
+  }
+}
+
+function mp4Name(name: string): string {
+  const stem = name.replace(/\.[^./\\]+$/, "").trim();
+  return `${stem || "video"}.mp4`;
+}
+
+interface VideoJob {
+  controller: AbortController;
+  phase: "render" | "prepare";
+  /** The prepared video, or null when the job was cancelled or the video goes as a file. */
+  promise: Promise<PreparedVideo | null>;
+  listeners: Set<(phase: VideoSendPhase, fraction: number | null) => void>;
+}
+
+export function useAttachmentUpload(options: AttachmentUploadOptions = {}) {
   const api = useApi();
   const pendingFiles = ref<PendingAttachment[]>([]);
+  const videoSending = options.videoSending ?? (() => false);
+
+  /** The target's video limits (asked once per target), or the defaults while it is not known. */
+  async function videoLimits(): Promise<VideoLimits> {
+    const target = options.uploadTarget?.() ?? null;
+    const limits = target ? await resolveUploadLimits(api, target) : DEFAULT_UPLOAD_LIMITS;
+    return { maxBytes: limits.videoMaxBytes, maxDurationMs: limits.videoMaxDurationMs };
+  }
+
+  // Per entry (by its raw object): the work in flight, the latest preparation's generation, and the
+  // optimistic entity a send showed for it.
+  const jobs = new WeakMap<object, VideoJob>();
+  const generations = new WeakMap<object, number>();
+  const optimisticOf = new WeakMap<object, IMessageEntity>();
 
   const hasFiles = computed(() => pendingFiles.value.length > 0);
   const isUploading = computed(() =>
@@ -173,7 +371,7 @@ export function useAttachmentUpload() {
   async function describe(entry: PendingAttachment, need = { dimensions: true, thumbHash: true }) {
     const file = entry.file;
     if (isImageType(file.type)) {
-      entry.previewUrl = URL.createObjectURL(file);
+      entry.previewUrl ??= URL.createObjectURL(file);
       try {
         if (need.dimensions) {
           const dims = await getImageDimensions(file);
@@ -187,7 +385,8 @@ export function useAttachmentUpload() {
     } else if (isVideoType(file.type)) {
       try {
         const videoInfo = await getVideoDimensions(file);
-        entry.previewUrl = videoInfo.previewUrl;
+        if (entry.previewUrl) URL.revokeObjectURL(videoInfo.previewUrl);
+        else entry.previewUrl = videoInfo.previewUrl;
         if (need.dimensions) {
           entry.width = videoInfo.width;
           entry.height = videoInfo.height;
@@ -198,6 +397,57 @@ export function useAttachmentUpload() {
     }
   }
 
+  /**
+   * A video's probe and poster: it is then sent as a video. False when the file cannot be read as
+   * one (it goes the generic way, as a file).
+   */
+  async function describeVideo(entry: PendingAttachment): Promise<boolean> {
+    let lib: VideoLib;
+    let probe: VideoProbe;
+    try {
+      lib = await loadVideoLib();
+      probe = await lib.probeVideo(entry.file);
+    } catch (e) {
+      logger.info("Not readable as a video; attached as a file:", e);
+      return false;
+    }
+
+    let poster: VideoPoster | null = null;
+    if (probe.canDecodeVideo) {
+      try {
+        poster = await lib.extractPoster(entry.file, Math.min(POSTER_AT_MS, probe.durationMs * 0.1));
+      } catch (e) {
+        logger.debug("video poster skipped", e);
+      }
+    }
+
+    if (poster) {
+      entry.previewUrl = URL.createObjectURL(poster.blob);
+      entry.thumbHash = poster.thumbHash;
+    } else {
+      // A codec the page's decoder lacks may still play in an element.
+      await describe(entry, { dimensions: false, thumbHash: false });
+    }
+    entry.width = probe.width;
+    entry.height = probe.height;
+    entry.video = {
+      probe: markRaw(probe),
+      plan: null,
+      prefs: { quality: lib.videoUploadQuality.value, mute: false, sendAsFile: false },
+      prepared: null,
+      preparing: null,
+      poster: poster ? markRaw(poster) : null,
+      storyboard: null,
+      error: null,
+      fileReason: null,
+      paused: false,
+      source: entry.file,
+      sourceProbe: markRaw(probe),
+      editorState: null,
+    };
+    return true;
+  }
+
   async function hashOf(file: File): Promise<string | null> {
     try {
       return await sha256Hex(file);
@@ -205,6 +455,379 @@ export function useAttachmentUpload() {
       logger.debug("hashing skipped", e);
       return null;
     }
+  }
+
+  // ── Video preparation ────────────────────────────────────────────────────────────────────────
+
+  /** Stops the work on a video; `release` also drops what it produced (a prepared MP4 is up to 100 MB). */
+  function stopVideoWork(entry: PendingAttachment, { release }: { release: boolean }) {
+    const raw = toRaw(entry);
+    generations.set(raw, (generations.get(raw) ?? 0) + 1);
+    const job = jobs.get(raw);
+    jobs.delete(raw);
+    job?.controller.abort();
+    const v = entry.video;
+    if (!v) return;
+    v.preparing = null;
+    if (release) v.prepared = null;
+  }
+
+  /**
+   * Plans the video with its preferences and, unless it goes as an unedited file, prepares it in the
+   * background. Any earlier preparation is cancelled and its output dropped.
+   */
+  async function startPreparation(entry: PendingAttachment, { force = false }: { force?: boolean } = {}): Promise<void> {
+    const v = entry.video;
+    if (!v) return;
+    stopVideoWork(entry, { release: true });
+    const raw = toRaw(entry);
+    const generation = generations.get(raw) ?? 0;
+
+    let lib: VideoLib;
+    let encoders: VideoEncoderAvailability;
+    let limits: VideoLimits;
+    try {
+      [lib, limits] = await Promise.all([loadVideoLib(), videoLimits()]);
+      const available = await lib.videoCodecAvailability();
+      encoders = { avc: available.avc, aac: available.aac, memoryBudgetBytes: available.memoryBudgetBytes };
+    } catch (e) {
+      logger.warn("The video library could not load:", e);
+      return;
+    }
+    if (generations.get(raw) !== generation || entry.video !== v) return;
+    v.limits = limits;
+    v.steppedDown = false;
+
+    const prefs = v.prefs;
+    const videoPrefs: VideoPrefs = {
+      quality: prefs.quality,
+      mute: prefs.mute,
+      trim: prefs.trim ? { ...prefs.trim } : null,
+      crop: prefs.crop ? { ...prefs.crop } : null,
+      rotate: prefs.rotate ?? 0,
+      flip: prefs.flip ?? false,
+      maxBytes: limits.maxBytes,
+    };
+    // Planned here (pure, instant) for what the dialog shows and to refuse what cannot be a video;
+    // prepareWithinLimit plans again and may step down when the output overshoots.
+    let plan: VideoPlan;
+    try {
+      plan = lib.planVideo(toRaw(v.probe), videoPrefs, encoders);
+    } catch (e) {
+      logger.warn("The video's edits cannot be planned:", e);
+      v.plan = null;
+      v.error = "invalid-trim";
+      return;
+    }
+
+    v.plan = markRaw(plan);
+    v.error = null;
+    entry.width = plan.width;
+    entry.height = plan.height;
+
+    if (plan.mode === "original") {
+      // Not playable from here: it goes as a file, whatever was chosen.
+      v.fileReason = plan.reason;
+      v.prefs.sendAsFile = true;
+      return;
+    }
+    if (plan.durationMs > limits.maxDurationMs) {
+      // Longer than the target takes as a video: refused here rather than after compressing it.
+      v.fileReason = "too-long";
+      v.prefs.sendAsFile = true;
+      return;
+    }
+    if (v.fileReason) {
+      // What forced a file before (an Original quality, a failure, a length) no longer applies.
+      v.fileReason = null;
+      v.prefs.sendAsFile = !!v.requestedFile;
+    }
+    if (v.prefs.sendAsFile && !videoIsEdited(v.prefs)) return;
+    if (v.paused && !force) return;
+    v.paused = false;
+
+    const job = runPreparation(entry, lib, { plan, prefs: videoPrefs, encoders }, generation);
+    jobs.set(raw, job);
+  }
+
+  function runPreparation(
+    entry: PendingAttachment,
+    lib: VideoLib,
+    { plan, prefs, encoders }: { plan: VideoPlan; prefs: VideoPrefs; encoders: VideoEncoderAvailability },
+    generation: number,
+  ): VideoJob {
+    const v = entry.video!;
+    const raw = toRaw(entry);
+    const controller = new AbortController();
+    const listeners = new Set<(phase: VideoSendPhase, fraction: number | null) => void>();
+    const current = () => generations.get(raw) === generation && entry.video === v;
+    v.preparing = { progress: 0, phase: "prepare", cancel: () => pauseVideo(entry) };
+
+    const promise = (async (): Promise<PreparedVideo | null> => {
+      const file = toRaw(entry.file);
+      const onProgress = (fraction: number) => {
+        if (current() && v.preparing) v.preparing.progress = fraction;
+        for (const listener of listeners) listener("prepare", fraction);
+      };
+      try {
+        const run = () => lib.prepareWithinLimit(file, toRaw(v.probe), prefs, encoders, { signal: controller.signal, onProgress });
+        const result = plan.mode === "transcode" ? await inTranscodeQueue(run, controller.signal) : await run();
+        if (!current()) return null;
+        const final = result.plan;
+        v.plan = markRaw(final);
+        entry.width = final.width;
+        entry.height = final.height;
+        v.preparing = null;
+        if (!result.prepared) {
+          // Even the lowest rung came out too large: it goes as a file.
+          v.fileReason = final.reason ?? "too-large";
+          v.prefs.sendAsFile = true;
+          return null;
+        }
+        // The output overshot the limit and was made again a rung lower.
+        v.steppedDown = Math.min(final.width, final.height) < Math.min(plan.width, plan.height);
+        v.prepared = markRaw(result.prepared);
+        return result.prepared;
+      } catch (e) {
+        if (!current() || controller.signal.aborted) return null;
+        logger.warn("Video preparation failed; it goes as a file:", e);
+        v.preparing = null;
+        v.error = (e as { code?: VideoPrepareErrorCode }).code ?? "conversion-failed";
+        v.fileReason = "failed";
+        v.prefs.sendAsFile = true;
+        return null;
+      } finally {
+        if (current() && jobs.get(raw)?.controller === controller) jobs.delete(raw);
+      }
+    })();
+
+    return { controller, phase: "prepare", promise, listeners };
+  }
+
+  /** The user's stop: the preparation is cancelled and its memory released; sending runs it again. */
+  function pauseVideo(entry: PendingAttachment) {
+    const v = entry.video;
+    if (!v) return;
+    const job = jobs.get(toRaw(entry));
+    if (job?.phase === "render") {
+      // Stopping a render drops the edit it was applying.
+      job.controller.abort();
+      return;
+    }
+    stopVideoWork(entry, { release: true });
+    v.paused = true;
+  }
+
+  /**
+   * The prepared video, waiting for the preparation in flight or starting one; null when it goes as
+   * a file after all (the plan or a failure said so) or the work was cancelled.
+   */
+  async function ensurePrepared(entry: PendingAttachment, onPhase?: (phase: VideoSendPhase, fraction: number | null) => void): Promise<PreparedVideo | null> {
+    const v = entry.video;
+    if (!v) return null;
+    const raw = toRaw(entry);
+    const needed = () => !v.prefs.sendAsFile || videoIsEdited(v.prefs);
+    // A cancelled run (the dialog closed, a render dropped) is started again; a failure is final.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (v.prepared) return toRaw(v.prepared);
+      if (!needed()) return null;
+      let job = jobs.get(raw);
+      if (!job) {
+        await startPreparation(entry, { force: true });
+        job = jobs.get(raw);
+        if (!job) return v.prepared ? toRaw(v.prepared) : null;
+      }
+      if (onPhase) {
+        job.listeners.add(onPhase);
+        onPhase(job.phase, v.preparing?.progress ?? 0);
+      }
+      const prepared = await job.promise;
+      if (onPhase) job.listeners.delete(onPhase);
+      if (prepared) return prepared;
+      if (v.fileReason === "failed") return null;
+    }
+    return v.prepared ? toRaw(v.prepared) : null;
+  }
+
+  function videoAt(index: number): PendingAttachment | null {
+    const entry = pendingFiles.value[index];
+    return entry?.video ? entry : null;
+  }
+
+  /** Changes how one video is sent (quality, sound, as a file) and prepares it again. */
+  function setVideoPrefs(index: number, patch: Partial<Pick<PendingVideoPrefs, "quality" | "mute" | "sendAsFile">>) {
+    const entry = videoAt(index);
+    if (!entry) return;
+    const v = entry.video!;
+    if (patch.sendAsFile !== undefined) {
+      if (v.fileReason) return;
+      v.requestedFile = patch.sendAsFile;
+    }
+    Object.assign(v.prefs, patch);
+    v.paused = false;
+    void startPreparation(entry);
+  }
+
+  function cancelVideoPreparation(index: number) {
+    const entry = videoAt(index);
+    if (entry) pauseVideo(entry);
+  }
+
+  function prepareVideoNow(index: number) {
+    const entry = videoAt(index);
+    if (!entry) return;
+    entry.video!.paused = false;
+    void startPreparation(entry, { force: true });
+  }
+
+  /** The dialog closed: preparations stop (an editor render runs on), and start again when it opens. */
+  function pausePreparations() {
+    for (const entry of pendingFiles.value) {
+      if (!entry.video || jobs.get(toRaw(entry))?.phase === "render") continue;
+      if (jobs.get(toRaw(entry))) stopVideoWork(entry, { release: false });
+    }
+  }
+
+  function resumePreparations() {
+    for (const entry of pendingFiles.value) {
+      const v = entry.video;
+      if (!v || v.prepared || v.paused || jobs.get(toRaw(entry))) continue;
+      if (v.prefs.sendAsFile && !videoIsEdited(v.prefs)) continue;
+      void startPreparation(entry);
+    }
+  }
+
+  async function setPosterFrom(entry: PendingAttachment, still: Blob | undefined) {
+    const v = entry.video;
+    if (!v || !still) return;
+    const poster = await posterFromImage(still);
+    if (!poster || entry.video !== v) return;
+    if (entry.previewUrl) URL.revokeObjectURL(entry.previewUrl);
+    entry.previewUrl = URL.createObjectURL(poster.blob);
+    entry.thumbHash = poster.thumbHash;
+    v.poster = markRaw(poster);
+  }
+
+  /** Back to the file as picked, after a render had replaced it. */
+  function restoreSource(entry: PendingAttachment) {
+    const v = entry.video!;
+    if (entry.file === v.source) return;
+    entry.file = v.source;
+    v.probe = v.sourceProbe;
+  }
+
+  /**
+   * An editor result that only trims, crops, turns, mirrors, mutes or lowers the quality: applied
+   * to the source by the converter, no frame rendered. `still` is the editor's cover frame.
+   */
+  function applyVideoEdit(index: number, edit: VideoEditPrefs, extras: { still?: Blob; editorState?: EditingMediaState } = {}) {
+    const entry = videoAt(index);
+    if (!entry) return;
+    const v = entry.video!;
+    stopVideoWork(entry, { release: true });
+    restoreSource(entry);
+    Object.assign(v.prefs, {
+      trim: edit.trim,
+      crop: edit.crop,
+      rotate: edit.rotate,
+      flip: edit.flip,
+      mute: edit.mute,
+      coverMs: edit.coverMs,
+      ...(edit.quality ? { quality: edit.quality } : {}),
+    });
+    if (extras.editorState) v.editorState = markRaw(extras.editorState);
+    v.paused = false;
+    v.error = null;
+    // An edited file is new bytes.
+    entry.sha256 = null;
+    entry.link = null;
+    void setPosterFrom(entry, extras.still);
+    void startPreparation(entry);
+  }
+
+  /**
+   * An editor result that changed the pixels: the editor renders it (with progress, cancellable),
+   * and what it renders is prepared like a picked file. Cancelling the render drops the edit.
+   */
+  function renderVideoEdit(index: number, render: VideoRender, extras: { editorState?: EditingMediaState } = {}) {
+    const entry = videoAt(index);
+    if (!entry) {
+      render.cancel?.();
+      return;
+    }
+    const v = entry.video!;
+    const raw = toRaw(entry);
+    stopVideoWork(entry, { release: true });
+    const generation = generations.get(raw) ?? 0;
+    const current = () => generations.get(raw) === generation && entry.video === v;
+    const before = { editorState: v.editorState, previewUrl: entry.previewUrl, thumbHash: entry.thumbHash, poster: v.poster };
+
+    const controller = new AbortController();
+    controller.signal.addEventListener("abort", () => render.cancel?.(), { once: true });
+    const listeners = new Set<(phase: VideoSendPhase, fraction: number | null) => void>();
+    v.preparing = { progress: 0, phase: "render", cancel: () => pauseVideo(entry) };
+    v.paused = false;
+    v.error = null;
+    if (extras.editorState) v.editorState = markRaw(extras.editorState);
+    // The editor's still stands in until the render brings the cover.
+    entry.previewUrl = render.preview ? URL.createObjectURL(render.preview) : before.previewUrl;
+
+    const stopProgress = render.creationProgress
+      ? watch(
+          () => render.creationProgress!.value,
+          (fraction) => {
+            if (current() && v.preparing) v.preparing.progress = fraction;
+            for (const listener of listeners) listener("render", fraction);
+          },
+        )
+      : () => {};
+
+    const promise = (async (): Promise<PreparedVideo | null> => {
+      try {
+        const payload = await render.getResult();
+        if (!current()) return null;
+        const lib = await loadVideoLib();
+        const file = new File([payload.blob], mp4Name(v.source.name), { type: "video/mp4" });
+        const probe = await lib.probeVideo(file);
+        if (!current()) return null;
+        entry.file = file;
+        entry.sha256 = null;
+        entry.link = null;
+        v.probe = markRaw(probe);
+        // The edits are in the frames now.
+        Object.assign(v.prefs, { trim: null, crop: null, rotate: 0, flip: false, coverMs: null, mute: false });
+        if (before.previewUrl && before.previewUrl !== entry.previewUrl) URL.revokeObjectURL(before.previewUrl);
+        await setPosterFrom(entry, payload.thumb?.blob ?? render.preview);
+        v.preparing = null;
+        jobs.delete(raw);
+        await startPreparation(entry);
+        const next = jobs.get(raw);
+        if (!next) return v.prepared ? toRaw(v.prepared) : null;
+        for (const listener of listeners) next.listeners.add(listener);
+        return await next.promise;
+      } catch (e) {
+        if (!current()) return null;
+        const cancelled = controller.signal.aborted || (e as { name?: string })?.name === "AbortError";
+        if (!cancelled) logger.warn("Rendering the video's edits failed:", e);
+        // The edit is dropped: back to the video as it was before it.
+        if (entry.previewUrl && entry.previewUrl !== before.previewUrl) URL.revokeObjectURL(entry.previewUrl);
+        entry.previewUrl = before.previewUrl;
+        entry.thumbHash = before.thumbHash;
+        v.poster = before.poster;
+        v.editorState = before.editorState;
+        v.preparing = null;
+        jobs.delete(raw);
+        if (!cancelled) v.error = "render-failed";
+        void startPreparation(entry);
+        return null;
+      } finally {
+        stopProgress();
+        // Superseded (another edit, the file removed): the still from before is nobody's now.
+        if (!current() && before.previewUrl && entry.previewUrl !== before.previewUrl) URL.revokeObjectURL(before.previewUrl);
+      }
+    })();
+
+    jobs.set(raw, { controller, phase: "render", promise, listeners });
   }
 
   async function addFiles(files: FileList | File[]): Promise<string[]> {
@@ -228,6 +851,13 @@ export function useAttachmentUpload() {
         sha256: null,
         link: null,
       };
+
+      // A video is probed and prepared right away; its bytes are hashed only if it goes as a file.
+      if (videoSending() && isVideoFile(file) && (await describeVideo(entry))) {
+        pendingFiles.value.push(entry);
+        void startPreparation(reactive(entry) as PendingAttachment);
+        continue;
+      }
 
       await describe(entry);
 
@@ -311,12 +941,60 @@ export function useAttachmentUpload() {
     }
   }
 
+  /** Stops whatever runs for an entry and releases what it holds. */
+  function dispose(entry: PendingAttachment, { revokePreview = true }: { revokePreview?: boolean } = {}) {
+    if (entry.video) {
+      stopVideoWork(entry, { release: true });
+      entry.video.poster = null;
+      entry.video.storyboard = null;
+    }
+    if (revokePreview && entry.previewUrl) {
+      URL.revokeObjectURL(entry.previewUrl);
+      entry.previewUrl = null;
+    }
+  }
+
   function removeFile(index: number) {
     const entry = pendingFiles.value[index];
-    if (entry?.previewUrl) {
-      URL.revokeObjectURL(entry.previewUrl);
-    }
+    if (entry) dispose(entry);
     pendingFiles.value.splice(index, 1);
+  }
+
+  /**
+   * Puts other bytes in an entry's place (an edited picture, an editor's render): everything known
+   * about the old bytes goes — hash, link, placeholder, video state — and the new ones are described
+   * as if just added. `known` carries what the caller already has (a preview, the size).
+   */
+  async function replaceFile(index: number, file: File, known: { previewUrl?: string | null; width?: number | null; height?: number | null } = {}) {
+    const entry = pendingFiles.value[index];
+    if (!entry) return;
+    dispose(entry);
+    entry.file = file;
+    entry.previewUrl = known.previewUrl ?? null;
+    entry.width = known.width ?? null;
+    entry.height = known.height ?? null;
+    entry.thumbHash = null;
+    entry.sha256 = null;
+    entry.link = null;
+    entry.video = undefined;
+    entry.status = "pending";
+    entry.progress = 0;
+    entry.error = undefined;
+    entry.result = undefined;
+
+    if (videoSending() && isVideoFile(file)) {
+      const preview = entry.previewUrl;
+      entry.previewUrl = null;
+      if (await describeVideo(entry)) {
+        if (preview) URL.revokeObjectURL(preview);
+        void startPreparation(entry);
+        return;
+      }
+      entry.previewUrl = preview;
+    }
+
+    await describe(entry, { dimensions: entry.width == null || entry.height == null, thumbHash: true });
+    entry.sha256 = await hashOf(file);
   }
 
   /** A copy of the linked file in the target, or null when the server would rather have the bytes. */
@@ -437,6 +1115,96 @@ export function useAttachmentUpload() {
     }
   }
 
+  /** The storyboard of what is sent; from the source when the output cannot be decoded here and its frames are the source's. */
+  async function storyboardOf(entry: PendingAttachment, lib: VideoLib, prepared: PreparedVideo): Promise<VideoStoryboardSprite | null> {
+    try {
+      return await lib.buildStoryboard(prepared.blob, prepared.durationMs);
+    } catch (e) {
+      const v = entry.video!;
+      if (entry.file !== v.source || videoIsEdited(v.prefs)) {
+        logger.debug("storyboard skipped", e);
+        return null;
+      }
+      try {
+        return await lib.buildStoryboard(toRaw(entry.file), prepared.durationMs);
+      } catch (e2) {
+        logger.debug("storyboard skipped", e2);
+        return null;
+      }
+    }
+  }
+
+  async function uploadPreparedVideo(
+    entry: PendingAttachment,
+    prepared: PreparedVideo,
+    target: UploadTarget,
+    onPhase: (phase: VideoSendPhase, fraction: number | null) => void,
+  ): Promise<void> {
+    const lib = videoLib ?? (await loadVideoLib());
+    const v = entry.video!;
+    entry.status = "uploading";
+    entry.progress = 0;
+    try {
+      onPhase("upload", null);
+      const storyboard = await storyboardOf(entry, lib, prepared);
+      v.storyboard = storyboard ? markRaw(storyboard) : null;
+      const info = await lib.uploadVideo(
+        target,
+        { ...prepared, fileName: v.source.name, poster: v.poster ? toRaw(v.poster) : null, storyboard },
+        {
+          onProgress: (stage, fraction) => {
+            if (stage !== "video") return onPhase("upload", null);
+            entry.progress = Math.round(fraction * 100);
+            onPhase("upload", fraction);
+          },
+        },
+      );
+      entry.entity = markRaw(lib.videoEntityOf(info));
+      entry.progress = 100;
+      entry.status = "done";
+    } catch (e: any) {
+      entry.status = "error";
+      entry.error = e?.message ?? "Upload failed";
+      entry.failure = markRaw(e);
+      logger.error("Video upload failed:", e);
+      // The server refused what its limits, as known here, allowed: ask it again next time.
+      const code = (e as { code?: unknown })?.code;
+      if (code === VideoUploadError.TOO_LARGE || code === VideoUploadError.TOO_LONG) invalidateUploadLimits(target);
+    }
+  }
+
+  /**
+   * One entry of a send: a video as a video (prepared, then uploaded with its poster and
+   * storyboard), or anything else — a video sent as a file included — as an attachment.
+   */
+  async function sendEntry(entry: PendingAttachment, target: UploadTarget, report?: VideoSendReporter): Promise<void> {
+    const v = entry.video;
+    const onPhase = (phase: VideoSendPhase, fraction: number | null) => report?.(optimisticOf.get(toRaw(entry)), phase, fraction);
+
+    if (v && (!v.prefs.sendAsFile || videoIsEdited(v.prefs))) {
+      entry.status = "uploading";
+      const prepared = await ensurePrepared(entry, onPhase);
+      if (prepared && !v.prefs.sendAsFile) return uploadPreparedVideo(entry, prepared, target, onPhase);
+      if (!prepared && !v.prefs.sendAsFile) {
+        entry.status = "error";
+        entry.error = "aborted";
+        entry.failure = markRaw(new DOMException("The video was not prepared.", "AbortError"));
+        return;
+      }
+      // Sent as a file with its edits: the prepared MP4 is the file.
+      if (prepared) entry.file = new File([prepared.blob], mp4Name(v.source.name), { type: "video/mp4" });
+    }
+
+    if (v) {
+      const lib = videoLib ?? (await loadVideoLib());
+      // The metric's reason: the plan's, else why it was forced to a file ("failed", "too-long"), else the user's choice.
+      const reason = (v.plan?.reason ?? v.fileReason ?? "user-original") as VideoOriginalReason;
+      if (v.plan) lib.recordVideoSentAsFile({ ...toRaw(v.plan), reason });
+      entry.sha256 ??= await hashOf(toRaw(entry.file));
+    }
+    return uploadSingleFile(entry, target);
+  }
+
   /**
    * The ticket for an upload, or the copy the server made instead. With a hash in hand the server is
    * told what is coming (PrepareUploadAttachment); without one, or against a server that predates it,
@@ -496,28 +1264,29 @@ export function useAttachmentUpload() {
     );
   }
 
-  async function uploadAll(target: UploadTarget): Promise<IMessageEntity[]> {
-    const pending = pendingFiles.value.filter((f) => f.status !== "done");
-
-    await Promise.all(
-      pending.map((entry) => uploadSingleFile(entry, target)),
-    );
-
+  /** What a sent batch carries, in the order it was attached. */
+  function sentEntities(entries: PendingAttachment[]): IMessageEntity[] {
     const entities: IMessageEntity[] = [];
-    for (const entry of pendingFiles.value) {
-      if (entry.status !== "done" || !entry.result) continue;
-      entities.push(entityOf(entry, entry.result));
+    for (const entry of entries) {
+      if (entry.status !== "done") continue;
+      if (entry.entity) entities.push(entry.entity);
+      else if (entry.result) entities.push(entityOf(entry, entry.result));
     }
-
     return entities;
   }
 
+  async function sendEntries(entries: PendingAttachment[], target: UploadTarget, report?: VideoSendReporter): Promise<IMessageEntity[]> {
+    const pending = entries.filter((f) => f.status !== "done");
+    await Promise.all(pending.map((entry) => sendEntry(entry, target, report)));
+    return sentEntities(entries);
+  }
+
+  async function uploadAll(target: UploadTarget, report?: VideoSendReporter): Promise<IMessageEntity[]> {
+    return sendEntries(pendingFiles.value, target, report);
+  }
+
   function clear() {
-    for (const entry of pendingFiles.value) {
-      if (entry.previewUrl) {
-        URL.revokeObjectURL(entry.previewUrl);
-      }
-    }
+    for (const entry of pendingFiles.value) dispose(entry);
     pendingFiles.value = [];
   }
 
@@ -530,25 +1299,52 @@ export function useAttachmentUpload() {
     return pendingFiles.value.some((f) => f.status === "error");
   }
 
+  /** The bubble of a video while it is prepared and uploaded: what the preparation measured, or will. */
+  function optimisticVideoEntity(entry: PendingAttachment): IMessageEntity {
+    const v = entry.video!;
+    const plan = v.plan;
+    const prepared: PreparedVideo = v.prepared
+      ? toRaw(v.prepared)
+      : {
+          blob: new Blob([], { type: "video/mp4" }),
+          width: plan?.width ?? v.probe.width,
+          height: plan?.height ?? v.probe.height,
+          durationMs: plan?.durationMs ?? v.probe.durationMs,
+          hasAudio: plan ? plan.audio !== "none" : v.probe.hasAudio && !v.prefs.mute,
+          codecString: null,
+          mode: plan?.mode === "copy" || plan?.mode === "remux" ? plan.mode : "transcode",
+        };
+    const entity = videoLib!.videoEntityFromOptimistic(
+      { ...prepared, fileName: v.source.name },
+      v.poster ? toRaw(v.poster) : null,
+      { posterUrl: entry.previewUrl },
+    );
+    if (!v.prepared && plan) entity.fileSize = BigInt(plan.estimatedBytes);
+    return entity;
+  }
+
   function buildOptimisticEntities(): IMessageEntity[] {
     const PLACEHOLDER_FILE_ID = "00000000-0000-0000-0000-000000000000";
-    return pendingFiles.value.map(
-      (entry) =>
-        new MessageEntityAttachment(
-          EntityType.Attachment,
-          0,
-          0,
-          1,
-          PLACEHOLDER_FILE_ID,
-          entry.file.name,
-          BigInt(entry.file.size),
-          entry.file.type || "application/octet-stream",
-          entry.width,
-          entry.height,
-          entry.thumbHash,
-          null,
-        ),
-    );
+    return pendingFiles.value.map((entry) => {
+      const entity = goesAsVideo(entry) && videoLib
+        ? optimisticVideoEntity(entry)
+        : new MessageEntityAttachment(
+            EntityType.Attachment,
+            0,
+            0,
+            1,
+            PLACEHOLDER_FILE_ID,
+            entry.file.name,
+            BigInt(entry.file.size),
+            entry.file.type || "application/octet-stream",
+            entry.width,
+            entry.height,
+            entry.thumbHash,
+            null,
+          );
+      optimisticOf.set(toRaw(entry), entity);
+      return entity;
+    });
   }
 
   /**
@@ -564,28 +1360,30 @@ export function useAttachmentUpload() {
     return {
       files: snapshot,
       hasFiles: snapshot.length > 0,
-      async uploadAll(target: UploadTarget): Promise<IMessageEntity[]> {
-        const pending = snapshot.filter((f) => f.status !== "done");
-        await Promise.all(
-          pending.map((entry) => uploadSingleFile(entry, target)),
-        );
-
-        const entities: IMessageEntity[] = [];
-        for (const entry of snapshot) {
-          if (entry.status !== "done" || !entry.result) continue;
-          entities.push(entityOf(entry, entry.result));
-        }
-        return entities;
+      /** Whether any of it goes out as a video. */
+      hasVideo: snapshot.some(goesAsVideo),
+      /** The optimistic entity shown for each file, by position, as buildOptimisticEntities made them. */
+      optimisticEntities: () => snapshot.map((entry) => optimisticOf.get(toRaw(entry))).filter((e): e is IMessageEntity => !!e),
+      async uploadAll(target: UploadTarget, report?: VideoSendReporter): Promise<IMessageEntity[]> {
+        return sendEntries(snapshot, target, report);
       },
       hasErrors(): boolean {
         return snapshot.some((f) => f.status === "error");
       },
-      cleanup() {
+      /** What stopped the first video that failed, for its message; null when none did. */
+      videoFailure(): unknown {
+        return snapshot.find((f) => f.status === "error" && f.failure !== undefined)?.failure ?? null;
+      },
+      /** Releases the work and memory of the send; the previews (shown by the optimistic bubbles) after `previewsAfterMs`. */
+      cleanup(previewsAfterMs = 0) {
+        const previews: string[] = [];
         for (const entry of snapshot) {
-          if (entry.previewUrl) {
-            URL.revokeObjectURL(entry.previewUrl);
-          }
+          if (entry.previewUrl) previews.push(entry.previewUrl);
+          dispose(entry, { revokePreview: false });
         }
+        const revoke = () => previews.forEach((url) => URL.revokeObjectURL(url));
+        if (previewsAfterMs > 0) setTimeout(revoke, previewsAfterMs);
+        else revoke();
       },
     };
   }
@@ -597,10 +1395,18 @@ export function useAttachmentUpload() {
     addFiles,
     addReferences,
     removeFile,
+    replaceFile,
     uploadAll,
     clear,
     hasErrors,
     buildOptimisticEntities,
     detach,
+    setVideoPrefs,
+    cancelVideoPreparation,
+    prepareVideoNow,
+    pausePreparations,
+    resumePreparations,
+    applyVideoEdit,
+    renderVideoEdit,
   };
 }

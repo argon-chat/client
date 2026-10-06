@@ -149,7 +149,7 @@
                   :key="flag"
                   class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-yellow-500/15 text-yellow-700"
                 >
-                  {{ t(`permissions.flags.${flag}`) }}
+                  {{ t(`permissions.flags.${flag}.name`) }}
                 </span>
               </div>
             </div>

@@ -1,7 +1,13 @@
 export { default as MediaEditor } from './components/MediaEditor.vue';
 export type { MediaEditorProps, MediaEditorMode } from './components/MediaEditor.vue';
-export type { MediaEditorFinalResult, MediaEditorFinalResultPayload } from './finalRender/createFinalResult';
-export { createFinalResult } from './finalRender/createFinalResult';
+export type { MediaEditorFinalResult, MediaEditorFinalResultPayload, VideoEditSummary, VideoBitrateFn } from './finalRender/createFinalResult';
+export { createFinalResult, RENDER_MAX_FPS } from './finalRender/createFinalResult';
+export type { SourceVideoTransform, SourceCrop, QuarterTurn } from './finalRender/videoTransform';
+export { sourceVideoTransform, hasPixelEdits } from './finalRender/videoTransform';
+export type { ComposeFrame, ComposeAudio, ComposeVideoOptions, ComposedVideo } from './finalRender/composeVideo';
+export { composeVideo } from './finalRender/composeVideo';
+export type { EditingMediaState } from './store/editorStore';
+export { QUALITY_PRESETS, resolveOutputQuality } from './constants';
 export type { AdjustmentKey } from './adjustments';
 export { ADJUSTMENTS, adjustmentKeys } from './adjustments';
 export type {
@@ -30,7 +36,8 @@ export type {
 export { isExpressionMode } from './types';
 export { useMediaEditorStore } from './store/editorStore';
 export { useVideoPlayback } from './composables/useVideoPlayback';
-export { checkCapabilities, MAX_EDITABLE_VIDEO_SIZE } from './support';
+export type { PlatformCapabilities, VideoEditBlock } from './support';
+export { checkCapabilities, videoEditBlock, MAX_EDITABLE_VIDEO_SIZE } from './support';
 export {
   EXPRESSION_EXPORT_PRESETS,
   computeExpressionLayout,

@@ -196,7 +196,7 @@ const steps = computed(() => [
                                 <div class="input-group">
                                     <div class="flex items-center gap-2 mb-2">
                                         <MailIcon class="w-4 h-4 text-primary" />
-                                        <Label for="email" class="text-sm font-medium">Email</Label>
+                                        <Label for="email" class="text-sm font-medium">{{ t("email") }}</Label>
                                     </div>
                                     <div class="relative">
                                         <Input 
@@ -222,7 +222,7 @@ const steps = computed(() => [
                                             id="displayName" 
                                             v-model="displayName" 
                                             type="text" 
-                                            placeholder="John Doe" 
+                                            :placeholder="t('display_name_example')" 
                                             class="input-styled pl-10"
                                             :disabled="isLoading" 
                                         />

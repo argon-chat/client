@@ -42,7 +42,8 @@ onMounted(async () => {
     canvas: canvasEl.value,
     mediaSrc: store.mediaSrc,
     mediaType: store.mediaType,
-    videoTime: store.mediaState.videoCropStart,
+    videoTime: 0,
+    videoPosition: store.mediaState.videoCropStart,
     waitToSeek: true,
     transparent: expression
   });
@@ -262,9 +263,19 @@ function startVideoPlayback() {
     video.currentTime = startTime;
   }
 
-  video.play();
+  // Heard as it will be sent; a play() refused with sound (autoplay policy) plays muted.
+  video.muted = store.mediaState.videoMuted;
+  video.play().catch(() => {
+    video.muted = true;
+    return video.play().catch(() => {});
+  });
   videoPlaybackTick();
 }
+
+watch(() => store.mediaState.videoMuted, (muted) => {
+  const video = getVideo();
+  if (video && store.uiState.isPlaying) video.muted = muted;
+});
 
 function stopVideoPlayback() {
   const video = getVideo();

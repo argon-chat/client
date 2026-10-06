@@ -112,6 +112,15 @@ describe("provider helpers", () => {
     expect(shown.map((d) => d.key)).toEqual(["twitter.verified", "since"]);
   });
 
+  test("a detail this build has no label for is left out, not shown as its key", () => {
+    const labelled = new Set(["connection_detail_steam_games"]);
+    const shown = visibleDetails([
+      { key: "steam.games", value: "245", kind: ConnectionDetailKind.NUMBER },
+      { key: "steam.something_new", value: "7", kind: ConnectionDetailKind.NUMBER },
+    ], (key) => labelled.has(key));
+    expect(shown.map((d) => d.key)).toEqual(["steam.games"]);
+  });
+
   test("capabilities are flags", () => {
     const spotify = ConnectionCapability.DETAILS | ConnectionCapability.STATUS | ConnectionCapability.LISTEN_ALONG;
     expect(hasCapability(spotify, ConnectionCapability.LISTEN_ALONG)).toBe(true);

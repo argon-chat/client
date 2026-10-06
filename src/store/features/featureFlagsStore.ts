@@ -25,6 +25,7 @@ export const FeatureFlagKeys = {
   SCREENCAST_DRAWING: "af.screencast.drawing",
   CHAT_GIFS_SELECTOR: "af.chat.gifs-selector",
   STICKERS_AND_EMOJI: "af.stickers_and_emoji",
+  CHAT_VIDEO: "af.chat.video",
 } as const;
 
 export type FeatureFlagKey = (typeof FeatureFlagKeys)[keyof typeof FeatureFlagKeys];
@@ -52,6 +53,7 @@ export const useFeatureFlags = defineStore("featureFlags", () => {
     [FeatureFlagKeys.SCREENCAST_DRAWING]: false,
     [FeatureFlagKeys.CHAT_GIFS_SELECTOR]: false,
     [FeatureFlagKeys.STICKERS_AND_EMOJI]: false,
+    [FeatureFlagKeys.CHAT_VIDEO]: false,
   });
 
   const flags = ref<Record<string, boolean>>(defaultFlags());
@@ -116,6 +118,11 @@ export const useFeatureFlags = defineStore("featureFlags", () => {
   const gifsSelectorActive = computed(() => flags.value[FeatureFlagKeys.CHAT_GIFS_SELECTOR]);
   /** Sending stickers (the picker tab, the send path). Stickers and custom emoji received always render. */
   const stickersAndEmojiActive = computed(() => flags.value[FeatureFlagKeys.STICKERS_AND_EMOJI]);
+  /**
+   * Sending videos as videos (probe, compress, upload, the video entity). Off: a video goes as a
+   * plain attachment, since clients built before video playback cannot decode a video entity.
+   */
+  const chatVideoActive = computed(() => flags.value[FeatureFlagKeys.CHAT_VIDEO]);
 
   return {
     flags,
@@ -141,5 +148,6 @@ export const useFeatureFlags = defineStore("featureFlags", () => {
     screencastDrawingActive,
     gifsSelectorActive,
     stickersAndEmojiActive,
+    chatVideoActive,
   };
 });

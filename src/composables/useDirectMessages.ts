@@ -23,6 +23,7 @@ import { useBus } from "@/store/realtime/busStore";
 import { logger } from "@argon/core";
 import type { Subscription } from "rxjs";
 import type { ChatMessage } from "./useChatMessages";
+import { isSendUploading, sendTimeoutLeft } from "@/lib/attachments/sendProgress";
 
 const MESSAGES_PER_LOAD = 50;
 const OPTIMISTIC_TIMEOUT_MS = 30_000;
@@ -264,7 +265,8 @@ export function useDirectMessages(peerId: () => Guid) {
 
       // WS event for our own message (arrived before readback)
       if (e.message.senderId === me.me?.userId && optimisticRandomIds.size > 0) {
-        const optIdx = messages.value.findIndex((m) => m._optimistic && !m._failed);
+        // One still uploading its files has not been sent, so this cannot be it.
+        const optIdx = messages.value.findIndex((m) => m._optimistic && !m._failed && !isSendUploading(m._randomId));
         if (optIdx !== -1) {
           const optMsg = messages.value[optIdx] as ChatMessage;
           const randomId = optMsg._randomId!;
@@ -302,12 +304,16 @@ export function useDirectMessages(peerId: () => Guid) {
     messages.value.push(optimistic);
     triggerRef(messages);
 
-    const timer = setTimeout(() => {
-      if (optimisticRandomIds.has(randomId)) {
+    // Counted from the send itself: a video's compressing and uploading come first.
+    const arm = (ms: number) => {
+      optimisticTimers.set(randomId, setTimeout(() => {
+        if (!optimisticRandomIds.has(randomId)) return;
+        const left = sendTimeoutLeft(randomId, OPTIMISTIC_TIMEOUT_MS);
+        if (left > 0) return arm(left);
         markOptimisticFailed(randomId, "Message sending timed out");
-      }
-    }, OPTIMISTIC_TIMEOUT_MS);
-    optimisticTimers.set(randomId, timer);
+      }, ms));
+    };
+    arm(OPTIMISTIC_TIMEOUT_MS);
   };
 
   const resolveOptimisticMessage = async (
@@ -394,7 +400,7 @@ export function useDirectMessages(peerId: () => Guid) {
 
     try {
       const retryEntities = (failedMsg.entities ?? []).filter(
-        (e) => e.type !== EntityType.Attachment,
+        (e) => e.type !== EntityType.Attachment && e.type !== EntityType.Video,
       );
 
       const realMessageId = await api.userChatInteractions.SendDirectMessage(

@@ -7,6 +7,21 @@ export interface UploadResult {
 export interface UploadFileOptions {
   /** Called with upload progress (0–1) during PUT */
   onProgress?: (progress: number) => void;
+  /** Aborts the PUT; the promise rejects with "Upload aborted". */
+  signal?: AbortSignal;
+  /** Gives up on the PUT after this many milliseconds; the promise rejects with "Upload timed out". */
+  timeout?: number;
+}
+
+/** The storage answered the PUT with a non-2xx status. */
+export class UploadHttpError extends Error {
+  override name = "UploadHttpError";
+  constructor(
+    public readonly status: number,
+    message: string,
+  ) {
+    super(message);
+  }
 }
 
 /**
@@ -55,7 +70,7 @@ export async function uploadFile(
     }
   }
 
-  await xhrPut(uploadUrl, blob, headers, options?.onProgress);
+  await xhrPut(uploadUrl, blob, headers, options?.onProgress, options?.signal, options?.timeout);
 
   return { blobId };
 }
@@ -65,10 +80,20 @@ function xhrPut(
   body: Blob,
   headers: Record<string, string>,
   onProgress?: (progress: number) => void,
+  signal?: AbortSignal,
+  timeout?: number,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new Error("Upload aborted"));
+      return;
+    }
     const xhr = new XMLHttpRequest();
+    const onAbort = () => xhr.abort();
+    signal?.addEventListener("abort", onAbort, { once: true });
+    xhr.onloadend = () => signal?.removeEventListener("abort", onAbort);
     xhr.open("PUT", url);
+    if (timeout && timeout > 0) xhr.timeout = timeout;
 
     for (const [key, value] of Object.entries(headers)) {
       xhr.setRequestHeader(key, value);
@@ -86,12 +111,13 @@ function xhrPut(
       if (xhr.status >= 200 && xhr.status < 300) {
         resolve();
       } else {
-        reject(new Error(`Upload failed (${xhr.status}): ${xhr.responseText}`));
+        reject(new UploadHttpError(xhr.status, `Upload failed (${xhr.status}): ${xhr.responseText}`));
       }
     };
 
     xhr.onerror = () => reject(new Error("Upload network error"));
     xhr.onabort = () => reject(new Error("Upload aborted"));
+    xhr.ontimeout = () => reject(new Error("Upload timed out"));
 
     xhr.send(body);
   });

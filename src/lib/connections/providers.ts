@@ -95,10 +95,15 @@ export function formatDetailValue(detail: ConnectionDetail, locale?: string): st
 
 /**
  * The details a card shows as facts: flags that say "true", and every other kind. A flag that is
- * false ("not Premium") is not a fact worth a chip.
+ * false ("not Premium") is not a fact worth a chip. The server can add a key before this build has a
+ * label for it; `hasLabel` drops those rather than showing the translation key.
  */
-export function visibleDetails(details: readonly ConnectionDetail[]): ConnectionDetail[] {
-  return details.filter((d) => d.kind !== ConnectionDetailKind.FLAG || d.value === "true");
+export function visibleDetails(
+  details: readonly ConnectionDetail[],
+  hasLabel: (key: string) => boolean = () => true,
+): ConnectionDetail[] {
+  return details.filter((d) =>
+    (d.kind !== ConnectionDetailKind.FLAG || d.value === "true") && hasLabel(`connection_detail_${detailSlug(d.key)}`));
 }
 
 export interface TrackProgress {

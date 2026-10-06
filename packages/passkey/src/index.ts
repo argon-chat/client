@@ -1,5 +1,6 @@
-export { PasskeyManager } from "./PasskeyManager";
+export { PasskeyManager, getPasskeyAssertion } from "./PasskeyManager";
 export type {
+  PasskeyAssertionResult,
   PasskeyCreateResult,
   PasskeyRemoveResult,
   PasskeyValidateResult,

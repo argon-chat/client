@@ -64,8 +64,8 @@
               </Badge>
             </div>
             <div class="text-xs text-muted-foreground">{{ meta(connection.provider)?.name }}</div>
-            <div v-if="visibleDetails(connection.details).length > 0" class="flex flex-wrap gap-1.5 pt-1">
-              <span v-for="detail in visibleDetails(connection.details)" :key="detail.key" class="detail-chip">
+            <div v-if="visibleDetails(connection.details, localeStore.has).length > 0" class="flex flex-wrap gap-1.5 pt-1">
+              <span v-for="detail in visibleDetails(connection.details, localeStore.has)" :key="detail.key" class="detail-chip">
                 <template v-if="detail.kind === ConnectionDetailKind.FLAG">{{ t(`connection_detail_${detailSlug(detail.key)}`) }}</template>
                 <template v-else>{{ t(`connection_detail_${detailSlug(detail.key)}`) }}: {{ formatDetailValue(detail, localeStore.currentLocale) }}</template>
               </span>
@@ -230,7 +230,7 @@ async function connect(provider: ConnectionProvider, replace = false) {
   try {
     const error = await store.connect(provider, replace);
     if (error === BeginConnectError.PROVIDER_ALREADY_LINKED) replacing.value = provider;
-    else if (error !== BeginConnectError.NONE) fail(BEGIN_CONNECT_ERROR_KEYS[error]);
+    else if (error !== BeginConnectError.NONE) fail(BEGIN_CONNECT_ERROR_KEYS[error] ?? "connections_error_unknown");
   } catch (e) {
     logger.error("[connections] connect failed", e);
     fail("connections_error_unknown");
@@ -264,7 +264,7 @@ async function refresh(provider: ConnectionProvider) {
   busyProvider.value = provider;
   try {
     const error = await store.refresh(provider);
-    if (error !== ConnectionError.NONE) fail(CONNECTION_ERROR_KEYS[error]);
+    if (error !== ConnectionError.NONE) fail(CONNECTION_ERROR_KEYS[error] ?? "connections_error_unknown");
   } catch (e) {
     logger.error("[connections] refresh failed", e);
     fail("connections_error_unknown");
@@ -276,7 +276,7 @@ async function refresh(provider: ConnectionProvider) {
 async function setOption(provider: ConnectionProvider, option: keyof ConnectionOptions, value: boolean) {
   try {
     const error = await store.updateOptions(provider, { [option]: value });
-    if (error !== ConnectionError.NONE) fail(CONNECTION_ERROR_KEYS[error]);
+    if (error !== ConnectionError.NONE) fail(CONNECTION_ERROR_KEYS[error] ?? "connections_error_unknown");
   } catch (e) {
     logger.error("[connections] option update failed", e);
     fail("connections_error_unknown");

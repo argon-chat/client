@@ -36,7 +36,7 @@ const { email, isLoading, onSubmit, goBackToLogin } = props.auth;
           <div class="input-group">
             <div class="flex items-center gap-2 mb-2">
               <MailIcon class="w-4 h-4 text-primary" />
-              <Label for="reset-email" class="text-sm font-medium">Email</Label>
+              <Label for="reset-email" class="text-sm font-medium">{{ t("email") }}</Label>
             </div>
             <div class="relative">
               <Input 

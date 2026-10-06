@@ -27,8 +27,8 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onBeforeUnmount, provide } from 'vue';
-import { useMediaEditorStore } from '../store/editorStore';
-import { createFinalResult } from '../finalRender/createFinalResult';
+import { plainClone, useMediaEditorStore, type EditingMediaState } from '../store/editorStore';
+import { createFinalResult, type VideoBitrateFn } from '../finalRender/createFinalResult';
 import { loadEditorFonts } from '../fonts';
 import { isExpressionMode, type BackgroundRemover, type EditorMode, type ExpressionExportFormat, type MediaType } from '../types';
 import MainCanvas from './MainCanvas.vue';
@@ -60,6 +60,12 @@ export interface MediaEditorProps {
    * it the editor closes.
    */
   confirmDiscard?: (signal: AbortSignal) => Promise<boolean>;
+  /** The state to open with: a previous result's `editingMediaState`, or a few fields of it. */
+  initialState?: Partial<EditingMediaState>;
+  /** The file behind `src`: a rendered video takes its audio from it. Fetched from `src` when absent. */
+  mediaBlob?: Blob;
+  /** A rendered video's bitrate; the editor's own profile by default. */
+  videoBitrate?: VideoBitrateFn;
 }
 
 const props = withDefaults(defineProps<MediaEditorProps>(), {
@@ -70,7 +76,10 @@ const props = withDefaults(defineProps<MediaEditorProps>(), {
   backgroundRemover: undefined,
   exportFormat: 'auto',
   maxBytes: undefined,
-  confirmDiscard: undefined
+  confirmDiscard: undefined,
+  initialState: undefined,
+  mediaBlob: undefined,
+  videoBitrate: undefined
 });
 
 const emit = defineEmits<{
@@ -98,6 +107,8 @@ watch(() => props.modelValue, (open) => {
       src: props.src,
       type: props.mediaType,
       mode: props.mode,
+      // Merged over the defaults by init(); cloned out of whatever reactivity the host keeps it in.
+      initialState: props.initialState ? (plainClone(props.initialState) as EditingMediaState) : undefined,
       initialTab: props.initialTab ?? (expression ? 'cutout' : 'adjustments')
     });
     nextTick(() => {
@@ -153,6 +164,8 @@ defineExpose({ isDirty, beforeClose, requestClose });
 async function handleDone() {
   if (!store.uiState.renderingPayload || !store.uiState.canvasSize || finishing) return;
   finishing = true;
+  // Taken now: the host may let go of the file once the editor closes, and a video renders after.
+  const mediaBlob = props.mediaBlob;
 
   try {
     const result = await createFinalResult({
@@ -166,7 +179,9 @@ async function handleDone() {
       getMaskSource: store.getMaskSource,
       exportFormat: props.exportFormat,
       maxBytes: props.maxBytes,
-      pixelRatio: store.uiState.pixelRatio
+      pixelRatio: store.uiState.pixelRatio,
+      getMediaBlob: mediaBlob ? async () => mediaBlob : undefined,
+      videoBitrate: props.videoBitrate
     });
 
     emit('done', result);

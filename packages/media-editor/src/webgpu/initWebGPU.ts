@@ -27,13 +27,16 @@ type InitWebGPUArgs = {
   canvas: HTMLCanvasElement | OffscreenCanvas;
   mediaSrc: string;
   mediaType: MediaType;
+  /** Seconds. */
   videoTime: number;
+  /** 0..1 of the video's duration; takes precedence over `videoTime`. */
+  videoPosition?: number;
   waitToSeek?: boolean;
   /** Premultiplied canvas cleared to transparent, with the outline compositor. */
   transparent?: boolean;
 };
 
-export async function initWebGPU({ canvas, mediaSrc, mediaType, videoTime, waitToSeek, transparent }: InitWebGPUArgs): Promise<{ payload: RenderingPayload; context: GPUCanvasContext }> {
+export async function initWebGPU({ canvas, mediaSrc, mediaType, videoTime, videoPosition, waitToSeek, transparent }: InitWebGPUArgs): Promise<{ payload: RenderingPayload; context: GPUCanvasContext }> {
   const device = await initDevice();
   const format = getPreferredFormat();
 
@@ -45,7 +48,7 @@ export async function initWebGPU({ canvas, mediaSrc, mediaType, videoTime, waitT
   });
 
   const { pipeline, bindGroupLayout } = initPipeline(device, format);
-  const { texture, sampler, media } = await loadTexture({ device, mediaSrc, mediaType, videoTime, waitToSeek });
+  const { texture, sampler, media } = await loadTexture({ device, mediaSrc, mediaType, videoTime, videoPosition, waitToSeek });
 
   const vertexBuffer = createVertexBuffer(device, media.width, media.height);
   const uniformBuffer = createUniformBuffer(device);

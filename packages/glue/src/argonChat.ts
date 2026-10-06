@@ -1002,9 +1002,10 @@ export enum EntityType
   LinkPreview = 22,
   Sticker = 23,
   CustomEmoji = 24,
+  Video = 25,
 }
 
-const declaredEntityType: ReadonlySet<unknown> = new Set<unknown>([EntityType.Hashtag, EntityType.Mention, EntityType.MentionEveryone, EntityType.MentionRole, EntityType.Email, EntityType.Url, EntityType.Monospace, EntityType.Quote, EntityType.Spoiler, EntityType.Strikethrough, EntityType.Bold, EntityType.Italic, EntityType.Underline, EntityType.Fraction, EntityType.Ordinal, EntityType.Capitalized, EntityType.SystemCallStarted, EntityType.SystemCallEnded, EntityType.SystemCallTimeout, EntityType.SystemUserJoined, EntityType.Attachment, EntityType.Gif, EntityType.LinkPreview, EntityType.Sticker, EntityType.CustomEmoji]);
+const declaredEntityType: ReadonlySet<unknown> = new Set<unknown>([EntityType.Hashtag, EntityType.Mention, EntityType.MentionEveryone, EntityType.MentionRole, EntityType.Email, EntityType.Url, EntityType.Monospace, EntityType.Quote, EntityType.Spoiler, EntityType.Strikethrough, EntityType.Bold, EntityType.Italic, EntityType.Underline, EntityType.Fraction, EntityType.Ordinal, EntityType.Capitalized, EntityType.SystemCallStarted, EntityType.SystemCallEnded, EntityType.SystemCallTimeout, EntityType.SystemUserJoined, EntityType.Attachment, EntityType.Gif, EntityType.LinkPreview, EntityType.Sticker, EntityType.CustomEmoji, EntityType.Video]);
 
 /**
  * Open-enum helpers for {@link EntityType}.
@@ -3393,6 +3394,22 @@ export interface SecurityDetails {
 };
 
 
+export interface VerificationRequirement {
+  factors: IonArray<VerificationFactor>;
+  satisfied: bool;
+};
+
+
+export interface VerificationFlow {
+  flowId: guid;
+  action: SensitiveAction;
+  requirements: IonArray<VerificationRequirement>;
+  verified: bool;
+  expiresAt: datetime;
+  attemptsLeft: i4;
+};
+
+
 export interface Passkey {
   id: guid;
   name: string;
@@ -3452,6 +3469,106 @@ export const Ion_SessionError_OpenEnum = {
 } as const;
 
 
+export enum SensitiveAction
+{
+  CHANGE_EMAIL = 0,
+}
+
+const declaredSensitiveAction: ReadonlySet<unknown> = new Set<unknown>([SensitiveAction.CHANGE_EMAIL]);
+
+/**
+ * Open-enum helpers for {@link SensitiveAction}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_SensitiveAction_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: SensitiveAction): boolean {
+    return declaredSensitiveAction.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: SensitiveAction): u4 | undefined {
+    return declaredSensitiveAction.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
+
+
+export enum VerificationFactor
+{
+  PASSWORD = 0,
+  EMAIL_CODE = 1,
+  TOTP = 2,
+  PASSKEY = 3,
+}
+
+const declaredVerificationFactor: ReadonlySet<unknown> = new Set<unknown>([VerificationFactor.PASSWORD, VerificationFactor.EMAIL_CODE, VerificationFactor.TOTP, VerificationFactor.PASSKEY]);
+
+/**
+ * Open-enum helpers for {@link VerificationFactor}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_VerificationFactor_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: VerificationFactor): boolean {
+    return declaredVerificationFactor.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: VerificationFactor): u4 | undefined {
+    return declaredVerificationFactor.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
+
+
+export enum VerificationError
+{
+  NONE = 0,
+  FLOW_EXPIRED = 1,
+  FACTOR_NOT_ALLOWED = 2,
+  INVALID_PROOF = 3,
+  CHALLENGE_REQUIRED = 4,
+  TOO_MANY_ATTEMPTS = 5,
+  RATE_LIMITED = 6,
+  INTERNAL_ERROR = 7,
+}
+
+const declaredVerificationError: ReadonlySet<unknown> = new Set<unknown>([VerificationError.NONE, VerificationError.FLOW_EXPIRED, VerificationError.FACTOR_NOT_ALLOWED, VerificationError.INVALID_PROOF, VerificationError.CHALLENGE_REQUIRED, VerificationError.TOO_MANY_ATTEMPTS, VerificationError.RATE_LIMITED, VerificationError.INTERNAL_ERROR]);
+
+/**
+ * Open-enum helpers for {@link VerificationError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_VerificationError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: VerificationError): boolean {
+    return declaredVerificationError.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: VerificationError): u4 | undefined {
+    return declaredVerificationError.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
+
+
 export enum EmailChangeError
 {
   NONE = 0,
@@ -3462,9 +3579,10 @@ export enum EmailChangeError
   VERIFICATION_CODE_EXPIRED = 5,
   RATE_LIMITED = 6,
   INTERNAL_ERROR = 7,
+  VERIFICATION_REQUIRED = 8,
 }
 
-const declaredEmailChangeError: ReadonlySet<unknown> = new Set<unknown>([EmailChangeError.NONE, EmailChangeError.INVALID_EMAIL, EmailChangeError.EMAIL_ALREADY_USED, EmailChangeError.INVALID_PASSWORD, EmailChangeError.INVALID_VERIFICATION_CODE, EmailChangeError.VERIFICATION_CODE_EXPIRED, EmailChangeError.RATE_LIMITED, EmailChangeError.INTERNAL_ERROR]);
+const declaredEmailChangeError: ReadonlySet<unknown> = new Set<unknown>([EmailChangeError.NONE, EmailChangeError.INVALID_EMAIL, EmailChangeError.EMAIL_ALREADY_USED, EmailChangeError.INVALID_PASSWORD, EmailChangeError.INVALID_VERIFICATION_CODE, EmailChangeError.VERIFICATION_CODE_EXPIRED, EmailChangeError.RATE_LIMITED, EmailChangeError.INTERNAL_ERROR, EmailChangeError.VERIFICATION_REQUIRED]);
 
 /**
  * Open-enum helpers for {@link EmailChangeError}.
@@ -5330,6 +5448,129 @@ export const Ion_LookupError_OpenEnum = {
 } as const;
 
 
+export interface VideoStoryboard {
+  frameWidth: i4;
+  frameHeight: i4;
+  columns: i4;
+  frameCount: i4;
+  intervalMs: i4;
+};
+
+
+export interface VideoVariant {
+  fileId: guid;
+  width: i4;
+  height: i4;
+  fileSize: i8;
+  codec: string | null;
+  bitrate: i4;
+  downloadUrl: string | null;
+};
+
+
+export interface VideoInfo {
+  fileId: guid;
+  fileName: string;
+  fileSize: i8;
+  contentType: string;
+  width: i4;
+  height: i4;
+  durationMs: i4;
+  hasAudio: bool;
+  codec: string | null;
+  thumbHash: string | null;
+  posterFileId: guid | null;
+  storyboardFileId: guid | null;
+  storyboard: VideoStoryboard | null;
+  preloadPrefixSize: i8 | null;
+  downloadUrl: string | null;
+  posterUrl: string | null;
+  storyboardUrl: string | null;
+};
+
+
+export interface VideoUploadDeclaration {
+  fileName: string;
+  contentType: string;
+  size: i8;
+  sha256: bytes | null;
+  width: i4;
+  height: i4;
+  durationMs: i4;
+  hasAudio: bool;
+  codec: string | null;
+  thumbHash: string | null;
+  posterFileId: guid | null;
+  storyboardFileId: guid | null;
+  storyboard: VideoStoryboard | null;
+  preloadPrefixSize: i8 | null;
+};
+
+
+export interface VideoUploadTicket {
+  ticketId: guid;
+  fileId: guid;
+  uploadUrl: string | null;
+  formFields: IonArray<FormField>;
+  partUrls: IonArray<string>;
+  partSize: i8;
+  ttlSeconds: i4;
+};
+
+
+export interface UploadedPart {
+  partNumber: i4;
+  etag: string;
+};
+
+
+export interface UploadLimits {
+  attachmentMaxBytes: i8;
+  videoMaxBytes: i8;
+  videoMaxDurationMs: i8;
+};
+
+
+export enum VideoUploadError
+{
+  NONE = 0,
+  NOT_AUTHORIZED = 1,
+  TOO_LARGE = 2,
+  TOO_LONG = 3,
+  CONTENT_TYPE_REJECTED = 4,
+  NOT_STREAMABLE = 5,
+  DECLARATION_MISMATCH = 6,
+  POSTER_REJECTED = 7,
+  TICKET_EXPIRED = 8,
+  NOT_FOUND = 9,
+  INTERNAL_ERROR = 10,
+}
+
+const declaredVideoUploadError: ReadonlySet<unknown> = new Set<unknown>([VideoUploadError.NONE, VideoUploadError.NOT_AUTHORIZED, VideoUploadError.TOO_LARGE, VideoUploadError.TOO_LONG, VideoUploadError.CONTENT_TYPE_REJECTED, VideoUploadError.NOT_STREAMABLE, VideoUploadError.DECLARATION_MISMATCH, VideoUploadError.POSTER_REJECTED, VideoUploadError.TICKET_EXPIRED, VideoUploadError.NOT_FOUND, VideoUploadError.INTERNAL_ERROR]);
+
+/**
+ * Open-enum helpers for {@link VideoUploadError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_VideoUploadError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: VideoUploadError): boolean {
+    return declaredVideoUploadError.has(value);
+  },
+  /**
+   * The raw `u4` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: VideoUploadError): u4 | undefined {
+    return declaredVideoUploadError.has(value) ? undefined : (value as unknown as u4);
+  },
+} as const;
+
+
 export interface RtcEndpoint {
   endpoint: string;
   ices: IonArray<IceEndpoint>;
@@ -6689,6 +6930,9 @@ export abstract class IMessageEntity implements IIonUnion<IMessageEntity>
   public isMessageEntityCustomEmoji(): this is MessageEntityCustomEmoji {
     return this.UnionKey === "MessageEntityCustomEmoji";
   }
+  public isMessageEntityVideo(): this is MessageEntityVideo {
+    return this.UnionKey === "MessageEntityVideo";
+  }
 
 }
 
@@ -6893,11 +7137,19 @@ export class MessageEntityCustomEmoji extends IMessageEntity
   UnionIndex: number = 24;
 }
 
+export class MessageEntityVideo extends IMessageEntity
+{
+  constructor(public type: EntityType, public offset: i4, public length: i4, public version: i4, public fileId: guid, public fileName: string, public fileSize: i8, public contentType: string, public width: i4, public height: i4, public durationMs: i4, public hasAudio: bool, public codec: string | null, public thumbHash: string | null, public posterFileId: guid | null, public storyboardFileId: guid | null, public storyboard: VideoStoryboard | null, public preloadPrefixSize: i8 | null, public variants: IonArray<VideoVariant>, public downloadUrl: string | null, public posterUrl: string | null, public storyboardUrl: string | null) { super(); }
+
+  UnionKey: string = "MessageEntityVideo";
+  UnionIndex: number = 25;
+}
+
 
 
 IonFormatterStorage.register("IMessageEntity", {
   read(reader: CborReader): IMessageEntity {
-    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IMessageEntity", 25);
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IMessageEntity", 26);
     let value: IMessageEntity = null as any;
 
     if (false)
@@ -6952,8 +7204,10 @@ IonFormatterStorage.register("IMessageEntity", {
       value = IonFormatterStorage.get<MessageEntitySticker>("MessageEntitySticker").read(reader);
     else if (unionIndex == 24)
       value = IonFormatterStorage.get<MessageEntityCustomEmoji>("MessageEntityCustomEmoji").read(reader);
+    else if (unionIndex == 25)
+      value = IonFormatterStorage.get<MessageEntityVideo>("MessageEntityVideo").read(reader);
 
-    else IonFormatterStorage.invalidUnionIndex("IMessageEntity", unionIndex, 25);
+    else IonFormatterStorage.invalidUnionIndex("IMessageEntity", unionIndex, 26);
 
     IonFormatterStorage.readEndUnion(reader);
     return value!;
@@ -7038,8 +7292,11 @@ IonFormatterStorage.register("IMessageEntity", {
     else if (value.UnionIndex == 24) {
         IonFormatterStorage.get<MessageEntityCustomEmoji>("MessageEntityCustomEmoji").write(writer, value as MessageEntityCustomEmoji);
     }
+    else if (value.UnionIndex == 25) {
+        IonFormatterStorage.get<MessageEntityVideo>("MessageEntityVideo").write(writer, value as MessageEntityVideo);
+    }
   
-    else throw new Error(`Ion union 'IMessageEntity' has no case ${value.UnionIndex}; this revision declares 25 case(s)`);
+    else throw new Error(`Ion union 'IMessageEntity' has no case ${value.UnionIndex}; this revision declares 26 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -7655,6 +7912,62 @@ IonFormatterStorage.register("MessageEntityCustomEmoji", {
     IonFormatterStorage.get<string>('string').write(writer, value.name);
     IonFormatterStorage.get<bool>('bool').write(writer, value.textColor);
     IonFormatterStorage.writeNullable<string>(writer, value.downloadUrl, 'string');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("MessageEntityVideo", {
+  read(reader: CborReader): MessageEntityVideo {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 22, "MessageEntityVideo");
+    const type = IonFormatterStorage.get<EntityType>('EntityType').read(reader);
+    const offset = IonFormatterStorage.get<i4>('i4').read(reader);
+    const length = IonFormatterStorage.get<i4>('i4').read(reader);
+    const version = IonFormatterStorage.get<i4>('i4').read(reader);
+    const fileId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const fileName = IonFormatterStorage.get<string>('string').read(reader);
+    const fileSize = IonFormatterStorage.get<i8>('i8').read(reader);
+    const contentType = IonFormatterStorage.get<string>('string').read(reader);
+    const width = IonFormatterStorage.get<i4>('i4').read(reader);
+    const height = IonFormatterStorage.get<i4>('i4').read(reader);
+    const durationMs = IonFormatterStorage.get<i4>('i4').read(reader);
+    const hasAudio = IonFormatterStorage.get<bool>('bool').read(reader);
+    const codec = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const thumbHash = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const posterFileId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
+    const storyboardFileId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
+    const storyboard = IonFormatterStorage.readNullable<VideoStoryboard>(reader, 'VideoStoryboard');
+    const preloadPrefixSize = IonFormatterStorage.readNullable<i8>(reader, 'i8');
+    const variants = IonFormatterStorage.readArray<VideoVariant>(reader, 'VideoVariant');
+    const downloadUrl = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const posterUrl = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const storyboardUrl = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 22);
+    return new MessageEntityVideo(type, offset, length, version, fileId, fileName, fileSize, contentType, width, height, durationMs, hasAudio, codec, thumbHash, posterFileId, storyboardFileId, storyboard, preloadPrefixSize, variants, downloadUrl, posterUrl, storyboardUrl);
+  },
+  write(writer: CborWriter, value: MessageEntityVideo): void {
+    writer.writeStartArray(22);
+    IonFormatterStorage.get<EntityType>('EntityType').write(writer, value.type);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.offset);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.length);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.version);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.fileId);
+    IonFormatterStorage.get<string>('string').write(writer, value.fileName);
+    IonFormatterStorage.get<i8>('i8').write(writer, value.fileSize);
+    IonFormatterStorage.get<string>('string').write(writer, value.contentType);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.width);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.height);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.durationMs);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.hasAudio);
+    IonFormatterStorage.writeNullable<string>(writer, value.codec, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.thumbHash, 'string');
+    IonFormatterStorage.writeNullable<guid>(writer, value.posterFileId, 'guid');
+    IonFormatterStorage.writeNullable<guid>(writer, value.storyboardFileId, 'guid');
+    IonFormatterStorage.writeNullable<VideoStoryboard>(writer, value.storyboard, 'VideoStoryboard');
+    IonFormatterStorage.writeNullable<i8>(writer, value.preloadPrefixSize, 'i8');
+    IonFormatterStorage.writeArray<VideoVariant>(writer, value.variants, 'VideoVariant');
+    IonFormatterStorage.writeNullable<string>(writer, value.downloadUrl, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.posterUrl, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.storyboardUrl, 'string');
     writer.writeEndArray();
   }
 });
@@ -15611,6 +15924,345 @@ IonFormatterStorage.register("FailedRevokeSession", {
 
 
 
+export abstract class IBeginVerificationResult implements IIonUnion<IBeginVerificationResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessBeginVerification(): this is SuccessBeginVerification {
+    return this.UnionKey === "SuccessBeginVerification";
+  }
+  public isFailedBeginVerification(): this is FailedBeginVerification {
+    return this.UnionKey === "FailedBeginVerification";
+  }
+
+}
+
+
+export class SuccessBeginVerification extends IBeginVerificationResult
+{
+  constructor(public flow: VerificationFlow) { super(); }
+
+  UnionKey: string = "SuccessBeginVerification";
+  UnionIndex: number = 0;
+}
+
+export class FailedBeginVerification extends IBeginVerificationResult
+{
+  constructor(public error: VerificationError) { super(); }
+
+  UnionKey: string = "FailedBeginVerification";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("IBeginVerificationResult", {
+  read(reader: CborReader): IBeginVerificationResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IBeginVerificationResult", 2);
+    let value: IBeginVerificationResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessBeginVerification>("SuccessBeginVerification").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedBeginVerification>("FailedBeginVerification").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("IBeginVerificationResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: IBeginVerificationResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessBeginVerification>("SuccessBeginVerification").write(writer, value as SuccessBeginVerification);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedBeginVerification>("FailedBeginVerification").write(writer, value as FailedBeginVerification);
+    }
+  
+    else throw new Error(`Ion union 'IBeginVerificationResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessBeginVerification", {
+  read(reader: CborReader): SuccessBeginVerification {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessBeginVerification");
+    const flow = IonFormatterStorage.get<VerificationFlow>('VerificationFlow').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessBeginVerification(flow);
+  },
+  write(writer: CborWriter, value: SuccessBeginVerification): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<VerificationFlow>('VerificationFlow').write(writer, value.flow);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedBeginVerification", {
+  read(reader: CborReader): FailedBeginVerification {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedBeginVerification");
+    const error = IonFormatterStorage.get<VerificationError>('VerificationError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedBeginVerification(error);
+  },
+  write(writer: CborWriter, value: FailedBeginVerification): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<VerificationError>('VerificationError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class IChallengeVerificationResult implements IIonUnion<IChallengeVerificationResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isVerificationCodeSent(): this is VerificationCodeSent {
+    return this.UnionKey === "VerificationCodeSent";
+  }
+  public isVerificationPasskeyOptions(): this is VerificationPasskeyOptions {
+    return this.UnionKey === "VerificationPasskeyOptions";
+  }
+  public isFailedChallengeVerification(): this is FailedChallengeVerification {
+    return this.UnionKey === "FailedChallengeVerification";
+  }
+
+}
+
+
+export class VerificationCodeSent extends IChallengeVerificationResult
+{
+  constructor(public destination: string, public resendAt: datetime) { super(); }
+
+  UnionKey: string = "VerificationCodeSent";
+  UnionIndex: number = 0;
+}
+
+export class VerificationPasskeyOptions extends IChallengeVerificationResult
+{
+  constructor(public optionsJson: string) { super(); }
+
+  UnionKey: string = "VerificationPasskeyOptions";
+  UnionIndex: number = 1;
+}
+
+export class FailedChallengeVerification extends IChallengeVerificationResult
+{
+  constructor(public error: VerificationError, public resendAt: datetime | null) { super(); }
+
+  UnionKey: string = "FailedChallengeVerification";
+  UnionIndex: number = 2;
+}
+
+
+
+IonFormatterStorage.register("IChallengeVerificationResult", {
+  read(reader: CborReader): IChallengeVerificationResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IChallengeVerificationResult", 3);
+    let value: IChallengeVerificationResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<VerificationCodeSent>("VerificationCodeSent").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<VerificationPasskeyOptions>("VerificationPasskeyOptions").read(reader);
+    else if (unionIndex == 2)
+      value = IonFormatterStorage.get<FailedChallengeVerification>("FailedChallengeVerification").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("IChallengeVerificationResult", unionIndex, 3);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: IChallengeVerificationResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<VerificationCodeSent>("VerificationCodeSent").write(writer, value as VerificationCodeSent);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<VerificationPasskeyOptions>("VerificationPasskeyOptions").write(writer, value as VerificationPasskeyOptions);
+    }
+    else if (value.UnionIndex == 2) {
+        IonFormatterStorage.get<FailedChallengeVerification>("FailedChallengeVerification").write(writer, value as FailedChallengeVerification);
+    }
+  
+    else throw new Error(`Ion union 'IChallengeVerificationResult' has no case ${value.UnionIndex}; this revision declares 3 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("VerificationCodeSent", {
+  read(reader: CborReader): VerificationCodeSent {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "VerificationCodeSent");
+    const destination = IonFormatterStorage.get<string>('string').read(reader);
+    const resendAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new VerificationCodeSent(destination, resendAt);
+  },
+  write(writer: CborWriter, value: VerificationCodeSent): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<string>('string').write(writer, value.destination);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.resendAt);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("VerificationPasskeyOptions", {
+  read(reader: CborReader): VerificationPasskeyOptions {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "VerificationPasskeyOptions");
+    const optionsJson = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new VerificationPasskeyOptions(optionsJson);
+  },
+  write(writer: CborWriter, value: VerificationPasskeyOptions): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<string>('string').write(writer, value.optionsJson);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedChallengeVerification", {
+  read(reader: CborReader): FailedChallengeVerification {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "FailedChallengeVerification");
+    const error = IonFormatterStorage.get<VerificationError>('VerificationError').read(reader);
+    const resendAt = IonFormatterStorage.readNullable<datetime>(reader, 'datetime');
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new FailedChallengeVerification(error, resendAt);
+  },
+  write(writer: CborWriter, value: FailedChallengeVerification): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<VerificationError>('VerificationError').write(writer, value.error);
+    IonFormatterStorage.writeNullable<datetime>(writer, value.resendAt, 'datetime');
+    writer.writeEndArray();
+  }
+});
+
+
+
+export abstract class ISubmitVerificationResult implements IIonUnion<ISubmitVerificationResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessSubmitVerification(): this is SuccessSubmitVerification {
+    return this.UnionKey === "SuccessSubmitVerification";
+  }
+  public isFailedSubmitVerification(): this is FailedSubmitVerification {
+    return this.UnionKey === "FailedSubmitVerification";
+  }
+
+}
+
+
+export class SuccessSubmitVerification extends ISubmitVerificationResult
+{
+  constructor(public flow: VerificationFlow) { super(); }
+
+  UnionKey: string = "SuccessSubmitVerification";
+  UnionIndex: number = 0;
+}
+
+export class FailedSubmitVerification extends ISubmitVerificationResult
+{
+  constructor(public error: VerificationError, public attemptsLeft: i4) { super(); }
+
+  UnionKey: string = "FailedSubmitVerification";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("ISubmitVerificationResult", {
+  read(reader: CborReader): ISubmitVerificationResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "ISubmitVerificationResult", 2);
+    let value: ISubmitVerificationResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessSubmitVerification>("SuccessSubmitVerification").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedSubmitVerification>("FailedSubmitVerification").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("ISubmitVerificationResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: ISubmitVerificationResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessSubmitVerification>("SuccessSubmitVerification").write(writer, value as SuccessSubmitVerification);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedSubmitVerification>("FailedSubmitVerification").write(writer, value as FailedSubmitVerification);
+    }
+  
+    else throw new Error(`Ion union 'ISubmitVerificationResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessSubmitVerification", {
+  read(reader: CborReader): SuccessSubmitVerification {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessSubmitVerification");
+    const flow = IonFormatterStorage.get<VerificationFlow>('VerificationFlow').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessSubmitVerification(flow);
+  },
+  write(writer: CborWriter, value: SuccessSubmitVerification): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<VerificationFlow>('VerificationFlow').write(writer, value.flow);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedSubmitVerification", {
+  read(reader: CborReader): FailedSubmitVerification {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "FailedSubmitVerification");
+    const error = IonFormatterStorage.get<VerificationError>('VerificationError').read(reader);
+    const attemptsLeft = IonFormatterStorage.get<i4>('i4').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new FailedSubmitVerification(error, attemptsLeft);
+  },
+  write(writer: CborWriter, value: FailedSubmitVerification): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<VerificationError>('VerificationError').write(writer, value.error);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.attemptsLeft);
+    writer.writeEndArray();
+  }
+});
+
+
+
 export abstract class IRequestEmailChangeResult implements IIonUnion<IRequestEmailChangeResult>
 {
   abstract UnionKey: string;
@@ -15631,7 +16283,7 @@ export abstract class IRequestEmailChangeResult implements IIonUnion<IRequestEma
 
 export class SuccessRequestEmailChange extends IRequestEmailChangeResult
 {
-  constructor() { super(); }
+  constructor(public resendAt: datetime) { super(); }
 
   UnionKey: string = "SuccessRequestEmailChange";
   UnionIndex: number = 0;
@@ -15684,14 +16336,14 @@ IonFormatterStorage.register("IRequestEmailChangeResult", {
 
 IonFormatterStorage.register("SuccessRequestEmailChange", {
   read(reader: CborReader): SuccessRequestEmailChange {
-    const arraySize = IonFormatterStorage.readStartMessage(reader, 0, "SuccessRequestEmailChange");
-    
-    reader.readEndArrayAndSkip(arraySize - 0);
-    return new SuccessRequestEmailChange();
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SuccessRequestEmailChange");
+    const resendAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SuccessRequestEmailChange(resendAt);
   },
   write(writer: CborWriter, value: SuccessRequestEmailChange): void {
-    writer.writeStartArray(0);
-    
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.resendAt);
     writer.writeEndArray();
   }
 });
@@ -20245,6 +20897,137 @@ IonFormatterStorage.register("FailedLookupAppTexts", {
 
 
 
+export abstract class IVideoUploadResult implements IIonUnion<IVideoUploadResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isVideoUploadRequired(): this is VideoUploadRequired {
+    return this.UnionKey === "VideoUploadRequired";
+  }
+  public isVideoStored(): this is VideoStored {
+    return this.UnionKey === "VideoStored";
+  }
+  public isFailedVideoUpload(): this is FailedVideoUpload {
+    return this.UnionKey === "FailedVideoUpload";
+  }
+
+}
+
+
+export class VideoUploadRequired extends IVideoUploadResult
+{
+  constructor(public ticket: VideoUploadTicket) { super(); }
+
+  UnionKey: string = "VideoUploadRequired";
+  UnionIndex: number = 0;
+}
+
+export class VideoStored extends IVideoUploadResult
+{
+  constructor(public info: VideoInfo) { super(); }
+
+  UnionKey: string = "VideoStored";
+  UnionIndex: number = 1;
+}
+
+export class FailedVideoUpload extends IVideoUploadResult
+{
+  constructor(public error: VideoUploadError) { super(); }
+
+  UnionKey: string = "FailedVideoUpload";
+  UnionIndex: number = 2;
+}
+
+
+
+IonFormatterStorage.register("IVideoUploadResult", {
+  read(reader: CborReader): IVideoUploadResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IVideoUploadResult", 3);
+    let value: IVideoUploadResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<VideoUploadRequired>("VideoUploadRequired").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<VideoStored>("VideoStored").read(reader);
+    else if (unionIndex == 2)
+      value = IonFormatterStorage.get<FailedVideoUpload>("FailedVideoUpload").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("IVideoUploadResult", unionIndex, 3);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: IVideoUploadResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<VideoUploadRequired>("VideoUploadRequired").write(writer, value as VideoUploadRequired);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<VideoStored>("VideoStored").write(writer, value as VideoStored);
+    }
+    else if (value.UnionIndex == 2) {
+        IonFormatterStorage.get<FailedVideoUpload>("FailedVideoUpload").write(writer, value as FailedVideoUpload);
+    }
+  
+    else throw new Error(`Ion union 'IVideoUploadResult' has no case ${value.UnionIndex}; this revision declares 3 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("VideoUploadRequired", {
+  read(reader: CborReader): VideoUploadRequired {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "VideoUploadRequired");
+    const ticket = IonFormatterStorage.get<VideoUploadTicket>('VideoUploadTicket').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new VideoUploadRequired(ticket);
+  },
+  write(writer: CborWriter, value: VideoUploadRequired): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<VideoUploadTicket>('VideoUploadTicket').write(writer, value.ticket);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("VideoStored", {
+  read(reader: CborReader): VideoStored {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "VideoStored");
+    const info = IonFormatterStorage.get<VideoInfo>('VideoInfo').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new VideoStored(info);
+  },
+  write(writer: CborWriter, value: VideoStored): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<VideoInfo>('VideoInfo').write(writer, value.info);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedVideoUpload", {
+  read(reader: CborReader): FailedVideoUpload {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedVideoUpload");
+    const error = IonFormatterStorage.get<VideoUploadError>('VideoUploadError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedVideoUpload(error);
+  },
+  write(writer: CborWriter, value: FailedVideoUpload): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<VideoUploadError>('VideoUploadError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
 export abstract class IBeginCallResult implements IIonUnion<IBeginCallResult>
 {
   abstract UnionKey: string;
@@ -23180,6 +23963,56 @@ IonFormatterStorage.register("SecurityDetails", {
   }
 });
 
+IonFormatterStorage.register("VerificationRequirement", {
+  read(reader: CborReader): VerificationRequirement {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "VerificationRequirement");
+    const factors = IonFormatterStorage.readArray<VerificationFactor>(reader, 'VerificationFactor');
+    const satisfied = IonFormatterStorage.get<bool>('bool').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { factors, satisfied };
+  },
+  write(writer: CborWriter, value: VerificationRequirement): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.writeArray<VerificationFactor>(writer, value.factors, 'VerificationFactor');
+    IonFormatterStorage.get<bool>('bool').write(writer, value.satisfied);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("SensitiveAction", {
+  read(reader: CborReader): SensitiveAction {
+    return IonFormatterStorage.readOpenEnum<SensitiveAction>(reader, 'u4');
+  },
+  write(writer: CborWriter, value: SensitiveAction): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("VerificationFlow", {
+  read(reader: CborReader): VerificationFlow {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 6, "VerificationFlow");
+    const flowId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const action = IonFormatterStorage.get<SensitiveAction>('SensitiveAction').read(reader);
+    const requirements = IonFormatterStorage.readArray<VerificationRequirement>(reader, 'VerificationRequirement');
+    const verified = IonFormatterStorage.get<bool>('bool').read(reader);
+    const expiresAt = IonFormatterStorage.get<datetime>('datetime').read(reader);
+    const attemptsLeft = IonFormatterStorage.get<i4>('i4').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 6);
+    return { flowId, action, requirements, verified, expiresAt, attemptsLeft };
+  },
+  write(writer: CborWriter, value: VerificationFlow): void {
+    writer.writeStartArray(6);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.flowId);
+    IonFormatterStorage.get<SensitiveAction>('SensitiveAction').write(writer, value.action);
+    IonFormatterStorage.writeArray<VerificationRequirement>(writer, value.requirements, 'VerificationRequirement');
+    IonFormatterStorage.get<bool>('bool').write(writer, value.verified);
+    IonFormatterStorage.get<datetime>('datetime').write(writer, value.expiresAt);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.attemptsLeft);
+    writer.writeEndArray();
+  }
+});
+
 IonFormatterStorage.register("Passkey", {
   read(reader: CborReader): Passkey {
     const arraySize = IonFormatterStorage.readStartMessage(reader, 6, "Passkey");
@@ -23243,6 +24076,26 @@ IonFormatterStorage.register("SessionError", {
     return IonFormatterStorage.readOpenEnum<SessionError>(reader, 'u4');
   },
   write(writer: CborWriter, value: SessionError): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("VerificationFactor", {
+  read(reader: CborReader): VerificationFactor {
+    return IonFormatterStorage.readOpenEnum<VerificationFactor>(reader, 'u4');
+  },
+  write(writer: CborWriter, value: VerificationFactor): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
+IonFormatterStorage.register("VerificationError", {
+  read(reader: CborReader): VerificationError {
+    return IonFormatterStorage.readOpenEnum<VerificationError>(reader, 'u4');
+  },
+  write(writer: CborWriter, value: VerificationError): void {
     const casted: u4 = value;
     IonFormatterStorage.get<u4>('u4').write(writer, casted);
   }
@@ -24723,6 +25576,210 @@ IonFormatterStorage.register("LookupError", {
   }
 });
 
+IonFormatterStorage.register("VideoStoryboard", {
+  read(reader: CborReader): VideoStoryboard {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 5, "VideoStoryboard");
+    const frameWidth = IonFormatterStorage.get<i4>('i4').read(reader);
+    const frameHeight = IonFormatterStorage.get<i4>('i4').read(reader);
+    const columns = IonFormatterStorage.get<i4>('i4').read(reader);
+    const frameCount = IonFormatterStorage.get<i4>('i4').read(reader);
+    const intervalMs = IonFormatterStorage.get<i4>('i4').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 5);
+    return { frameWidth, frameHeight, columns, frameCount, intervalMs };
+  },
+  write(writer: CborWriter, value: VideoStoryboard): void {
+    writer.writeStartArray(5);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.frameWidth);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.frameHeight);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.columns);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.frameCount);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.intervalMs);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("VideoVariant", {
+  read(reader: CborReader): VideoVariant {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 7, "VideoVariant");
+    const fileId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const width = IonFormatterStorage.get<i4>('i4').read(reader);
+    const height = IonFormatterStorage.get<i4>('i4').read(reader);
+    const fileSize = IonFormatterStorage.get<i8>('i8').read(reader);
+    const codec = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const bitrate = IonFormatterStorage.get<i4>('i4').read(reader);
+    const downloadUrl = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 7);
+    return { fileId, width, height, fileSize, codec, bitrate, downloadUrl };
+  },
+  write(writer: CborWriter, value: VideoVariant): void {
+    writer.writeStartArray(7);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.fileId);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.width);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.height);
+    IonFormatterStorage.get<i8>('i8').write(writer, value.fileSize);
+    IonFormatterStorage.writeNullable<string>(writer, value.codec, 'string');
+    IonFormatterStorage.get<i4>('i4').write(writer, value.bitrate);
+    IonFormatterStorage.writeNullable<string>(writer, value.downloadUrl, 'string');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("VideoInfo", {
+  read(reader: CborReader): VideoInfo {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 17, "VideoInfo");
+    const fileId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const fileName = IonFormatterStorage.get<string>('string').read(reader);
+    const fileSize = IonFormatterStorage.get<i8>('i8').read(reader);
+    const contentType = IonFormatterStorage.get<string>('string').read(reader);
+    const width = IonFormatterStorage.get<i4>('i4').read(reader);
+    const height = IonFormatterStorage.get<i4>('i4').read(reader);
+    const durationMs = IonFormatterStorage.get<i4>('i4').read(reader);
+    const hasAudio = IonFormatterStorage.get<bool>('bool').read(reader);
+    const codec = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const thumbHash = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const posterFileId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
+    const storyboardFileId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
+    const storyboard = IonFormatterStorage.readNullable<VideoStoryboard>(reader, 'VideoStoryboard');
+    const preloadPrefixSize = IonFormatterStorage.readNullable<i8>(reader, 'i8');
+    const downloadUrl = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const posterUrl = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const storyboardUrl = IonFormatterStorage.readNullable<string>(reader, 'string');
+    reader.readEndArrayAndSkip(arraySize - 17);
+    return { fileId, fileName, fileSize, contentType, width, height, durationMs, hasAudio, codec, thumbHash, posterFileId, storyboardFileId, storyboard, preloadPrefixSize, downloadUrl, posterUrl, storyboardUrl };
+  },
+  write(writer: CborWriter, value: VideoInfo): void {
+    writer.writeStartArray(17);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.fileId);
+    IonFormatterStorage.get<string>('string').write(writer, value.fileName);
+    IonFormatterStorage.get<i8>('i8').write(writer, value.fileSize);
+    IonFormatterStorage.get<string>('string').write(writer, value.contentType);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.width);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.height);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.durationMs);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.hasAudio);
+    IonFormatterStorage.writeNullable<string>(writer, value.codec, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.thumbHash, 'string');
+    IonFormatterStorage.writeNullable<guid>(writer, value.posterFileId, 'guid');
+    IonFormatterStorage.writeNullable<guid>(writer, value.storyboardFileId, 'guid');
+    IonFormatterStorage.writeNullable<VideoStoryboard>(writer, value.storyboard, 'VideoStoryboard');
+    IonFormatterStorage.writeNullable<i8>(writer, value.preloadPrefixSize, 'i8');
+    IonFormatterStorage.writeNullable<string>(writer, value.downloadUrl, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.posterUrl, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.storyboardUrl, 'string');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("VideoUploadDeclaration", {
+  read(reader: CborReader): VideoUploadDeclaration {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 14, "VideoUploadDeclaration");
+    const fileName = IonFormatterStorage.get<string>('string').read(reader);
+    const contentType = IonFormatterStorage.get<string>('string').read(reader);
+    const size = IonFormatterStorage.get<i8>('i8').read(reader);
+    const sha256 = IonFormatterStorage.readNullable<bytes>(reader, 'bytes');
+    const width = IonFormatterStorage.get<i4>('i4').read(reader);
+    const height = IonFormatterStorage.get<i4>('i4').read(reader);
+    const durationMs = IonFormatterStorage.get<i4>('i4').read(reader);
+    const hasAudio = IonFormatterStorage.get<bool>('bool').read(reader);
+    const codec = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const thumbHash = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const posterFileId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
+    const storyboardFileId = IonFormatterStorage.readNullable<guid>(reader, 'guid');
+    const storyboard = IonFormatterStorage.readNullable<VideoStoryboard>(reader, 'VideoStoryboard');
+    const preloadPrefixSize = IonFormatterStorage.readNullable<i8>(reader, 'i8');
+    reader.readEndArrayAndSkip(arraySize - 14);
+    return { fileName, contentType, size, sha256, width, height, durationMs, hasAudio, codec, thumbHash, posterFileId, storyboardFileId, storyboard, preloadPrefixSize };
+  },
+  write(writer: CborWriter, value: VideoUploadDeclaration): void {
+    writer.writeStartArray(14);
+    IonFormatterStorage.get<string>('string').write(writer, value.fileName);
+    IonFormatterStorage.get<string>('string').write(writer, value.contentType);
+    IonFormatterStorage.get<i8>('i8').write(writer, value.size);
+    IonFormatterStorage.writeNullable<bytes>(writer, value.sha256, 'bytes');
+    IonFormatterStorage.get<i4>('i4').write(writer, value.width);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.height);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.durationMs);
+    IonFormatterStorage.get<bool>('bool').write(writer, value.hasAudio);
+    IonFormatterStorage.writeNullable<string>(writer, value.codec, 'string');
+    IonFormatterStorage.writeNullable<string>(writer, value.thumbHash, 'string');
+    IonFormatterStorage.writeNullable<guid>(writer, value.posterFileId, 'guid');
+    IonFormatterStorage.writeNullable<guid>(writer, value.storyboardFileId, 'guid');
+    IonFormatterStorage.writeNullable<VideoStoryboard>(writer, value.storyboard, 'VideoStoryboard');
+    IonFormatterStorage.writeNullable<i8>(writer, value.preloadPrefixSize, 'i8');
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("VideoUploadTicket", {
+  read(reader: CborReader): VideoUploadTicket {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 7, "VideoUploadTicket");
+    const ticketId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const fileId = IonFormatterStorage.get<guid>('guid').read(reader);
+    const uploadUrl = IonFormatterStorage.readNullable<string>(reader, 'string');
+    const formFields = IonFormatterStorage.readArray<FormField>(reader, 'FormField');
+    const partUrls = IonFormatterStorage.readArray<string>(reader, 'string');
+    const partSize = IonFormatterStorage.get<i8>('i8').read(reader);
+    const ttlSeconds = IonFormatterStorage.get<i4>('i4').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 7);
+    return { ticketId, fileId, uploadUrl, formFields, partUrls, partSize, ttlSeconds };
+  },
+  write(writer: CborWriter, value: VideoUploadTicket): void {
+    writer.writeStartArray(7);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.ticketId);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.fileId);
+    IonFormatterStorage.writeNullable<string>(writer, value.uploadUrl, 'string');
+    IonFormatterStorage.writeArray<FormField>(writer, value.formFields, 'FormField');
+    IonFormatterStorage.writeArray<string>(writer, value.partUrls, 'string');
+    IonFormatterStorage.get<i8>('i8').write(writer, value.partSize);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.ttlSeconds);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("UploadedPart", {
+  read(reader: CborReader): UploadedPart {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "UploadedPart");
+    const partNumber = IonFormatterStorage.get<i4>('i4').read(reader);
+    const etag = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return { partNumber, etag };
+  },
+  write(writer: CborWriter, value: UploadedPart): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<i4>('i4').write(writer, value.partNumber);
+    IonFormatterStorage.get<string>('string').write(writer, value.etag);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("UploadLimits", {
+  read(reader: CborReader): UploadLimits {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 3, "UploadLimits");
+    const attachmentMaxBytes = IonFormatterStorage.get<i8>('i8').read(reader);
+    const videoMaxBytes = IonFormatterStorage.get<i8>('i8').read(reader);
+    const videoMaxDurationMs = IonFormatterStorage.get<i8>('i8').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 3);
+    return { attachmentMaxBytes, videoMaxBytes, videoMaxDurationMs };
+  },
+  write(writer: CborWriter, value: UploadLimits): void {
+    writer.writeStartArray(3);
+    IonFormatterStorage.get<i8>('i8').write(writer, value.attachmentMaxBytes);
+    IonFormatterStorage.get<i8>('i8').write(writer, value.videoMaxBytes);
+    IonFormatterStorage.get<i8>('i8').write(writer, value.videoMaxDurationMs);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("VideoUploadError", {
+  read(reader: CborReader): VideoUploadError {
+    return IonFormatterStorage.readOpenEnum<VideoUploadError>(reader, 'u4');
+  },
+  write(writer: CborWriter, value: VideoUploadError): void {
+    const casted: u4 = value;
+    IonFormatterStorage.get<u4>('u4').write(writer, casted);
+  }
+});
+
 IonFormatterStorage.register("RtcEndpoint", {
   read(reader: CborReader): RtcEndpoint {
     const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "RtcEndpoint");
@@ -24963,6 +26020,10 @@ export interface IChannelInteraction extends IIonService
   RemoveCustomReaction(spaceId: guid, channelId: guid, messageId: i8, itemId: guid): Promise<IRemoveReactionResult>;
   AttachExistingFile(spaceId: guid, channelId: guid, sourceFileId: guid, fileName: string | null): Promise<IAttachExistingFileResult>;
   PrepareUploadAttachment(spaceId: guid, channelId: guid, sha256: bytes, size: i8, contentType: string, fileName: string): Promise<IPrepareUploadResult>;
+  PrepareVideoUpload(spaceId: guid, channelId: guid, declaration: VideoUploadDeclaration): Promise<IVideoUploadResult>;
+  CompleteVideoUpload(spaceId: guid, channelId: guid, ticketId: guid, parts: IonArray<UploadedPart>): Promise<IVideoUploadResult>;
+  AbortVideoUpload(spaceId: guid, channelId: guid, ticketId: guid): Promise<void>;
+  GetUploadLimits(spaceId: guid, channelId: guid): Promise<UploadLimits>;
 }
 
 
@@ -25068,6 +26129,10 @@ export interface IUserChatInteractions extends IIonService
   QueryDirectMessages(peerId: guid, from: i8 | null, limit: i4): Promise<IonArray<DirectMessage>>;
   AttachExistingFile(peerId: guid, sourceFileId: guid, fileName: string | null): Promise<IAttachExistingFileResult>;
   PrepareUploadAttachment(peerId: guid, sha256: bytes, size: i8, contentType: string, fileName: string): Promise<IPrepareUploadResult>;
+  PrepareVideoUpload(peerId: guid, declaration: VideoUploadDeclaration): Promise<IVideoUploadResult>;
+  CompleteVideoUpload(peerId: guid, ticketId: guid, parts: IonArray<UploadedPart>): Promise<IVideoUploadResult>;
+  AbortVideoUpload(peerId: guid, ticketId: guid): Promise<void>;
+  GetUploadLimits(peerId: guid): Promise<UploadLimits>;
 }
 
 
@@ -25145,8 +26210,12 @@ export interface IReportInteraction extends IIonService
 
 export interface ISecurityInteraction extends IIonService
 {
-  RequestEmailChange(newEmail: string, password: string): Promise<IRequestEmailChangeResult>;
-  ConfirmEmailChange(verificationCode: string): Promise<IConfirmEmailChangeResult>;
+  BeginVerification(action: SensitiveAction): Promise<IBeginVerificationResult>;
+  ChallengeVerification(flowId: guid, factor: VerificationFactor): Promise<IChallengeVerificationResult>;
+  SubmitVerification(flowId: guid, factor: VerificationFactor, proof: string): Promise<ISubmitVerificationResult>;
+  CancelVerification(flowId: guid): Promise<void>;
+  RequestEmailChange(flowId: guid, newEmail: string): Promise<IRequestEmailChangeResult>;
+  ConfirmEmailChange(flowId: guid, verificationCode: string): Promise<IConfirmEmailChangeResult>;
   RequestPhoneChange(newPhone: string, password: string): Promise<IRequestPhoneChangeResult>;
   ConfirmPhoneChange(verificationCode: string): Promise<IConfirmPhoneChangeResult>;
   RemovePhone(password: string): Promise<IRemovePhoneResult>;
@@ -25294,6 +26363,8 @@ export interface IPreferenceInteraction extends IIonService
   SetPreference(scope: string, value: string): Promise<void>;
   GetPreference(scope: string, value: string): Promise<void>;
 }
+
+
 
 
 
@@ -25422,6 +26493,10 @@ export interface IChannelInteraction extends IIonService
   RemoveCustomReaction(spaceId: guid, channelId: guid, messageId: i8, itemId: guid): Promise<IRemoveReactionResult>;
   AttachExistingFile(spaceId: guid, channelId: guid, sourceFileId: guid, fileName: string | null): Promise<IAttachExistingFileResult>;
   PrepareUploadAttachment(spaceId: guid, channelId: guid, sha256: bytes, size: i8, contentType: string, fileName: string): Promise<IPrepareUploadResult>;
+  PrepareVideoUpload(spaceId: guid, channelId: guid, declaration: VideoUploadDeclaration): Promise<IVideoUploadResult>;
+  CompleteVideoUpload(spaceId: guid, channelId: guid, ticketId: guid, parts: IonArray<UploadedPart>): Promise<IVideoUploadResult>;
+  AbortVideoUpload(spaceId: guid, channelId: guid, ticketId: guid): Promise<void>;
+  GetUploadLimits(spaceId: guid, channelId: guid): Promise<UploadLimits>;
 }
 
 
@@ -25527,6 +26602,10 @@ export interface IUserChatInteractions extends IIonService
   QueryDirectMessages(peerId: guid, from: i8 | null, limit: i4): Promise<IonArray<DirectMessage>>;
   AttachExistingFile(peerId: guid, sourceFileId: guid, fileName: string | null): Promise<IAttachExistingFileResult>;
   PrepareUploadAttachment(peerId: guid, sha256: bytes, size: i8, contentType: string, fileName: string): Promise<IPrepareUploadResult>;
+  PrepareVideoUpload(peerId: guid, declaration: VideoUploadDeclaration): Promise<IVideoUploadResult>;
+  CompleteVideoUpload(peerId: guid, ticketId: guid, parts: IonArray<UploadedPart>): Promise<IVideoUploadResult>;
+  AbortVideoUpload(peerId: guid, ticketId: guid): Promise<void>;
+  GetUploadLimits(peerId: guid): Promise<UploadLimits>;
 }
 
 
@@ -25604,8 +26683,12 @@ export interface IReportInteraction extends IIonService
 
 export interface ISecurityInteraction extends IIonService
 {
-  RequestEmailChange(newEmail: string, password: string): Promise<IRequestEmailChangeResult>;
-  ConfirmEmailChange(verificationCode: string): Promise<IConfirmEmailChangeResult>;
+  BeginVerification(action: SensitiveAction): Promise<IBeginVerificationResult>;
+  ChallengeVerification(flowId: guid, factor: VerificationFactor): Promise<IChallengeVerificationResult>;
+  SubmitVerification(flowId: guid, factor: VerificationFactor, proof: string): Promise<ISubmitVerificationResult>;
+  CancelVerification(flowId: guid): Promise<void>;
+  RequestEmailChange(flowId: guid, newEmail: string): Promise<IRequestEmailChangeResult>;
+  ConfirmEmailChange(flowId: guid, verificationCode: string): Promise<IConfirmEmailChangeResult>;
   RequestPhoneChange(newPhone: string, password: string): Promise<IRequestPhoneChangeResult>;
   ConfirmPhoneChange(verificationCode: string): Promise<IConfirmPhoneChangeResult>;
   RemovePhone(password: string): Promise<IRemovePhoneResult>;
@@ -25753,6 +26836,8 @@ export interface IPreferenceInteraction extends IIonService
   SetPreference(scope: string, value: string): Promise<void>;
   GetPreference(scope: string, value: string): Promise<void>;
 }
+
+
 
 
 
@@ -26945,6 +28030,66 @@ export class ChannelInteraction_Executor extends ServiceExecutor<IChannelInterac
           
     return await req.callAsyncT<IPrepareUploadResult>("IPrepareUploadResult", writer.data, this.signal);
   }
+  async PrepareVideoUpload(spaceId: guid, channelId: guid, declaration: VideoUploadDeclaration): Promise<IVideoUploadResult> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "PrepareVideoUpload");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(3);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<VideoUploadDeclaration>('VideoUploadDeclaration').write(writer, declaration);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IVideoUploadResult>("IVideoUploadResult", writer.data, this.signal);
+  }
+  async CompleteVideoUpload(spaceId: guid, channelId: guid, ticketId: guid, parts: IonArray<UploadedPart>): Promise<IVideoUploadResult> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "CompleteVideoUpload");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(4);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<guid>('guid').write(writer, ticketId);
+    IonFormatterStorage.writeArray<UploadedPart>(writer, parts, 'UploadedPart');
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IVideoUploadResult>("IVideoUploadResult", writer.data, this.signal);
+  }
+  async AbortVideoUpload(spaceId: guid, channelId: guid, ticketId: guid): Promise<void> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "AbortVideoUpload");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(3);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+    IonFormatterStorage.get<guid>('guid').write(writer, ticketId);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+  async GetUploadLimits(spaceId: guid, channelId: guid): Promise<UploadLimits> {
+    const req = new IonRequest(this.ctx, "IChannelInteraction", "GetUploadLimits");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, spaceId);
+    IonFormatterStorage.get<guid>('guid').write(writer, channelId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<UploadLimits>("UploadLimits", writer.data, this.signal);
+  }
 
 }
 
@@ -27759,6 +28904,62 @@ export class UserChatInteractions_Executor extends ServiceExecutor<IUserChatInte
           
     return await req.callAsyncT<IPrepareUploadResult>("IPrepareUploadResult", writer.data, this.signal);
   }
+  async PrepareVideoUpload(peerId: guid, declaration: VideoUploadDeclaration): Promise<IVideoUploadResult> {
+    const req = new IonRequest(this.ctx, "IUserChatInteractions", "PrepareVideoUpload");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, peerId);
+    IonFormatterStorage.get<VideoUploadDeclaration>('VideoUploadDeclaration').write(writer, declaration);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IVideoUploadResult>("IVideoUploadResult", writer.data, this.signal);
+  }
+  async CompleteVideoUpload(peerId: guid, ticketId: guid, parts: IonArray<UploadedPart>): Promise<IVideoUploadResult> {
+    const req = new IonRequest(this.ctx, "IUserChatInteractions", "CompleteVideoUpload");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(3);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, peerId);
+    IonFormatterStorage.get<guid>('guid').write(writer, ticketId);
+    IonFormatterStorage.writeArray<UploadedPart>(writer, parts, 'UploadedPart');
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IVideoUploadResult>("IVideoUploadResult", writer.data, this.signal);
+  }
+  async AbortVideoUpload(peerId: guid, ticketId: guid): Promise<void> {
+    const req = new IonRequest(this.ctx, "IUserChatInteractions", "AbortVideoUpload");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, peerId);
+    IonFormatterStorage.get<guid>('guid').write(writer, ticketId);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+  async GetUploadLimits(peerId: guid): Promise<UploadLimits> {
+    const req = new IonRequest(this.ctx, "IUserChatInteractions", "GetUploadLimits");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, peerId);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<UploadLimits>("UploadLimits", writer.data, this.signal);
+  }
 
 }
 
@@ -28214,27 +29415,83 @@ export class SecurityInteraction_Executor extends ServiceExecutor<ISecurityInter
   }
 
   
-  async RequestEmailChange(newEmail: string, password: string): Promise<IRequestEmailChangeResult> {
+  async BeginVerification(action: SensitiveAction): Promise<IBeginVerificationResult> {
+    const req = new IonRequest(this.ctx, "ISecurityInteraction", "BeginVerification");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<SensitiveAction>('SensitiveAction').write(writer, action);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IBeginVerificationResult>("IBeginVerificationResult", writer.data, this.signal);
+  }
+  async ChallengeVerification(flowId: guid, factor: VerificationFactor): Promise<IChallengeVerificationResult> {
+    const req = new IonRequest(this.ctx, "ISecurityInteraction", "ChallengeVerification");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, flowId);
+    IonFormatterStorage.get<VerificationFactor>('VerificationFactor').write(writer, factor);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<IChallengeVerificationResult>("IChallengeVerificationResult", writer.data, this.signal);
+  }
+  async SubmitVerification(flowId: guid, factor: VerificationFactor, proof: string): Promise<ISubmitVerificationResult> {
+    const req = new IonRequest(this.ctx, "ISecurityInteraction", "SubmitVerification");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(3);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, flowId);
+    IonFormatterStorage.get<VerificationFactor>('VerificationFactor').write(writer, factor);
+    IonFormatterStorage.get<string>('string').write(writer, proof);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ISubmitVerificationResult>("ISubmitVerificationResult", writer.data, this.signal);
+  }
+  async CancelVerification(flowId: guid): Promise<void> {
+    const req = new IonRequest(this.ctx, "ISecurityInteraction", "CancelVerification");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(1);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, flowId);
+      
+    writer.writeEndArray();
+          
+    await req.callAsync(writer.data, this.signal);
+  }
+  async RequestEmailChange(flowId: guid, newEmail: string): Promise<IRequestEmailChangeResult> {
     const req = new IonRequest(this.ctx, "ISecurityInteraction", "RequestEmailChange");
           
     const writer = new CborWriter();
       
     writer.writeStartArray(2);
           
+    IonFormatterStorage.get<guid>('guid').write(writer, flowId);
     IonFormatterStorage.get<string>('string').write(writer, newEmail);
-    IonFormatterStorage.get<string>('string').write(writer, password);
       
     writer.writeEndArray();
           
     return await req.callAsyncT<IRequestEmailChangeResult>("IRequestEmailChangeResult", writer.data, this.signal);
   }
-  async ConfirmEmailChange(verificationCode: string): Promise<IConfirmEmailChangeResult> {
+  async ConfirmEmailChange(flowId: guid, verificationCode: string): Promise<IConfirmEmailChangeResult> {
     const req = new IonRequest(this.ctx, "ISecurityInteraction", "ConfirmEmailChange");
           
     const writer = new CborWriter();
       
-    writer.writeStartArray(1);
+    writer.writeStartArray(2);
           
+    IonFormatterStorage.get<guid>('guid').write(writer, flowId);
     IonFormatterStorage.get<string>('string').write(writer, verificationCode);
       
     writer.writeEndArray();

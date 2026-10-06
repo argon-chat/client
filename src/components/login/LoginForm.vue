@@ -144,7 +144,7 @@ watch(password, () => {
             <div class="input-group">
               <div class="flex items-center gap-2 mb-2">
                 <MailIcon class="w-4 h-4 text-primary" />
-                <Label for="email" class="text-sm font-medium">Email</Label>
+                <Label for="email" class="text-sm font-medium">{{ t("email") }}</Label>
               </div>
               <InputWithError
                 v-model="email"
@@ -164,7 +164,7 @@ watch(password, () => {
               <div class="flex items-center justify-between mb-2">
                 <div class="flex items-center gap-2">
                   <MailIcon class="w-4 h-4 text-primary" />
-                  <Label class="text-sm font-medium">Email</Label>
+                  <Label class="text-sm font-medium">{{ t("email") }}</Label>
                 </div>
                 <button type="button" @click="step = 'email'; authError = ''" class="text-xs text-primary hover:underline">
                   {{ t("change") }}

@@ -29,13 +29,52 @@
           </button>
         </div>
         <!-- Video preview -->
-        <div v-else-if="selectedFile && isVideo(selectedFile)" class="image-preview">
-          <img :src="selectedFile.previewUrl!" alt="" class="preview-img" />
-          <div class="video-play-badge">
+        <div v-else-if="selectedFile && isVideo(selectedFile)" class="image-preview" data-testid="attachment-video-preview">
+          <img v-if="selectedFile.previewUrl" :src="selectedFile.previewUrl" alt="" class="preview-img" />
+          <FilmIcon v-else class="w-12 h-12 text-muted-foreground" />
+
+          <span v-if="selectedVideo" class="video-chip video-chip--duration" data-testid="video-duration">{{ durationText }}</span>
+
+          <!-- Preparation: progress, and a stop -->
+          <div v-if="selectedVideo?.preparing" class="video-progress">
+            <button
+              type="button"
+              class="video-progress-ring"
+              :aria-label="t('video_send_stop')"
+              :title="t('video_send_stop')"
+              data-testid="video-prepare-progress"
+              :data-progress="Math.round(selectedVideo.preparing.progress * 100)"
+              @click="$emit('video-cancel', selectedIndex)"
+            >
+              <svg viewBox="0 0 48 48" aria-hidden="true">
+                <circle class="ring-track" cx="24" cy="24" r="20" />
+                <circle
+                  class="ring-fill"
+                  cx="24"
+                  cy="24"
+                  r="20"
+                  :stroke-dasharray="RING"
+                  :stroke-dashoffset="RING * (1 - Math.min(1, Math.max(0.02, selectedVideo.preparing.progress)))"
+                />
+              </svg>
+              <XIcon class="w-5 h-5" />
+            </button>
+            <span class="video-progress-label" data-testid="video-prepare-stage">{{ preparingText }}</span>
+          </div>
+          <div v-else class="video-play-badge">
             <PlayIcon class="w-5 h-5 fill-current" />
           </div>
+
           <!-- Edit button -->
-          <button class="edit-btn icon-motion icon-motion--pop" @click="openEditor" :title="t('edit')">
+          <button
+            class="edit-btn icon-motion icon-motion--pop"
+            :class="{ 'edit-btn--blocked': !!editBlockText }"
+            :disabled="!!editBlockText"
+            :aria-disabled="!!editBlockText"
+            :title="editBlockText || t('edit')"
+            data-testid="video-edit"
+            @click="openEditor"
+          >
             <PencilIcon class="w-4 h-4" />
           </button>
         </div>
@@ -54,6 +93,58 @@
         </div>
       </div>
 
+      <!-- How the selected video is sent -->
+      <div v-if="selectedVideo" class="video-options" data-testid="video-options">
+        <Select :model-value="qualityValue" :disabled="!!selectedVideo.fileReason || selectedVideo.prefs.sendAsFile" @update:model-value="onQuality">
+          <SelectTrigger size="sm" class="video-quality" :aria-label="t('video_send_quality')" data-testid="video-quality">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectItem v-for="option in qualityOptions" :key="option.value" :value="option.value" :data-testid="`video-quality-${option.value}`">
+                {{ option.label }}
+              </SelectItem>
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+
+        <button
+          v-if="selectedVideo.probe.hasAudio"
+          type="button"
+          class="video-toggle"
+          :class="{ active: selectedVideo.prefs.mute }"
+          :aria-pressed="selectedVideo.prefs.mute"
+          :disabled="selectedVideo.prefs.sendAsFile"
+          data-testid="video-mute"
+          @click="$emit('video-prefs', selectedIndex, { mute: !selectedVideo.prefs.mute })"
+        >
+          <VolumeXIcon v-if="selectedVideo.prefs.mute" class="w-4 h-4" />
+          <Volume2Icon v-else class="w-4 h-4" />
+          {{ t('video_send_mute') }}
+        </button>
+
+        <button
+          type="button"
+          class="video-toggle"
+          :class="{ active: selectedVideo.prefs.sendAsFile }"
+          :aria-pressed="selectedVideo.prefs.sendAsFile"
+          :disabled="!!selectedVideo.fileReason"
+          data-testid="video-send-as-file"
+          @click="$emit('video-prefs', selectedIndex, { sendAsFile: !selectedVideo.prefs.sendAsFile })"
+        >
+          <FileIcon class="w-4 h-4" />
+          {{ t('video_send_as_file') }}
+        </button>
+
+        <span class="video-size" data-testid="video-size">{{ sizeText }}</span>
+      </div>
+      <p v-if="selectedVideo && reasonText" class="video-reason" data-testid="video-reason">
+        {{ reasonText }}
+        <button v-if="selectedVideo.paused" type="button" class="video-reason-action" data-testid="video-prepare-now" @click="$emit('video-prepare', selectedIndex)">
+          {{ t('video_send_compress_now') }}
+        </button>
+      </p>
+
       <!-- Thumbnails strip -->
       <div v-if="files.length > 1" class="thumb-strip">
         <button
@@ -63,8 +154,14 @@
           :class="{ active: selectedIndex === i }"
           @click="selectedIndex = i"
         >
-          <img v-if="isImage(file) || isVideo(file)" :src="file.previewUrl!" alt="" class="strip-thumb-img" />
+          <img v-if="(isImage(file) || isVideo(file)) && file.previewUrl" :src="file.previewUrl" alt="" class="strip-thumb-img" />
+          <FilmIcon v-else-if="isVideo(file)" class="w-4 h-4 text-muted-foreground" />
           <FileIcon v-else class="w-4 h-4 text-muted-foreground" />
+          <span
+            v-if="file.video?.preparing"
+            class="strip-progress"
+            :style="{ transform: `scaleX(${Math.max(0.04, file.video.preparing.progress)})` }"
+          />
           <div role="button" class="strip-remove" @click.stop="$emit('remove', i)">
             <XIcon class="w-2.5 h-2.5" />
           </div>
@@ -104,31 +201,40 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, watch } from "vue";
+import { ref, computed, nextTick, watch, onMounted, shallowRef } from "vue";
 import { Button } from "@argon/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogTitle,
 } from "@argon/ui/dialog";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@argon/ui/select";
 import { VisuallyHidden } from "@argon/ui/visually-hidden";
 import {
   FileIcon,
   FileTextIcon,
+  FilmIcon,
   ImageIcon,
   XIcon,
   PlusIcon,
   SendHorizonalIcon,
   PencilIcon,
   PlayIcon,
+  Volume2Icon,
+  VolumeXIcon,
 } from "lucide-vue-next";
-import type { PendingAttachment } from "@/composables/useAttachmentUpload";
+import { checkCapabilities, videoEditBlock, type PlatformCapabilities } from "@argon/media-editor";
+import type { PendingAttachment, PendingVideo, PendingVideoPrefs } from "@/composables/useAttachmentUpload";
+import { estimateOutputBytes, VIDEO_LADDER, type VideoQuality } from "@/lib/video/plan";
+import { DEFAULT_UPLOAD_LIMITS, formatLimitBytes, formatLimitDuration } from "@/lib/attachments/uploadLimits";
 import type { IMessageEntity } from "@argon/glue";
 import type { Guid } from "@argon-chat/ion.webcore";
 import { useLocale } from "@/store/system/localeStore";
 import EnterText from "./EnterText.vue";
 
 const { t } = useLocale();
+
+const RING = 2 * Math.PI * 20;
 
 const props = defineProps<{
   files: PendingAttachment[];
@@ -147,6 +253,9 @@ const emit = defineEmits<{
   (e: "add-files", files: FileList): void;
   (e: "replace-file", index: number, file: File, previewUrl: string): void;
   (e: "open-editor", index: number, src: string, mediaType: "image" | "video"): void;
+  (e: "video-prefs", index: number, patch: Partial<Pick<PendingVideoPrefs, "quality" | "mute" | "sendAsFile">>): void;
+  (e: "video-cancel", index: number): void;
+  (e: "video-prepare", index: number): void;
 }>();
 
 const captionInputRef = ref<InstanceType<typeof EnterText> | null>(null);
@@ -154,6 +263,8 @@ const selectedIndex = ref(0);
 const isDragging = ref(false);
 
 const selectedFile = computed(() => props.files[selectedIndex.value] ?? null);
+/** The selected file's video state, when it is sent as a video (af.chat.video). */
+const selectedVideo = computed<PendingVideo | null>(() => selectedFile.value?.video ?? null);
 
 watch(() => props.open, (v) => {
   if (v) {
@@ -176,7 +287,7 @@ function isImage(file: PendingAttachment): boolean {
 }
 
 function isVideo(file: PendingAttachment): boolean {
-  return file.file.type.startsWith("video/") && !!file.previewUrl;
+  return !!file.video || (file.file.type.startsWith("video/") && !!file.previewUrl);
 }
 
 function formatSize(bytes: number): string {
@@ -184,6 +295,112 @@ function formatSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+function formatDuration(ms: number): string {
+  const total = Math.max(0, Math.round(ms / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = String(total % 60).padStart(2, "0");
+  return h ? `${h}:${String(m).padStart(2, "0")}:${s}` : `${m}:${s}`;
+}
+
+// --- Video ---
+
+const durationText = computed(() => {
+  const v = selectedVideo.value;
+  if (!v) return "";
+  return formatDuration(v.plan?.durationMs ?? (v.prefs.trim ? v.prefs.trim.endMs - v.prefs.trim.startMs : v.probe.durationMs));
+});
+
+/** Rungs the source reaches (the cropped frame's short side), never above it: nothing is upscaled. */
+const qualityOptions = computed(() => {
+  const v = selectedVideo.value;
+  if (!v) return [];
+  const crop = v.prefs.crop;
+  const shortSide = crop ? Math.min(crop.width, crop.height) : Math.min(v.probe.width, v.probe.height);
+  const rungs = VIDEO_LADDER.filter((rung, i) => rung <= shortSide || i === 0);
+  return [
+    { value: "auto", label: t("video_send_quality_auto") },
+    ...rungs.map((rung) => ({ value: String(rung), label: t("video_send_quality_rung", { height: rung }) })),
+    { value: "original", label: t("video_send_quality_original") },
+  ];
+});
+
+const qualityValue = computed(() => {
+  const quality = selectedVideo.value?.prefs.quality ?? "auto";
+  const value = String(quality);
+  return qualityOptions.value.some((o) => o.value === value) ? value : "auto";
+});
+
+function onQuality(value: unknown) {
+  const quality: VideoQuality = value === "auto" || value === "original" ? value : (Number(value) as VideoQuality);
+  if (String(quality) === qualityValue.value) return;
+  emit("video-prefs", selectedIndex.value, { quality });
+}
+
+const preparingText = computed(() => {
+  const preparing = selectedVideo.value?.preparing;
+  if (!preparing) return "";
+  const percent = Math.round(preparing.progress * 100);
+  return preparing.phase === "render" ? t("video_send_processing", { percent }) : t("video_send_compressing", { percent });
+});
+
+const sizeText = computed(() => {
+  const v = selectedVideo.value;
+  const file = selectedFile.value;
+  if (!v || !file) return "";
+  if (v.prepared) return formatSize(v.prepared.blob.size);
+  if (v.prefs.sendAsFile && !(v.prefs.trim || v.prefs.crop || v.prefs.rotate || v.prefs.flip)) return formatSize(file.file.size);
+  if (v.plan) return t("video_send_estimated_size", { size: formatSize(estimateOutputBytes(v.plan)) });
+  return "";
+});
+
+const REASON_KEYS: Record<string, string> = {
+  "no-encoder": "video_send_reason_no_encoder",
+  undecodable: "video_send_reason_undecodable",
+  "too-large": "video_send_reason_too_large",
+  "user-original": "video_send_reason_original",
+  failed: "video_send_reason_failed",
+  "too-long": "video_send_reason_too_long",
+};
+
+const reasonText = computed(() => {
+  const v = selectedVideo.value;
+  if (!v) return "";
+  const limits = v.limits ?? { maxBytes: DEFAULT_UPLOAD_LIMITS.videoMaxBytes, maxDurationMs: DEFAULT_UPLOAD_LIMITS.videoMaxDurationMs };
+  const params = { limit: formatLimitBytes(limits.maxBytes), duration: formatLimitDuration(limits.maxDurationMs) };
+  if (v.fileReason === "failed" && v.error === "output-too-large") return t("video_send_reason_output_too_large", params);
+  if (v.fileReason) return t(REASON_KEYS[v.fileReason] ?? "video_send_reason_failed", params);
+  if (v.error === "render-failed") return t("video_send_reason_render_failed");
+  if (v.error === "invalid-trim") return t("video_send_reason_invalid_trim");
+  if (v.paused && !v.prefs.sendAsFile) return t("video_send_paused");
+  // Lowered to fit: when planned, or when the output overshot and was made again a rung lower.
+  if (v.plan && (v.plan.downscaledToFit || v.steppedDown) && !v.prefs.sendAsFile) {
+    return t("video_send_downscaled", { height: Math.min(v.plan.width, v.plan.height) });
+  }
+  return "";
+});
+
+// The editor needs WebGPU and an H.264 encoder, and takes videos up to 100 MB.
+const capabilities = shallowRef<PlatformCapabilities | null>(null);
+onMounted(() => {
+  void checkCapabilities().then((caps) => (capabilities.value = caps)).catch(() => {});
+});
+
+const EDIT_BLOCK_KEYS = {
+  "no-gpu": "video_send_edit_no_gpu",
+  "no-encoder": "video_send_edit_no_encoder",
+  "too-large": "video_send_edit_too_large",
+} as const;
+
+const editBlockText = computed(() => {
+  const file = selectedFile.value;
+  if (!file || !isVideo(file)) return "";
+  const caps = capabilities.value;
+  if (!caps) return t("video_send_edit_checking");
+  const block = videoEditBlock((file.video?.source ?? file.file).size, caps);
+  return block ? t(EDIT_BLOCK_KEYS[block]) : "";
+});
 
 function send() {
   const parsed = captionInputRef.value?.getParsedContent();
@@ -198,7 +415,9 @@ function openEditor() {
   if (isImage(selectedFile.value)) {
     emit("open-editor", selectedIndex.value, selectedFile.value.previewUrl!, "image");
   } else if (isVideo(selectedFile.value)) {
-    const videoSrc = URL.createObjectURL(selectedFile.value.file);
+    if (editBlockText.value) return;
+    // The editor always works on the file as picked; an earlier edit is reopened from its state.
+    const videoSrc = URL.createObjectURL(selectedFile.value.video?.source ?? selectedFile.value.file);
     emit("open-editor", selectedIndex.value, videoSrc, "video");
   }
 }
@@ -265,6 +484,7 @@ function onDrop(e: DragEvent) {
 .image-preview {
   width: 100%;
   height: 100%;
+  min-height: 280px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -290,14 +510,24 @@ function onDrop(e: DragEvent) {
   backdrop-filter: blur(4px);
 }
 
-.image-preview:hover .edit-btn {
+.image-preview:hover .edit-btn,
+.edit-btn:focus-visible {
   opacity: 1;
 }
 
-.edit-btn:hover {
+.edit-btn:hover:not(:disabled) {
   background: hsl(var(--primary));
   color: hsl(var(--primary-foreground));
   border-color: hsl(var(--primary));
+}
+
+.edit-btn--blocked {
+  cursor: not-allowed;
+  color: hsl(var(--muted-foreground));
+}
+
+.image-preview:hover .edit-btn--blocked {
+  opacity: 0.6;
 }
 
 .preview-img {
@@ -321,6 +551,163 @@ function onDrop(e: DragEvent) {
   color: hsl(var(--foreground));
   pointer-events: none;
   backdrop-filter: blur(4px);
+}
+
+/* Telegram's chips over media: white on a dark pill in both themes. */
+.video-chip {
+  position: absolute;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 10px;
+  background: rgb(0 0 0 / 0.5);
+  color: #fff;
+  font-size: 12px;
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.video-chip--duration {
+  top: 10px;
+  left: 10px;
+}
+
+.video-progress {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.video-progress-ring {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: none;
+  background: rgb(0 0 0 / 0.5);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+
+.video-progress-ring:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+.video-progress-ring svg {
+  position: absolute;
+  inset: 0;
+  transform: rotate(-90deg);
+}
+
+.ring-track {
+  fill: none;
+  stroke: rgb(255 255 255 / 0.25);
+  stroke-width: 3;
+}
+
+.ring-fill {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 3;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.2s linear;
+}
+
+.video-progress-label {
+  padding: 0 8px;
+  border-radius: 10px;
+  background: rgb(0 0 0 / 0.5);
+  color: #fff;
+  font-size: 12px;
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.video-options {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-top: 1px solid hsl(var(--border));
+  flex-wrap: wrap;
+}
+
+.video-quality {
+  min-width: 104px;
+}
+
+.video-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid hsl(var(--border));
+  background: transparent;
+  color: hsl(var(--foreground));
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.video-toggle:hover:not(:disabled) {
+  background: hsl(var(--muted));
+}
+
+.video-toggle.active {
+  border-color: hsl(var(--primary));
+  background: hsl(var(--primary) / 0.12);
+  color: hsl(var(--primary));
+}
+
+.video-toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.video-toggle:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 1px;
+}
+
+.video-size {
+  margin-left: auto;
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  font-variant-numeric: tabular-nums;
+}
+
+.video-reason {
+  margin: 0;
+  padding: 0 12px 8px;
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+}
+
+.video-reason-action {
+  margin-left: 4px;
+  border: none;
+  background: none;
+  padding: 0;
+  color: hsl(var(--primary));
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.video-reason-action:hover {
+  text-decoration: underline;
 }
 
 .file-preview {
@@ -391,6 +778,17 @@ function onDrop(e: DragEvent) {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.strip-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: hsl(var(--primary));
+  transform-origin: left center;
+  transition: transform 0.2s linear;
 }
 
 .strip-remove {

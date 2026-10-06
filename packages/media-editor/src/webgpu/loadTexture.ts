@@ -17,11 +17,14 @@ type LoadTextureArgs = {
   device: GPUDevice;
   mediaSrc: string;
   mediaType: MediaType;
+  /** Seconds. */
   videoTime: number;
+  /** 0..1 of the duration; takes precedence over `videoTime`. */
+  videoPosition?: number;
   waitToSeek?: boolean;
 };
 
-export async function loadTexture({ device, mediaSrc, mediaType, videoTime, waitToSeek }: LoadTextureArgs): Promise<LoadTextureResult> {
+export async function loadTexture({ device, mediaSrc, mediaType, videoTime, videoPosition, waitToSeek }: LoadTextureArgs): Promise<LoadTextureResult> {
   let media: LoadTextureMedia;
 
   if (mediaType === 'image') {
@@ -39,7 +42,7 @@ export async function loadTexture({ device, mediaSrc, mediaType, videoTime, wait
       height: image.naturalHeight
     };
   } else {
-    const video = await createVideoForDrawing(mediaSrc, videoTime, waitToSeek);
+    const video = await createVideoForDrawing(mediaSrc, videoTime, videoPosition, waitToSeek);
     media = {
       video,
       width: video.videoWidth,
@@ -80,7 +83,16 @@ export function updateVideoTexture(device: GPUDevice, texture: GPUTexture, video
   );
 }
 
-async function createVideoForDrawing(src: string, currentTime: number, waitToSeek?: boolean): Promise<HTMLVideoElement> {
+/** A decoded frame (already at the texture's size) into the texture. */
+export function updateFrameTexture(device: GPUDevice, texture: GPUTexture, frame: HTMLCanvasElement | OffscreenCanvas): void {
+  device.queue.copyExternalImageToTexture(
+    { source: frame, flipY: false },
+    { texture, premultipliedAlpha: true },
+    [texture.width, texture.height]
+  );
+}
+
+async function createVideoForDrawing(src: string, time: number, position: number | undefined, waitToSeek?: boolean): Promise<HTMLVideoElement> {
   const video = document.createElement('video');
   video.muted = true;
   video.playsInline = true;
@@ -91,6 +103,8 @@ async function createVideoForDrawing(src: string, currentTime: number, waitToSee
     video.addEventListener('loadeddata', () => resolve(), { once: true });
   });
 
+  const duration = Number.isFinite(video.duration) ? video.duration : 0;
+  const currentTime = position !== undefined ? Math.min(duration, Math.max(0, position) * duration) : time;
   if (currentTime > 0 || waitToSeek) {
     video.currentTime = currentTime;
     await new Promise<void>((resolve) => {

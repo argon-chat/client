@@ -99,7 +99,7 @@ async function join() {
   try {
     const error = await connections.joinListenAlong(props.hostUserId);
     if (error !== ListenAlongError.NONE)
-      toast({ title: t("spotify_listen_along"), description: t(LISTEN_ALONG_ERROR_KEYS[error]), variant: "destructive" });
+      toast({ title: t("spotify_listen_along"), description: t(LISTEN_ALONG_ERROR_KEYS[error] ?? "listen_along_error_unknown"), variant: "destructive" });
   } catch (e) {
     logger.error("[connections] listen-along join failed", e);
     toast({ title: t("error"), description: t("listen_along_error_unknown"), variant: "destructive" });

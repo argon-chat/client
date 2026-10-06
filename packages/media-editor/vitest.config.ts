@@ -7,6 +7,8 @@ export default defineConfig({
     name: "media-editor",
     environment: "happy-dom",
     include: ["test/**/*.test.ts"],
+    // Real-browser tests (WebCodecs, mediabunny) run in vitest.browser.config.ts.
+    exclude: ["test/browser/**"],
     globals: false,
     restoreMocks: true,
   },

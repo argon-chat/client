@@ -1,7 +1,20 @@
 <template>
-  <!-- Single image: explicit pixel dimensions, no layout shift -->
+  <!-- Single image or video: explicit pixel dimensions, no layout shift -->
   <div
-    v-if="isSingle"
+    v-if="isSingle && isVideoEntity(images[0])"
+    class="single-image-wrapper"
+    :style="singleDims"
+    :data-attachment-id="images[0].fileId"
+  >
+    <VideoAttachment
+      :video="images[0]"
+      fit="contain"
+      v-bind="attachmentSendProgress(images[0])"
+      @open="emit('open-lightbox', 0)"
+    />
+  </div>
+  <div
+    v-else-if="isSingle"
     class="single-image-wrapper"
     :style="singleDims"
     :data-attachment-id="images[0].fileId"
@@ -27,37 +40,55 @@
       class="grid-row"
       :style="{ height: row.height + 'px' }"
     >
-      <div
-        v-for="(cell, ci) in row.cells"
-        :key="ci"
-        class="grid-cell"
-        :style="{ width: cell.w + 'px' }"
-        :data-attachment-id="cell.img.fileId"
-        draggable="true"
-        @dragstart="onDragStart($event, cell.img)"
-        @click="emit('open-lightbox', cell.flatIdx)"
-      >
-        <AttachmentImage
-          :file-id="cell.img.fileId"
-          :file-name="cell.img.fileName"
-          :width="cell.img.width"
-          :height="cell.img.height"
-          :thumb-hash="cell.img.thumbHash"
-          :download-url="cell.img.downloadUrl"
-        />
-      </div>
+      <template v-for="(cell, ci) in row.cells" :key="ci">
+        <div
+          v-if="isVideoEntity(cell.img)"
+          class="grid-cell"
+          :style="{ width: cell.w + 'px' }"
+          :data-attachment-id="cell.img.fileId"
+        >
+          <VideoAttachment
+            :video="cell.img"
+            grouped
+            fit="cover"
+            v-bind="attachmentSendProgress(cell.img)"
+            @open="emit('open-lightbox', cell.flatIdx)"
+          />
+        </div>
+        <div
+          v-else
+          class="grid-cell"
+          :style="{ width: cell.w + 'px' }"
+          :data-attachment-id="cell.img.fileId"
+          draggable="true"
+          @dragstart="onDragStart($event, cell.img)"
+          @click="emit('open-lightbox', cell.flatIdx)"
+        >
+          <AttachmentImage
+            :file-id="cell.img.fileId"
+            :file-name="cell.img.fileName"
+            :width="cell.img.width"
+            :height="cell.img.height"
+            :thumb-hash="cell.img.thumbHash"
+            :download-url="cell.img.downloadUrl"
+          />
+        </div>
+      </template>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue";
-import type { MessageEntityAttachment } from "@argon/glue";
 import AttachmentImage from "./AttachmentImage.vue";
+import VideoAttachment from "./attachments/VideoAttachment.vue";
 import { refOf, setAttachmentDragData } from "@/lib/attachments/clipboard";
+import { attachmentSendProgress } from "@/lib/attachments/sendProgress";
+import { isVideoEntity, type ChatMediaItem } from "@/lib/media/mediaItem";
 
 const props = defineProps<{
-  images: MessageEntityAttachment[];
+  /** Pictures and videos, in the order the message has them. */
+  images: ChatMediaItem[];
 }>();
 
 const emit = defineEmits<{
@@ -65,7 +96,7 @@ const emit = defineEmits<{
 }>();
 
 // Dragged into another chat's composer, the picture goes as a reference to the stored file.
-function onDragStart(e: DragEvent, img: MessageEntityAttachment) {
+function onDragStart(e: DragEvent, img: ChatMediaItem) {
   if (e.dataTransfer) setAttachmentDragData(e.dataTransfer, [refOf(img)]);
 }
 
@@ -91,7 +122,8 @@ const singleDims = computed(() => {
   const natH = img.height || 200;
   const { w, h } = fitInBox(natW, natH, MAX_WIDTH, MAX_HEIGHT);
   return {
-    width: w + 'px',
+    // A very narrow video still gets room for its badge and play button; the picture is centred.
+    width: (isVideoEntity(img) ? Math.max(w, MIN_WIDTH) : w) + 'px',
     height: h + 'px',
     maxWidth: '100%',
   };
@@ -105,7 +137,7 @@ const ROW_H_2_4 = 160;
 const ROW_H_5_PLUS = 120;
 
 interface GridCell {
-  img: MessageEntityAttachment;
+  img: ChatMediaItem;
   w: number;
   flatIdx: number;
 }

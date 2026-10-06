@@ -9,6 +9,7 @@ import { useToast } from "@argon/ui/toast";
 import { AuthorizationError, RegistrationError } from "@argon/glue";
 import { DateOnly } from "@argon-chat/ion.webcore";
 import { LEGAL } from "@/legal/generated";
+import { registrationErrorKey } from "@/lib/refusals";
 import type { DateValue } from "reka-ui";
 
 function describeAuthError(error: AuthorizationError): string {
@@ -164,20 +165,8 @@ export function useAuthForm(opts: { mode?: AuthFormMode } = {}) {
     void useAccounts().switchTo(account.id); // persists + reloads into the new account
   }
 
-  function reportRegisterError(o: { error: RegistrationError; field?: string | null; message?: string | null }) {
-    switch (o.error) {
-      case RegistrationError.EMAIL_ALREADY_REGISTERED:
-        toast({ title: "Email already registered", description: "Maybe you need reset password?", variant: "destructive", duration: 2500 });
-        return;
-      case RegistrationError.USERNAME_ALREADY_TAKEN:
-        toast({ title: "Username already claimed", description: "It's time to be creative!", variant: "destructive", duration: 2500 });
-        return;
-      case RegistrationError.VALIDATION_FAILED:
-        toast({ title: `Validation for ${o.field} failed`, description: o.message ?? "", variant: "destructive", duration: 2500 });
-        return;
-      default:
-        toast({ title: `${o.error}`, variant: "destructive", duration: 2500 });
-    }
+  function reportRegisterError(o: { error: RegistrationError; field?: string | null }) {
+    toast({ title: t("register_failed"), description: t(registrationErrorKey(o.error, o.field)), variant: "destructive", duration: 2500 });
   }
 
   function registrationPayload() {

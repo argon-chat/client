@@ -15,9 +15,12 @@ import * as webAuth from "@/lib/webAuth";
 import { dropCurrentDb } from "@/store/db/dexie";
 import { clearUserScopedKeys } from "@/lib/userScopedStorage";
 import { metrics, enumName, errorKind } from "@/lib/telemetry/metrics";
+import { registrationErrorKey } from "@/lib/refusals";
+import { useLocale } from "@/store/system/localeStore";
 const { toast } = useToast();
 
 export const useAuthStore = defineStore("auth", () => {
+  const { t } = useLocale();
   const user = ref<string | null>(null);
   const _token = ref<string | null>(null);
   const token = computed(() => _token.value);
@@ -95,35 +98,9 @@ export const useAuthStore = defineStore("auth", () => {
       if (r.refreshToken) setRefreshToken(r.refreshToken);
       return;
     } else if (r.isFailedRegistration()) {
-      switch (r.error) {
-        case RegistrationError.EMAIL_ALREADY_REGISTERED:
-          toast({
-            title: "Email already registered",
-            description: "Maybe you need reset password?",
-            variant: "destructive",
-            duration: 2500,
-          });
-          return;
-        case RegistrationError.USERNAME_ALREADY_TAKEN:
-          toast({
-            title: "Username already claimed",
-            description: "It's time to be creative!",
-            variant: "destructive",
-            duration: 2500,
-          });
-          return;
-        case RegistrationError.VALIDATION_FAILED:
-          toast({
-            title: `Validation for ${r.field} failed`,
-            description: r.message ?? "",
-            variant: "destructive",
-            duration: 2500,
-          });
-          return;
-      }
-
       toast({
-        title: `${r.error}`,
+        title: t("register_failed"),
+        description: t(registrationErrorKey(r.error, r.field)),
         variant: "destructive",
         duration: 2500,
       });
@@ -342,16 +319,16 @@ export const useAuthStore = defineStore("auth", () => {
       switch (r.error) {
         case AuthorizationError.BAD_CREDENTIALS:
           toast({
-            title: "Incorrect credentials",
-            description: "You have entered incorrect login credentials",
+            title: t("bad_credentials_title"),
+            description: t("bad_credentials"),
             variant: "destructive",
             duration: 2500,
           });
           break;
         case AuthorizationError.BAD_OTP:
           toast({
-            title: "Incorrect otp code",
-            description: "You have entered incorrect OTP code",
+            title: t("passkey_error_bad_otp_title"),
+            description: t("passkey_error_bad_otp"),
             variant: "destructive",
             duration: 2500,
           });
@@ -361,8 +338,8 @@ export const useAuthStore = defineStore("auth", () => {
           return;
         case AuthorizationError.NONE:
           toast({
-            title: "Unknown error",
-            description: "Maybe internet connection is corrupted",
+            title: t("error"),
+            description: t("unexpected_error"),
             variant: "destructive",
             duration: 2500,
           });

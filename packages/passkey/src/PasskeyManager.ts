@@ -20,6 +20,10 @@ export interface PasskeyValidateResult {
   errorCode?: "CANCELLED" | "NOT_SUPPORTED" | "NOT_FOUND" | "UNKNOWN";
 }
 
+export type PasskeyAssertionResult =
+  | { success: true; response: string }
+  | { success: false; error: string; errorCode: NonNullable<PasskeyValidateResult["errorCode"]> };
+
 export interface PasskeyData {
   id: string;
   name: string;
@@ -141,6 +145,33 @@ function serializeAssertionResponse(credential: PublicKeyCredential): string {
   });
 }
 
+function assertionFailure(error: any): { error: string; errorCode: NonNullable<PasskeyValidateResult["errorCode"]> } {
+  if (error?.name === "NotAllowedError") return { error: "Passkey validation was cancelled", errorCode: "CANCELLED" };
+  if (error?.name === "NotSupportedError") return { error: "Passkeys are not supported on this device", errorCode: "NOT_SUPPORTED" };
+  if (error?.name === "NotFoundError") return { error: "No passkey found for this account", errorCode: "NOT_FOUND" };
+  return { error: "Failed to validate passkey", errorCode: "UNKNOWN" };
+}
+
+/**
+ * Runs the WebAuthn assertion for Fido2NetLib `AssertionOptions` JSON and returns the response JSON
+ * its `AuthenticatorAssertionRawResponse` reads, for any call that takes a passkey as proof. Never throws.
+ */
+export async function getPasskeyAssertion(optionsJson: string): Promise<PasskeyAssertionResult> {
+  try {
+    const credential = (await navigator.credentials.get({
+      publicKey: parseRequestOptions(optionsJson),
+    })) as PublicKeyCredential | null;
+
+    if (!credential) {
+      return { success: false, error: "Credential assertion returned null", errorCode: "UNKNOWN" };
+    }
+    return { success: true, response: serializeAssertionResponse(credential) };
+  } catch (error: any) {
+    logger.error("[PasskeyManager] Exception during passkey assertion:", error);
+    return { success: false, ...assertionFailure(error) };
+  }
+}
+
 /**
  * Main PasskeyManager - uses WebAuthn API directly
  */
@@ -241,22 +272,14 @@ export class PasskeyManager {
         return { success: false, error: "Failed to begin passkey validation" };
       }
 
-      const optionsJson = beginResult.optionsJson;
-
       // Step 2: Perform WebAuthn assertion
-      const publicKeyOptions = parseRequestOptions(optionsJson);
-      const credential = (await navigator.credentials.get({
-        publicKey: publicKeyOptions,
-      })) as PublicKeyCredential | null;
-
-      if (!credential) {
-        return { success: false, error: "Credential assertion returned null" };
+      const assertion = await getPasskeyAssertion(beginResult.optionsJson);
+      if (!assertion.success) {
+        return { success: false, error: assertion.error, errorCode: assertion.errorCode };
       }
 
-      const authenticationResponseJson = serializeAssertionResponse(credential);
-
       // Step 3: Complete on server
-      const completeResult = await this.api.completeValidatePasskey(authenticationResponseJson);
+      const completeResult = await this.api.completeValidatePasskey(assertion.response);
       if (!completeResult.success) {
         return { success: false, error: "Failed to complete passkey validation" };
       }
@@ -264,22 +287,7 @@ export class PasskeyManager {
       return { success: true };
     } catch (error: any) {
       logger.error("[PasskeyManager] Exception during passkey validation:", error);
-
-      let errorCode: PasskeyValidateResult["errorCode"] = "UNKNOWN";
-      let errorMessage = "Failed to validate passkey";
-
-      if (error.name === "NotAllowedError") {
-        errorCode = "CANCELLED";
-        errorMessage = "Passkey validation was cancelled";
-      } else if (error.name === "NotSupportedError") {
-        errorCode = "NOT_SUPPORTED";
-        errorMessage = "Passkeys are not supported on this device";
-      } else if (error.name === "NotFoundError") {
-        errorCode = "NOT_FOUND";
-        errorMessage = "No passkey found for this account";
-      }
-
-      return { success: false, error: errorMessage, errorCode };
+      return { success: false, ...assertionFailure(error) };
     }
   }
 }

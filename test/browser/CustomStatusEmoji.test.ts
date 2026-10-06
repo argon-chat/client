@@ -70,7 +70,7 @@ vi.mock("@/store/system/fileStorage", async () => {
 });
 vi.mock("@/store/auth/meStore", () => ({ useMe: () => h.me }));
 vi.mock("@/store/realtime/busStore", () => ({ useBus: () => ({ onServerEvent: () => ({ unsubscribe() {} }) }) }));
-vi.mock("@argon/passkey", () => ({ PasskeyManager: class {} }));
+vi.mock("@argon/passkey", () => ({ PasskeyManager: class {}, getPasskeyAssertion: async () => ({ success: false }) }));
 vi.mock("@/store/features/featureFlagsStore", () => ({
   useFeatureFlags: () => ({ passkeyActive: h.ref(false), autoDeleteAccountActive: h.ref(false), ultimaActive: h.ref(true) }),
 }));

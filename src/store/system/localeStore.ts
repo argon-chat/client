@@ -50,7 +50,10 @@ export const useLocale = defineStore("locale", () => {
   // One global composer. The store used to open a second, component-local vue-i18n scope with every
   // locale's messages in it, so the app carried two full copies of all five bundles — and `$t` in
   // templates, which reads the global scope, never followed a language switch.
-  const { t } = i18n.global;
+  const { t, te } = i18n.global;
+
+  /** Whether a key is defined at all. Asked of `en`: every key lives there and it is always loaded. */
+  const has = (key: string) => te(key, "en");
 
   function updateLocale(key: string) {
     if (key !== currentLocale.value) metrics.count("locale.changed", { locale: key, from: currentLocale.value });
@@ -76,6 +79,7 @@ export const useLocale = defineStore("locale", () => {
 
   return {
     t,
+    has,
     currentLocale,
     updateLocale,
   };
