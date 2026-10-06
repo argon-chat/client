@@ -12,7 +12,7 @@ import { draw, type DrawingParameters } from '../webgpu/draw';
 import type { OutlineDrawParams } from '../webgpu/stickerCompositor';
 import { updateVideoTexture } from '../webgpu/loadTexture';
 import { fitToAspectRatio } from '../geometry';
-import { resolveOutputQuality } from '../constants';
+import { defaultVideoQuality } from '../constants';
 import { adjustmentsConfig } from '../adjustments';
 import { ensureGizmoCanvas, removeGizmoCanvas, drawGizmos } from '../webgpu/debugGizmos';
 import { isExpressionMode, type MaskStroke, type Vec2 } from '../types';
@@ -21,7 +21,7 @@ import { canvasToSource, maskResolution, outlineRadiusOnCanvas } from '../mask/m
 import { fitExpressionContent } from '../finalRender/computeExportDimensions';
 import getResultTransform from '../finalRender/getResultTransform';
 
-const { store, mode } = useMediaEditorContext();
+const { store, mode, videoQualitySteps } = useMediaEditorContext();
 const cropOffset = useCropOffset();
 const canvasEl = ref<HTMLCanvasElement | null>(null);
 const expression = isExpressionMode(mode) && store.mediaType === 'image';
@@ -63,7 +63,7 @@ onMounted(async () => {
 
   // Set default video quality if not set
   if (!store.mediaState.videoQuality && store.mediaType === 'video') {
-    store.mediaState.videoQuality = resolveOutputQuality(payload.media.height);
+    store.mediaState.videoQuality = defaultVideoQuality(payload.media, videoQualitySteps?.value);
   }
 
   // Avatars start as a centred square. Emoji start uncropped: the export fits them into 100×100.

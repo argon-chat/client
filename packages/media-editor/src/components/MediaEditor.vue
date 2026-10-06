@@ -66,6 +66,11 @@ export interface MediaEditorProps {
   mediaBlob?: Blob;
   /** A rendered video's bitrate; the editor's own profile by default. */
   videoBitrate?: VideoBitrateFn;
+  /**
+   * The video qualities the host offers, as output short sides, ascending (`[360, 480, 720, 1080]`):
+   * the quality slider shows exactly these, labelled `1080p`. The editor's own presets otherwise.
+   */
+  videoQualitySteps?: number[];
 }
 
 const props = withDefaults(defineProps<MediaEditorProps>(), {
@@ -79,7 +84,8 @@ const props = withDefaults(defineProps<MediaEditorProps>(), {
   confirmDiscard: undefined,
   initialState: undefined,
   mediaBlob: undefined,
-  videoBitrate: undefined
+  videoBitrate: undefined,
+  videoQualitySteps: undefined
 });
 
 const emit = defineEmits<{
@@ -99,10 +105,15 @@ let finishing = false;
 let confirming: AbortController | null = null;
 let listening = false;
 
-provide(MEDIA_EDITOR_INJECTION_KEY, { store, mode: props.mode, backgroundRemover: props.backgroundRemover, interactions });
+const videoQualitySteps = computed<readonly number[] | undefined>(() => (props.videoQualitySteps?.length ? props.videoQualitySteps : undefined));
+provide(MEDIA_EDITOR_INJECTION_KEY, { store, mode: props.mode, backgroundRemover: props.backgroundRemover, interactions, videoQualitySteps });
+
+// What the quality stood at on opening: a quality left there was not picked.
+let openedVideoQuality = 0;
 
 watch(() => props.modelValue, (open) => {
   if (open) {
+    openedVideoQuality = props.initialState?.videoQuality ?? 0;
     store.init({
       src: props.src,
       type: props.mediaType,
@@ -181,7 +192,9 @@ async function handleDone() {
       maxBytes: props.maxBytes,
       pixelRatio: store.uiState.pixelRatio,
       getMediaBlob: mediaBlob ? async () => mediaBlob : undefined,
-      videoBitrate: props.videoBitrate
+      videoBitrate: props.videoBitrate,
+      videoQualitySteps: videoQualitySteps.value,
+      initialVideoQuality: openedVideoQuality
     });
 
     emit('done', result);

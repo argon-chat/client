@@ -75,6 +75,7 @@ import { toRaw } from "vue";
 import { useAttachmentUpload, type PendingAttachment } from "@/composables/useAttachmentUpload";
 import { clearUploadLimits } from "@/lib/attachments/uploadLimits";
 import { MessageEntityAttachment, SuccessUploadFile, VideoUploadError, type AttachmentInfo } from "@argon/glue";
+import type { EditingMediaState } from "@argon/media-editor";
 
 const MB = 1024n * 1024n;
 const target = { kind: "channel", spaceId: "s1", channelId: "c1" } as const;
@@ -575,6 +576,37 @@ describe("an edit from the media editor", () => {
     expect(await uploader.uploadAll(target)).toEqual([]);
     expect((uploader.videoFailure() as Error).name).toBe("VideoRenderError");
     expect(v.prepareWithinLimit).not.toHaveBeenCalled();
+  });
+
+  test("sound and quality changed in the window after an edit are written into the editor's saved state", async () => {
+    const attachments = await withVideo();
+    const editorState = { videoCropStart: 0.1, videoCropLength: 0.5, videoMuted: false, videoQuality: 1080 } as EditingMediaState;
+    attachments.applyVideoEdit(
+      0,
+      { trim: { startMs: 3_000, endMs: 18_000 }, crop: null, rotate: 0, flip: false, mute: false, quality: null, coverMs: null },
+      { editorState },
+    );
+    const entry = attachments.pendingFiles.value[0];
+
+    attachments.setVideoPrefs(0, { quality: 480 });
+    attachments.setVideoPrefs(0, { mute: true });
+    expect(entry.video?.editorState).toMatchObject({ videoCropStart: 0.1, videoCropLength: 0.5, videoMuted: true, videoQuality: 480 });
+
+    // Auto is the top rung the source reaches, as the editor's slider shows it.
+    attachments.setVideoPrefs(0, { quality: "auto" });
+    expect(entry.video?.editorState?.videoQuality).toBe(1080);
+    // The state handed in stays as the editor left it.
+    expect(editorState).toMatchObject({ videoMuted: false, videoQuality: 1080 });
+  });
+
+  test("a painted edit keeps the editor's sound and picked quality as preferences", async () => {
+    const attachments = await withVideo();
+    attachments.renderVideoEdit(0, { getResult: vi.fn(), cancel: vi.fn() }, { mute: true, quality: 480 });
+    expect(attachments.pendingFiles.value[0].video?.prefs).toMatchObject({ mute: true, quality: 480, trim: null, crop: null });
+
+    // Left where it opened: the composer's quality stays.
+    attachments.renderVideoEdit(0, { getResult: vi.fn(), cancel: vi.fn() }, { mute: false, quality: null });
+    expect(attachments.pendingFiles.value[0].video?.prefs).toMatchObject({ mute: false, quality: 480 });
   });
 
   test("a painted edit not sent is cancelled when the video is removed, or replaced by another edit", async () => {

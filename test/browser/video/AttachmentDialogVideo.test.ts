@@ -1,9 +1,11 @@
 /**
- * The attach window's controls for a video, in a real browser: the quality (the rungs the source
- * reaches, plus Auto and Original), sound, "Send as file", the length and expected size, the reason
- * a video goes as a file, and the edit button that is off — with the reason — where the editor cannot
- * run. Nothing is compressed before Send: a real video added through the composer is probed, given
- * its poster and planned, and no preparation starts.
+ * The attach window for a video, in a real browser. The media is the stage and the decisions sit on
+ * it as chips: the length, the quality (a popover of the rungs the source reaches with each one's
+ * expected size, plus Auto and Original), sound, edit (off, with the reason, where the editor cannot
+ * run) and the expected size, which turns amber and names the problem when the video cannot go as
+ * asked. "Send as file" lives in the ⋮ menu. The video plays on the stage from the picked file.
+ * Nothing is compressed before Send: a real video added through the composer is probed, given its
+ * poster and planned, and no preparation starts.
  */
 
 import "../../../packages/assets/styles/index.css";
@@ -115,18 +117,29 @@ function videoEntry(video: Partial<PendingVideo> = {}, probe: Partial<typeof PRO
       probe: p,
       plan: { ...PLAN },
       prefs: { quality: "auto", mute: false, sendAsFile: false },
-      prepared: null,
-      preparing: null,
       poster: null,
-      storyboard: null,
       error: null,
       fileReason: null,
-      paused: false,
       source: file,
       sourceProbe: p,
       editorState: null,
       ...video,
     } as PendingVideo,
+  };
+}
+
+function imageEntry(name = "a.png"): PendingAttachment {
+  const canvas = document.createElement("canvas");
+  canvas.width = 10;
+  canvas.height = 10;
+  return {
+    file: new File([new Uint8Array(4)], name, { type: "image/png" }),
+    previewUrl: canvas.toDataURL(),
+    thumbHash: null,
+    width: 10,
+    height: 10,
+    progress: 0,
+    status: "pending",
   };
 }
 
@@ -139,39 +152,76 @@ async function open(files: PendingAttachment[]) {
   return wrapper;
 }
 
+function close() {
+  wrapper?.unmount();
+  wrapper = null;
+  document.body.innerHTML = "";
+}
+
 const $ = <T extends Element = HTMLElement>(id: string) => document.querySelector<T>(`[data-testid="${id}"]`);
+
+async function openMenu() {
+  await userEvent.click($("attach-menu")!);
+  await vi.waitFor(() => expect($("attach-add-files")).not.toBeNull());
+}
+
+/** The tooltip a hover over the element shows. */
+async function tooltipOf(id: string): Promise<string> {
+  await userEvent.hover($(id)!);
+  let text = "";
+  await vi.waitFor(() => {
+    text = document.querySelector('[role="tooltip"]')?.textContent ?? "";
+    expect(text).not.toBe("");
+  });
+  return text;
+}
 
 beforeEach(() => {
   h.caps = { gpu: false, videoEncode: true, audioEncode: true };
 });
 
-afterEach(() => {
-  wrapper?.unmount();
-  wrapper = null;
-  document.body.innerHTML = "";
-});
+afterEach(close);
 
 describe("a video in the attach window", () => {
-  test("shows its poster, its length and its expected size", async () => {
+  test("shows its poster on the stage, its length and its expected size; the title and the footer count it", async () => {
     await open([videoEntry()]);
 
     expect($("attachment-video-preview")?.querySelector("img")?.getAttribute("src")).toMatch(/^data:image\/png/);
     expect($("video-duration")?.textContent).toBe("1:15");
     expect($("video-size")?.textContent).toContain("video_send_estimated_size");
     expect($("video-options")).not.toBeNull();
+    expect($("video-reason")).toBeNull();
+    expect($("attach-title")?.textContent).toBe("attach_send_video");
+    expect($("attach-meta")?.textContent).toMatch(/^attach_meta_videos_one:\{"count":1\} · video_send_estimated_size:/);
   });
 
-  test("the quality lists Auto, the rungs the source reaches and Original; a pick changes this video only", async () => {
+  test("the quality lists Auto, the rungs the source reaches from the top, and Original; a pick changes this video only", async () => {
     const w = await open([videoEntry({}, { width: 854, height: 480 })]);
 
     await userEvent.click($("video-quality")!);
-    await nextTick();
+    await vi.waitFor(() => expect($("video-quality-auto")).not.toBeNull());
     const values = [...document.querySelectorAll<HTMLElement>('[data-testid^="video-quality-"]')].map((el) => el.dataset.testid);
-    expect(values).toEqual(["video-quality-auto", "video-quality-360", "video-quality-480", "video-quality-original"]);
+    expect(values).toEqual(["video-quality-auto", "video-quality-480", "video-quality-360", "video-quality-original"]);
+    expect(document.querySelector('[role="listbox"]')).not.toBeNull();
+    expect($("video-quality-auto")?.getAttribute("aria-selected")).toBe("true");
+    expect($("video-quality-auto")?.textContent).toContain('attach_quality_auto:{"height":480}');
 
     await userEvent.click($("video-quality-360")!);
     await flushPromises();
     expect(w.emitted("video-prefs")).toEqual([[0, { quality: 360 }]]);
+    await vi.waitFor(() => expect($("video-quality-auto")).toBeNull());
+  });
+
+  test("the quality popover is a listbox the keyboard drives", async () => {
+    const w = await open([videoEntry()]);
+    $("video-quality")!.focus();
+    await userEvent.keyboard("{Enter}");
+    await vi.waitFor(() => expect(document.activeElement).toBe($("video-quality-auto")));
+    await userEvent.keyboard("{ArrowDown}");
+    expect(document.activeElement).toBe($("video-quality-1080"));
+    await userEvent.keyboard("{ArrowDown}{Enter}");
+    await flushPromises();
+    expect(w.emitted("video-prefs")).toEqual([[0, { quality: 720 }]]);
   });
 
   test("sound can be turned off, and a silent video offers no such button", async () => {
@@ -180,27 +230,34 @@ describe("a video in the attach window", () => {
     expect(mute.getAttribute("aria-pressed")).toBe("false");
     await userEvent.click(mute);
     expect(w.emitted("video-prefs")).toEqual([[0, { mute: true }]]);
-    w.unmount();
-    document.body.innerHTML = "";
+    close();
 
     await open([videoEntry({}, { hasAudio: false, audioCodec: null as never })]);
     expect($("video-mute")).toBeNull();
   });
 
-  test("“Send as file” toggles; a video that cannot be a video has it locked on and says why", async () => {
+  test("“Send as file” in the ⋮ menu toggles; a video that cannot be a video has it locked on and says why", async () => {
     const w = await open([videoEntry()]);
+    await openMenu();
+    expect($("video-send-as-file")?.getAttribute("aria-checked")).toBe("false");
     await userEvent.click($("video-send-as-file")!);
     expect(w.emitted("video-prefs")).toEqual([[0, { sendAsFile: true }]]);
-    w.unmount();
-    document.body.innerHTML = "";
+    close();
 
     await open([videoEntry({ fileReason: "no-encoder", prefs: { quality: "auto", mute: false, sendAsFile: true } })]);
-    const toggle = $<HTMLButtonElement>("video-send-as-file")!;
-    expect(toggle.disabled).toBe(true);
-    expect(toggle.getAttribute("aria-pressed")).toBe("true");
-    expect($("video-reason")?.textContent?.trim()).toMatch(/^video_send_reason_no_encoder/);
-    // Its size is the file's own: nothing is compressed.
-    expect($("video-size")?.textContent).toBe("1.0 KB");
+    // Its size is the file's own, nothing is compressed; the chip names the problem, the tooltip the rest.
+    expect($("video-size")?.textContent).toBe('attach_size_file:{"size":"1.0 KB"}');
+    expect($("video-reason")?.textContent).toContain("video_send_short_no_encoder");
+    expect(await tooltipOf("video-reason")).toMatch(/^video_send_reason_no_encoder/);
+    // Nothing on the stage offers what cannot apply to a file.
+    expect($("video-quality")).toBeNull();
+    expect($("video-mute")).toBeNull();
+    expect($("attach-title")?.textContent).toBe("attach_send_file");
+
+    await openMenu();
+    const toggle = $("video-send-as-file")!;
+    expect(toggle.getAttribute("aria-disabled")).toBe("true");
+    expect(toggle.getAttribute("aria-checked")).toBe("true");
   });
 
   test("a video longer than the target takes says so, with the target's own limit", async () => {
@@ -211,16 +268,27 @@ describe("a video in the attach window", () => {
         limits: { maxBytes: 2 * 1024 ** 3, maxDurationMs: 3_600_000 },
       }),
     ]);
-    expect($<HTMLButtonElement>("video-send-as-file")!.disabled).toBe(true);
-    expect($("video-reason")?.textContent?.trim()).toBe('video_send_reason_too_long:{"limit":"2 GB","duration":"1:00:00"}');
+    const params = '{"limit":"2 GB","duration":"1:00:00"}';
+    expect($("video-reason")?.textContent).toContain(`video_send_short_too_long:${params}`);
+    expect($("video-reason")?.textContent).toContain(`video_send_reason_too_long:${params}`);
+    await openMenu();
+    expect($("video-send-as-file")?.getAttribute("aria-disabled")).toBe("true");
   });
 
-  test("a video planned a rung lower to fit says at what height", async () => {
+  test("a video planned a rung lower to fit says at what height, and its chip shows the height that goes out", async () => {
     await open([videoEntry({ plan: { ...PLAN, width: 854, height: 480, downscaledToFit: true } as PendingVideo["plan"] })]);
-    expect($("video-reason")?.textContent?.trim()).toBe('video_send_downscaled:{"height":480}');
+    expect($("video-reason")?.textContent).toContain('video_send_short_downscaled:{"height":480}');
+    expect($("video-reason")?.textContent).toContain('video_send_downscaled:{"height":480}');
+    expect($("video-quality")?.textContent).toContain('video_send_quality_rung:{"height":480}');
   });
 
-  test("no compression before Send: a real video added is probed, given its poster and planned, and nothing more", async () => {
+  test("Original that cannot play keeps the quality chip, so a lower quality can be picked back", async () => {
+    await open([videoEntry({ fileReason: "user-original", prefs: { quality: "original", mute: false, sendAsFile: true } })]);
+    expect($("video-quality")?.textContent).toContain("video_send_quality_original");
+    expect($("video-reason")?.textContent).toContain("video_send_short_original");
+  });
+
+  test("no compression before Send: a real video added is probed, given its poster and planned — and plays on the stage", async () => {
     const scope = effectScope();
     const attachments = scope.run(() => useAttachmentUpload())!;
     const source = await makeSource({ durationSec: 3 });
@@ -237,6 +305,18 @@ describe("a video in the attach window", () => {
     expect($("attachment-video-preview")?.querySelector("img")?.getAttribute("src")).toMatch(/^blob:/);
     expect($("video-duration")?.textContent).toBe("0:03");
     expect($("video-size")?.textContent).toContain("video_send_estimated_size");
+
+    // Muted, looping, from a URL of the picked file; the poster stays under it until it plays.
+    const player = $<HTMLVideoElement>("attachment-video-player")!;
+    expect(player.muted).toBe(true);
+    expect(player.src).toMatch(/^blob:/);
+    await vi.waitFor(() => expect($("attachment-video-timeline")).not.toBeNull(), { timeout: 10_000 });
+    expect(player.classList.contains("is-visible")).toBe(true);
+    // A click on the stage pauses it, and the play glyph comes back.
+    await userEvent.click($("attachment-video-toggle")!);
+    await vi.waitFor(() => expect(player.paused).toBe(true));
+    expect($("attachment-video-toggle")?.getAttribute("aria-label")).toBe("video_player_play");
+
     // Nothing compresses, and nothing offers to: no progress, no stop.
     await userEvent.click($("video-mute")!);
     await new Promise((r) => setTimeout(r, 50));
@@ -247,47 +327,78 @@ describe("a video in the attach window", () => {
 
   test("edit is off, with the reason, without WebGPU or over 100 MB; on otherwise", async () => {
     await open([videoEntry()]);
-    await vi.waitFor(() => expect($<HTMLButtonElement>("video-edit")?.title).toBe("video_send_edit_no_gpu"));
-    expect($<HTMLButtonElement>("video-edit")!.disabled).toBe(true);
-    wrapper!.unmount();
-    document.body.innerHTML = "";
+    await vi.waitFor(() => expect($("video-edit")?.getAttribute("aria-disabled")).toBe("true"));
+    await vi.waitFor(async () => expect(await tooltipOf("video-edit")).toBe("video_send_edit_no_gpu"));
+    // Still focusable and hoverable for its reason; a click does nothing.
+    $("video-edit")!.click();
+    expect(wrapper!.emitted("open-editor")).toBeUndefined();
+    close();
 
     h.caps = { gpu: true, videoEncode: true, audioEncode: true };
     const big = videoEntry();
     big.video!.source = new File([new Uint8Array(1)], "big.mp4", { type: "video/mp4" });
     Object.defineProperty(big.video!.source, "size", { value: 120 * 1024 * 1024 });
     await open([big]);
-    await vi.waitFor(() => expect($<HTMLButtonElement>("video-edit")?.title).toBe("video_send_edit_too_large"));
-    wrapper!.unmount();
-    document.body.innerHTML = "";
+    await vi.waitFor(async () => expect(await tooltipOf("video-edit")).toBe("video_send_edit_too_large"));
+    close();
 
     const w = await open([videoEntry()]);
-    await vi.waitFor(() => expect($<HTMLButtonElement>("video-edit")?.disabled).toBe(false));
+    await vi.waitFor(() => expect($("video-edit")?.getAttribute("aria-disabled")).toBeNull());
     await userEvent.click($("video-edit")!);
     const [index, src, type] = w.emitted("open-editor")![0] as [number, string, string];
     expect([index, type]).toEqual([0, "video"]);
     expect(src).toMatch(/^blob:/);
     URL.revokeObjectURL(src);
   });
+});
 
-  test("in a batch with a picture, each keeps its own preview and the video's controls show for the video only", async () => {
-    const canvas = document.createElement("canvas");
-    canvas.width = 10;
-    canvas.height = 10;
-    const image: PendingAttachment = {
-      file: new File([new Uint8Array(4)], "a.png", { type: "image/png" }),
-      previewUrl: canvas.toDataURL(),
-      thumbHash: null,
-      width: 10,
-      height: 10,
-      progress: 0,
-      status: "pending",
-    };
-    await open([image, videoEntry()]);
+describe("a batch in the attach window", () => {
+  test("each keeps its own preview and the video's chips show for the video only", async () => {
+    await open([imageEntry(), videoEntry()]);
 
     expect($("video-options")).toBeNull();
+    expect($("image-edit")).not.toBeNull();
     expect(document.querySelectorAll(".strip-thumb img")).toHaveLength(2);
+    expect($("attach-title")?.textContent).toBe('attach_send_files_other:{"count":2}');
+    expect($("attach-meta")?.textContent).toMatch(/^attach_meta_files_other:\{"count":2\} · /);
     await userEvent.click(document.querySelectorAll<HTMLElement>(".strip-thumb")[1]);
     expect($("video-options")).not.toBeNull();
+  });
+
+  test("the strip is a listbox: ←/→ move the selection, Delete removes the focused file", async () => {
+    const w = await open([imageEntry("a.png"), videoEntry(), imageEntry("c.png")]);
+    const tiles = () => [...document.querySelectorAll<HTMLElement>(".strip-thumb")];
+    expect(tiles().map((t) => t.getAttribute("aria-selected"))).toEqual(["true", "false", "false"]);
+    expect(tiles().map((t) => t.tabIndex)).toEqual([0, -1, -1]);
+
+    tiles()[0].focus();
+    await userEvent.keyboard("{ArrowRight}");
+    await nextTick();
+    expect(tiles()[1].getAttribute("aria-selected")).toBe("true");
+    expect(document.activeElement).toBe(tiles()[1]);
+    expect($("video-options")).not.toBeNull();
+
+    await userEvent.keyboard("{Delete}");
+    expect(w.emitted("remove")).toEqual([[1]]);
+  });
+
+  test("with several videos the menu sends all of them as files at once", async () => {
+    const w = await open([videoEntry(), imageEntry(), videoEntry()]);
+    await openMenu();
+    const toggle = $("video-send-as-file")!;
+    expect(toggle.textContent).toContain("attach_send_all_as_files");
+    await userEvent.click(toggle);
+    expect(w.emitted("video-prefs")).toEqual([
+      [0, { sendAsFile: true }],
+      [2, { sendAsFile: true }],
+    ]);
+  });
+
+  test("“Add files…” is in the menu, and the strip ends with a tile for it", async () => {
+    const w = await open([imageEntry(), imageEntry("b.png")]);
+    await userEvent.click($("attach-strip-add")!);
+    await openMenu();
+    await userEvent.click($("attach-add-files")!);
+    expect(w.emitted("add-more")).toHaveLength(2);
   });
 });

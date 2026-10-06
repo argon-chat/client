@@ -66,7 +66,7 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useMediaEditorContext } from '../composables/useMediaEditorContext';
 import { type AdjustmentKey } from '../adjustments';
-import { QUALITY_PRESETS, resolveOutputQuality } from '../constants';
+import { QUALITY_PRESETS, resolveOutputQuality, snapVideoQuality } from '../constants';
 import RangeInput from '../components/RangeInput.vue';
 import StepInput from '../components/StepInput.vue';
 import AdjustmentSection from '../components/AdjustmentSection.vue';
@@ -78,23 +78,26 @@ import {
 } from 'lucide-vue-next';
 
 const { t } = useI18n();
-const { store } = useMediaEditorContext();
+const { store, videoQualitySteps } = useMediaEditorContext();
 
 // --- Quality ---
-const maxQuality = computed(() => {
-  const mediaHeight = store.uiState.renderingPayload?.media?.height ?? 1080;
-  return resolveOutputQuality(mediaHeight);
+// Output short sides: the host's steps when it gives them (the same the attach window offers),
+// else the editor's presets up to the one the source snaps to.
+const qualityValues = computed<readonly number[]>(() => {
+  const host = videoQualitySteps?.value;
+  if (host?.length) return host;
+  const media = store.uiState.renderingPayload?.media;
+  const max = resolveOutputQuality(media ? Math.min(media.width, media.height) : 1080);
+  return QUALITY_PRESETS.filter(h => h <= max);
 });
 
-const qualitySteps = computed(() =>
-  QUALITY_PRESETS
-    .filter(h => h <= maxQuality.value)
-    .map(h => ({ value: h, label: h + 'p' }))
-);
+const qualitySteps = computed(() => qualityValues.value.map(h => ({ value: h, label: h + 'p' })));
 
-const effectiveQuality = computed(() =>
-  Math.min(maxQuality.value, store.mediaState.videoQuality || maxQuality.value)
-);
+const effectiveQuality = computed(() => {
+  const values = qualityValues.value;
+  const top = values[values.length - 1];
+  return snapVideoQuality(store.mediaState.videoQuality || top, values);
+});
 
 function updateAdjustment(key: AdjustmentKey, value: number) {
   store.set(['adjustments', key], value);

@@ -5,7 +5,7 @@ import type { RenderingPayload } from '../webgpu/initWebGPU';
 import { initWebGPU, cleanupWebGPU, uploadMask, uploadColour } from '../webgpu/initWebGPU';
 import { draw, type DrawingParameters } from '../webgpu/draw';
 import { updateFrameTexture, updateVideoTexture } from '../webgpu/loadTexture';
-import { resolveOutputQuality } from '../constants';
+import { defaultVideoQuality } from '../constants';
 import type { AdjustmentKey } from '../adjustments';
 import { createBrushPainter } from '../canvas/brushPainter';
 import { computeExportDimensions, computeExpressionLayout } from './computeExportDimensions';
@@ -40,7 +40,7 @@ export type VideoEditSummary = {
   transform: SourceVideoTransform | null;
   /** Drawing, text, stickers, adjustments or curves: only rendering reproduces them. */
   pixelEdits: boolean;
-  /** The output height picked in the editor, or null when the default was left. */
+  /** The output short side picked in the editor, or null when it was left where the editor opened. */
   quality: number | null;
   /** Seconds of the source the fractions in the state are of. */
   duration: number;
@@ -82,6 +82,10 @@ type CreateFinalResultArgs = {
   maxBytes?: number;
   /** The editor's device pixel ratio: brush lines are stored in device pixels. */
   pixelRatio?: number;
+  /** The host's quality steps (output short sides); the top one is the default. */
+  videoQualitySteps?: readonly number[];
+  /** The quality the editor opened with: a quality still there was not picked. */
+  initialVideoQuality?: number;
 };
 
 /** The rendered video's frame rate cap: a faster source loses frames, a slower one keeps its own. */
@@ -132,17 +136,18 @@ export async function createFinalResult(args: CreateFinalResultArgs): Promise<Me
     outputMode: videoType
   };
 
-  // A video goes out at the quality picked in the Adjustments tab (an output height), never above the
-  // crop's own size; the default is the preset the source snaps to, as the tab shows it.
+  // A video goes out at the quality set in the Adjustments tab (an output short side), never above the
+  // crop's own size. It counts as picked when it moved from where the editor opened.
   let forcedQuality: number | undefined;
   let pickedQuality: number | null = null;
   if (videoType) {
-    const naturalHeight = computeExportDimensions(sizeConstraints)[1];
-    const defaultQuality = resolveOutputQuality(renderingPayload.media.height);
-    const maxQuality = resolveOutputQuality(naturalHeight);
+    const [naturalW, naturalH] = computeExportDimensions(sizeConstraints);
+    const naturalShort = Math.min(naturalW, naturalH);
+    const defaultQuality = defaultVideoQuality(renderingPayload.media, args.videoQualitySteps);
     const quality = mediaState.videoQuality || defaultQuality;
-    if (mediaState.videoQuality && mediaState.videoQuality < defaultQuality) pickedQuality = mediaState.videoQuality;
-    forcedQuality = Math.min(maxQuality, quality, naturalHeight);
+    const opened = args.initialVideoQuality || defaultQuality;
+    if (mediaState.videoQuality && mediaState.videoQuality !== opened) pickedQuality = mediaState.videoQuality;
+    forcedQuality = Math.min(quality, naturalShort);
   }
 
   const [scaledWidth, scaledHeight] = computeExportDimensions({ ...sizeConstraints, forcedQuality });

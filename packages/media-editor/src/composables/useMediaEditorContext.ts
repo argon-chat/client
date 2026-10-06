@@ -1,4 +1,4 @@
-import type { InjectionKey } from 'vue';
+import type { ComputedRef, InjectionKey } from 'vue';
 import type { useMediaEditorStore } from '../store/editorStore';
 import type { BackgroundRemover, EditorMode } from '../types';
 import { inject, onBeforeUnmount } from 'vue';
@@ -36,6 +36,8 @@ export type MediaEditorContext = {
   /** Sticker modes: the host's background removal, when it has one. */
   backgroundRemover?: BackgroundRemover;
   interactions: Interactions;
+  /** A video's quality steps from the host (output short sides, ascending); undefined for the editor's own presets. */
+  videoQualitySteps?: ComputedRef<readonly number[] | undefined>;
 };
 
 export const MEDIA_EDITOR_INJECTION_KEY: InjectionKey<MediaEditorContext> = Symbol('media-editor');

@@ -5,7 +5,7 @@
  */
 import { describe, test, expect } from "vitest";
 import type { EditingMediaState, SourceVideoTransform, VideoEditSummary } from "@argon/media-editor";
-import { rungForEditorQuality, videoEditDecision } from "@/lib/attachments/videoEdit";
+import { editorStateFor, qualityRungs, rungForEditorQuality, syncEditorState, videoEditDecision } from "@/lib/attachments/videoEdit";
 
 function state(patch: Partial<EditingMediaState> = {}): EditingMediaState {
   return {
@@ -65,11 +65,13 @@ describe("videoEditDecision", () => {
     ],
     ["480p picked for a 16:9 frame", state(), summary({ quality: 480 }), { quality: 480 }],
     [
-      "720p picked for a 9:16 frame: 405 px across lands on 360",
+      "720p picked for a 9:16 frame: a quality is the short side, 720 across",
       state(),
       summary({ quality: 720, transform: { ...WHOLE, rotate: 90, width: 1080, height: 1920 } }),
-      { quality: 360 },
+      { quality: 720 },
     ],
+    ["1080p picked, a raise rather than a drop, is kept too", state(), summary({ quality: 1080 }), { quality: 1080 }],
+    ["the slider left where it opened keeps the composer's quality", state({ videoQuality: 720 }), summary({ quality: null }), { quality: null }],
     ["the duration from the source when the editor had none", state({ videoCropStart: 0.5, videoCropLength: 0.5 }), summary({ duration: 0 }), { trim: { startMs: 15_000, endMs: 30_000 } }],
   ] as const)("%s → convert", (_, s, sum, expected) => {
     const decision = videoEditDecision(s, sum, 30_000);
@@ -84,19 +86,65 @@ describe("videoEditDecision", () => {
     ["a free rotation (or a perspective tilt)", summary({ transform: null }), "angle"],
     ["painted and turned freely", summary({ pixelEdits: true, transform: null }), "pixels"],
   ] as const)("%s → render (%s)", (_, sum, reason) => {
-    expect(videoEditDecision(state(), sum, 30_000)).toEqual({ path: "render", reason });
+    expect(videoEditDecision(state(), sum, 30_000)).toEqual({ path: "render", reason, mute: false, quality: null });
+  });
+
+  test("a render still carries the editor's sound and picked quality into the composer", () => {
+    expect(videoEditDecision(state({ videoMuted: true }), summary({ pixelEdits: true, quality: 480 }), 30_000)).toEqual({
+      path: "render",
+      reason: "pixels",
+      mute: true,
+      quality: 480,
+    });
   });
 });
 
 describe("rungForEditorQuality", () => {
   test.each([
-    [1080, 16 / 9, 1080],
-    [720, 16 / 9, 720],
-    [600, 16 / 9, 480],
-    [240, 16 / 9, 360],
-    [1080, 9 / 16, 480],
-    [1080, 1, 1080],
-  ])("%ip at aspect %f → %s", (height, aspect, rung) => {
-    expect(rungForEditorQuality(height, aspect)).toBe(rung);
+    [1080, 1080],
+    [720, 720],
+    [600, 480],
+    [240, 360],
+    [1081, 1080],
+  ])("a short side of %i → %s", (shortSide, rung) => {
+    expect(rungForEditorQuality(shortSide)).toBe(rung);
+  });
+});
+
+describe("the composer's sound and quality, in the editor and back", () => {
+  const LANDSCAPE = { width: 1920, height: 1080 };
+
+  test("the rungs a frame reaches: never above its short side, the lowest always", () => {
+    expect(qualityRungs(1920, 1080)).toEqual([360, 480, 720, 1080]);
+    expect(qualityRungs(1080, 1920)).toEqual([360, 480, 720, 1080]);
+    expect(qualityRungs(1280, 720)).toEqual([360, 480, 720]);
+    expect(qualityRungs(854, 480)).toEqual([360, 480]);
+    expect(qualityRungs(320, 180)).toEqual([360]);
+  });
+
+  test.each([
+    ["auto opens at the top rung the source reaches", { mute: false, quality: "auto" }, LANDSCAPE, { videoMuted: false, videoQuality: 1080 }],
+    ["a rung opens at itself", { mute: true, quality: 480 }, LANDSCAPE, { videoMuted: true, videoQuality: 480 }],
+    ["original opens at the top rung", { mute: false, quality: "original" }, { width: 1280, height: 720 }, { videoMuted: false, videoQuality: 720 }],
+    ["a rung above the source opens at the source's top", { mute: false, quality: 1080 }, { width: 1280, height: 720 }, { videoQuality: 720 }],
+  ] as const)("%s", (_, prefs, source, expected) => {
+    expect(editorStateFor(prefs, source)).toMatchObject(expected);
+  });
+
+  test("a reopened edit keeps its trim and crop and takes the composer's sound and quality", () => {
+    const saved = state({ videoCropStart: 0.2, videoCropLength: 0.5, scale: 1.4, videoMuted: false, videoQuality: 1080 });
+    const opened = editorStateFor({ mute: true, quality: 720 }, LANDSCAPE, saved);
+    expect(opened).toMatchObject({ videoCropStart: 0.2, videoCropLength: 0.5, scale: 1.4, videoMuted: true, videoQuality: 720 });
+    expect(saved.videoMuted).toBe(false);
+  });
+
+  test("a change in the attach window is written into the saved state, and comes back unchanged", () => {
+    const saved = state({ videoCropStart: 0.1, videoMuted: false, videoQuality: 1080 });
+    const synced = syncEditorState(saved, { mute: true, quality: 480 }, LANDSCAPE);
+    expect(synced).toMatchObject({ videoCropStart: 0.1, videoMuted: true, videoQuality: 480 });
+
+    // Opened with that state and left alone, the editor hands back the same sound and no new quality.
+    const back = videoEditDecision(synced, summary({ quality: null }), 30_000);
+    expect(back.path === "convert" && back.prefs).toMatchObject({ mute: true, quality: null });
   });
 });

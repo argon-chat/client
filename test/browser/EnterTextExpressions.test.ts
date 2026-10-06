@@ -32,6 +32,7 @@ const h = await vi.hoisted(async () => {
     stub,
     flags: { gifsSelectorActive: ref(true) },
     perms: new Set<string>(["CreateExpressions"]),
+    denied: new Set<string>(),
     sendMessage: vi.fn(),
     sendDirect: vi.fn(),
     computed,
@@ -62,7 +63,7 @@ vi.mock("@/store/data/poolStore", () => ({
 }));
 vi.mock("@/store/data/permissionStore", () => ({
   usePexStore: () => ({
-    hasIn: () => true,
+    hasIn: (_channel: unknown, flag: string) => !h.denied.has(flag),
     has: (flag: string) => h.perms.has(flag),
     hasInSpace: (_space: string | null, flag: string) => h.perms.has(flag),
   }),
@@ -205,6 +206,7 @@ beforeEach(async () => {
   h.flags.gifsSelectorActive.value = true;
   h.perms.clear();
   h.perms.add("CreateExpressions");
+  h.denied.clear();
   h.sendMessage.mockReset();
   h.sendMessage.mockImplementation(async (spaceId: string, channelId: string) => ({
     isSuccessSendMessage: () => true,
@@ -460,5 +462,23 @@ describe("Open pack, from a custom emoji or sticker in the chat", () => {
     mounted.splice(mounted.indexOf(wrapper), 1);
     await attribution({ kind: "sticker", itemId: "st-0", spaceId: "s1" });
     expect($("[data-testid=expression-info-open-pack]")).toBeNull();
+  });
+});
+
+describe("the attach window's caption composer", () => {
+  // It has no channel of its own; the composer that opened the window already checked the permission.
+  test("asks for a caption, even where its own channel check would say no", async () => {
+    h.denied.add("SendMessages");
+    const { editor } = composer({ spaceId: "s1", captionMode: true });
+    await nextTick();
+    expect($(".message-input__placeholder")?.textContent).toBe("add_caption");
+    expect(editor.getAttribute("contenteditable")).toBe("true");
+  });
+
+  test("a channel composer without the permission still says so", async () => {
+    h.denied.add("SendMessages");
+    composer();
+    await nextTick();
+    expect($(".message-input__placeholder")?.textContent).toBe("no_send_permission");
   });
 });

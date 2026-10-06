@@ -22,6 +22,7 @@ export interface ExportSizeConstraints {
   cropAreaSize: { width: number; height: number };
   zoomScale: number;
   outputMode?: 'video' | 'gif' | ExpressionEditorMode;
+  /** The output's short side. */
   forcedQuality?: number;
 }
 
@@ -84,17 +85,24 @@ export function computeExportDimensions(constraints: ExportSizeConstraints): [nu
   if (outputMode === 'gif' && (w > SD_MAX.width || h > SD_MAX.height)) {
     [w, h] = fitToAspectRatio(cropAspectRatio, SD_MAX.width, SD_MAX.height);
   }
-  if (outputMode === 'video' && (w > HD_MAX.width || h > HD_MAX.height)) {
-    [w, h] = fitToAspectRatio(cropAspectRatio, HD_MAX.width, HD_MAX.height);
+  // 1080p either way round: a portrait video keeps 1080 across, as the host's ladder does.
+  if (outputMode === 'video') {
+    const [boxW, boxH] = cropAspectRatio >= 1 ? [HD_MAX.width, HD_MAX.height] : [HD_MAX.height, HD_MAX.width];
+    if (w > boxW || h > boxH) [w, h] = fitToAspectRatio(cropAspectRatio, boxW, boxH);
   }
   if (!outputMode && Math.max(w, h) > MAX_DIMENSION) {
     [w, h] = fitToAspectRatio(cropAspectRatio, MAX_DIMENSION, MAX_DIMENSION);
   }
 
-  // Override with forced quality height if specified
+  // A forced quality is the short side.
   if (forcedQuality) {
-    h = forcedQuality;
-    w = forcedQuality * cropAspectRatio;
+    if (cropAspectRatio >= 1) {
+      h = forcedQuality;
+      w = forcedQuality * cropAspectRatio;
+    } else {
+      w = forcedQuality;
+      h = forcedQuality / cropAspectRatio;
+    }
   }
 
   // Encoders require even dimensions

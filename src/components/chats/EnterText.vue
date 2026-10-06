@@ -35,7 +35,7 @@
 
             <ComposerPreview v-if="previewVisible" :content="previewContent" />
 
-            <div :class="['flex items-end gap-1 px-2 py-1.5 border border-border rounded-lg bg-background transition-colors focus-within:border-ring overflow-hidden', captionMode && '!border-0 !p-1']">
+            <div :class="['flex items-end gap-1 px-2 py-1.5 border border-border rounded-lg bg-background transition-colors focus-within:border-ring overflow-hidden', captionMode && '!border-0 !p-1 !bg-transparent']">
                 <!-- Attach file button -->
                 <button v-if="!captionMode && canAttachFiles && !editing" class="icon-motion icon-motion--lift flex items-center justify-center w-9 h-9 shrink-0 rounded-full border-none bg-transparent text-muted-foreground cursor-pointer transition-colors hover:bg-muted-foreground/[0.12] hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring" title="Attach file" @click="openFilePicker">
                     <PaperclipIcon class="w-5 h-5" />
@@ -131,9 +131,9 @@
                   leave-to-class="opacity-0 scale-50"
                 >
                     <button
-                      v-if="hasContent"
+                      v-if="hasContent && !captionMode"
                       class="icon-motion icon-motion--nudge flex items-center justify-center w-9 h-9 shrink-0 rounded-full bg-primary text-primary-foreground cursor-pointer transition-all hover:bg-primary/85 active:scale-[0.92] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
-                      @click="captionMode ? $emit('submit') : handleSend()"
+                      @click="handleSend()"
                       :title="editing ? t('save') : t('send')"
                     >
                         <SendHorizonalIcon class="w-5 h-5" />
@@ -339,6 +339,7 @@
             :initial-state="attachmentEditorState"
             :media-blob="attachmentEditorBlob"
             :video-bitrate="attachmentEditorBitrate"
+            :video-quality-steps="attachmentEditorQualitySteps"
             @done="onAttachmentEditorDone"
         />
         <MediaEditorCloseConfirm ref="attachmentCloseConfirm" />
@@ -401,7 +402,7 @@ import { useMe } from "@/store/auth/meStore";
 import AttachmentDialog from "./AttachmentDialog.vue";
 import { MediaEditor } from "@argon/media-editor";
 import type { EditingMediaState, MediaEditorFinalResult, VideoBitrateFn } from "@argon/media-editor";
-import { videoEditDecision } from "@/lib/attachments/videoEdit";
+import { editorStateFor, qualityRungs, videoEditDecision } from "@/lib/attachments/videoEdit";
 import { videoSendErrorKey } from "@/lib/attachments/videoSendErrors";
 import { formatLimitBytes, formatLimitDuration, resolveUploadLimits } from "@/lib/attachments/uploadLimits";
 import {
@@ -894,7 +895,9 @@ const isDm = computed(() => !!props.receiverId);
 const allowsHere = (flag: ArgonEntitlementFlag) =>
   isDm.value || pex.hasIn(props.channelId ?? pool.selectedTextChannel ?? null, flag, props.spaceId);
 
-const canSendMessages = computed(() => allowsHere("SendMessages"));
+// A caption composer has no channel of its own to ask: the composer that opened the attach window
+// already checked that this message may be sent.
+const canSendMessages = computed(() => !!props.captionMode || allowsHere("SendMessages"));
 const canAttachFiles = computed(() => allowsHere("AttachFiles"));
 const canUseCommands = computed(() => !isDm.value && allowsHere("UseCommands"));
 const canMentionEveryone = computed(() => !isDm.value && allowsHere("MentionEveryone"));
@@ -1538,6 +1541,8 @@ let attachmentEditingIndex = -1;
 const attachmentEditorState = shallowRef<Partial<EditingMediaState> | undefined>(undefined);
 const attachmentEditorBlob = shallowRef<Blob | undefined>(undefined);
 const attachmentEditorBitrate = shallowRef<VideoBitrateFn | undefined>(undefined);
+// The attach window's rungs for the video, so the editor's quality slider offers the same ones.
+const attachmentEditorQualitySteps = shallowRef<number[] | undefined>(undefined);
 
 // A video handed to the editor is a fresh object URL over the pending file, which pins the whole
 // file until it is revoked — and it never was. Released once the editor is done with it: after
@@ -1557,6 +1562,7 @@ watch(attachmentEditorOpen, (open) => {
     attachmentEditorState.value = undefined;
     attachmentEditorBlob.value = undefined;
     attachmentEditorBitrate.value = undefined;
+    attachmentEditorQualitySteps.value = undefined;
   }, 0);
 });
 
@@ -1566,13 +1572,16 @@ function onOpenAttachmentEditor(index: number, src: string, mediaType: "image" |
   attachmentEditingIndex = index;
   attachmentEditorSrc.value = src;
   attachmentEditorMediaType.value = mediaType;
-  attachmentEditorState.value = video ? (video.editorState ?? { videoMuted: video.prefs.mute }) : undefined;
+  // One state per video: the editor opens with the composer's sound and quality over its last edit.
+  attachmentEditorState.value = video ? editorStateFor(video.prefs, video.sourceProbe, toRaw(video.editorState)) : undefined;
   attachmentEditorBlob.value = mediaType === "video" && entry ? toRaw(video?.source ?? entry.file) : undefined;
   if (video) {
     const source = { width: video.sourceProbe.width, height: video.sourceProbe.height, bitrate: video.sourceProbe.bitrate };
     attachmentEditorBitrate.value = (width, height) => videoBitrate(source, { width, height });
+    attachmentEditorQualitySteps.value = qualityRungs(video.sourceProbe.width, video.sourceProbe.height);
   } else {
     attachmentEditorBitrate.value = undefined;
+    attachmentEditorQualitySteps.value = undefined;
   }
   showAttachmentDialog.value = false;
   attachmentEditorOpen.value = true;
@@ -1622,7 +1631,7 @@ async function onAttachmentEditorDone(result: MediaEditorFinalResult) {
               creationProgress: result.creationProgress,
               preview: result.preview,
             },
-            { editorState: result.editingMediaState },
+            { editorState: result.editingMediaState, mute: decision.mute, quality: decision.quality },
           );
         }
       } else if (result.isVideo) {
@@ -1644,6 +1653,7 @@ async function onAttachmentEditorDone(result: MediaEditorFinalResult) {
     attachmentEditorState.value = undefined;
     attachmentEditorBlob.value = undefined;
     attachmentEditorBitrate.value = undefined;
+    attachmentEditorQualitySteps.value = undefined;
   }
 }
 

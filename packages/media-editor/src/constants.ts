@@ -43,15 +43,31 @@ export const DEFAULT_BRUSH = {
 };
 
 // ─── Video output quality presets ──────────────────────────────────
+// A video quality is the output's short side (720 is 1280×720 and 720×1280), as a host's ladder counts it.
 
 export const QUALITY_PRESETS = [240, 360, 480, 600, 720, 1080] as const;
 
-export function resolveOutputQuality(videoHeight: number): number {
+/** The preset a frame's short side snaps to. */
+export function resolveOutputQuality(shortSide: number): number {
   const SNAP_THRESHOLD = 0.8;
   for (let i = QUALITY_PRESETS.length - 1; i > 0; i--) {
     const upper = QUALITY_PRESETS[i], lower = QUALITY_PRESETS[i - 1];
-    if (videoHeight > lower + (upper - lower) * SNAP_THRESHOLD) return upper;
+    if (shortSide > lower + (upper - lower) * SNAP_THRESHOLD) return upper;
   }
   return QUALITY_PRESETS[0];
+}
+
+/** The quality a video opens with: the host's top step, else the preset its short side snaps to. */
+export function defaultVideoQuality(media: { width: number; height: number }, steps?: readonly number[]): number {
+  if (steps?.length) return steps[steps.length - 1];
+  return resolveOutputQuality(Math.min(media.width, media.height));
+}
+
+/** The step a quality shows as: itself, else the highest step under it, else the lowest. */
+export function snapVideoQuality(quality: number, steps: readonly number[]): number {
+  if (!steps.length) return quality;
+  let snapped = steps[0];
+  for (const step of steps) if (step <= quality) snapped = step;
+  return snapped;
 }
 

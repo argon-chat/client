@@ -22,7 +22,7 @@ import type { Guid } from "@argon-chat/ion.webcore";
 import { sha256Hex } from "@/lib/attachments/hash";
 import { findUpload, forgetUpload, rememberUpload } from "@/lib/attachments/uploadPool";
 import type { AttachmentRef } from "@/lib/attachments/clipboard";
-import type { VideoEditPrefs } from "@/lib/attachments/videoEdit";
+import { syncEditorState, type VideoEditPrefs } from "@/lib/attachments/videoEdit";
 import { DEFAULT_UPLOAD_LIMITS, invalidateUploadLimits, resolveUploadLimits } from "@/lib/attachments/uploadLimits";
 import { VideoSendProgress, type VideoSendStep } from "@/lib/attachments/videoSendProgress";
 import { cdnFetchUrl } from "@/store/system/fileStorage";
@@ -539,7 +539,7 @@ export function useAttachmentUpload(options: AttachmentUploadOptions = {}) {
     return entry?.video ? entry : null;
   }
 
-  /** Changes how one video is sent (quality, sound, as a file). */
+  /** Changes how one video is sent (quality, sound, as a file); the editor reopens with the same sound and quality. */
   function setVideoPrefs(index: number, patch: Partial<Pick<PendingVideoPrefs, "quality" | "mute" | "sendAsFile">>) {
     const entry = videoAt(index);
     if (!entry) return;
@@ -549,6 +549,9 @@ export function useAttachmentUpload(options: AttachmentUploadOptions = {}) {
       v.requestedFile = patch.sendAsFile;
     }
     Object.assign(v.prefs, patch);
+    if (v.editorState && (patch.mute !== undefined || patch.quality !== undefined)) {
+      v.editorState = markRaw(syncEditorState(toRaw(v.editorState), v.prefs, v.sourceProbe));
+    }
     void refreshPlan(entry);
   }
 
@@ -598,9 +601,14 @@ export function useAttachmentUpload(options: AttachmentUploadOptions = {}) {
 
   /**
    * An editor result that changed the pixels: kept as it is and rendered when the message is sent.
-   * The geometry is in the render, so the preferences keep only quality and sound.
+   * The geometry is in the render, so the preferences keep only quality and sound (the editor's,
+   * when it says).
    */
-  function renderVideoEdit(index: number, render: VideoRender, extras: { editorState?: EditingMediaState } = {}) {
+  function renderVideoEdit(
+    index: number,
+    render: VideoRender,
+    extras: { editorState?: EditingMediaState; mute?: boolean; quality?: VideoQuality | null } = {},
+  ) {
     const entry = videoAt(index);
     if (!entry) {
       render.cancel?.();
@@ -609,7 +617,15 @@ export function useAttachmentUpload(options: AttachmentUploadOptions = {}) {
     const v = entry.video!;
     dropRender(v);
     v.render = markRaw(render);
-    Object.assign(v.prefs, { trim: null, crop: null, rotate: 0, flip: false, coverMs: null });
+    Object.assign(v.prefs, {
+      trim: null,
+      crop: null,
+      rotate: 0,
+      flip: false,
+      coverMs: null,
+      ...(extras.mute !== undefined ? { mute: extras.mute } : {}),
+      ...(extras.quality ? { quality: extras.quality } : {}),
+    });
     if (extras.editorState) v.editorState = markRaw(extras.editorState);
     entry.sha256 = null;
     entry.link = null;
