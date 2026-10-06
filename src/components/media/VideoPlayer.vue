@@ -1292,11 +1292,11 @@ defineExpose({
   cursor: pointer;
 }
 
-.vp.is-playing:not(.show-controls):not(.is-changing-speed) {
+.vp.vp--full.is-playing:not(.show-controls):not(.is-changing-speed) {
   cursor: none;
 }
 
-.vp.is-playing:not(.show-controls) .vp-video {
+.vp.vp--full.is-playing:not(.show-controls) .vp-video {
   cursor: none;
 }
 

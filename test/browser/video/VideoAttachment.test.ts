@@ -143,6 +143,18 @@ describe("VideoAttachment", () => {
     expect(autoplayIntersectorAlive()).toBe(true);
   });
 
+  test("the silent preview shows how far it has played, and keeps the pointer", async () => {
+    const { $, video } = show();
+    await until(() => !!video() && !video()!.paused, 10_000, "the preview playing");
+    await until(() => $("video-inline-progress") !== null, 5_000, "the progress line");
+    const fill = () => Number.parseFloat(($("video-inline-progress")!.firstElementChild as HTMLElement).style.width) || 0;
+    const before = fill();
+    await until(() => fill() > before, 5_000, "the line advancing");
+    expect(fill()).toBeLessThanOrEqual(100);
+    expect(getComputedStyle(video()!).cursor).not.toBe("none");
+    expect(getComputedStyle(video()!.closest(".vp") as HTMLElement).cursor).not.toBe("none");
+  });
+
   test("switched off while playing: the <video> and the observer go", async () => {
     const { video, $ } = show();
     await until(() => !!video() && !video()!.paused, 10_000, "the preview playing");

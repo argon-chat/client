@@ -53,8 +53,20 @@
       muted
       loop
       @playing="inlineShown = true"
+      @timeupdate="onInlineTime"
       @error="onInlineError"
     />
+
+    <!-- How far the silent preview has played, Telegram-style: a thin line along the bottom edge. -->
+    <div
+      v-if="inlineShown && !pending"
+      class="va-progress"
+      :class="{ 'va-progress--reset': progressReset }"
+      data-testid="video-inline-progress"
+      aria-hidden="true"
+    >
+      <div class="va-progress-fill" :style="{ width: `${inlineProgress * 100}%` }" />
+    </div>
 
     <span class="va-badge" data-testid="video-duration">
       {{ durationText }}
@@ -189,16 +201,28 @@ watch(
 const inlineSrc = ref<string | null>(null);
 const inlineShown = ref(false);
 const wantPlaying = ref(false);
+/** Played fraction of the silent preview, 0..1; `progressReset` drops the width transition when it wraps on loop. */
+const inlineProgress = ref(0);
+const progressReset = ref(false);
 let control: AutoplayVideoControl | null = null;
 let releaseTimer: ReturnType<typeof setTimeout> | undefined;
 let resolving = 0;
 let disposed = false;
+
+function onInlineTime(seconds: number) {
+  const duration = props.video.durationMs / 1000;
+  const next = duration > 0 ? Math.min(1, Math.max(0, seconds / duration)) : 0;
+  progressReset.value = next < inlineProgress.value;
+  inlineProgress.value = next;
+}
 
 function release() {
   clearTimeout(releaseTimer);
   resolving++;
   inlineSrc.value = null;
   inlineShown.value = false;
+  inlineProgress.value = 0;
+  progressReset.value = false;
 }
 
 function setPlaying(play: boolean) {
@@ -340,6 +364,28 @@ function onOpen() {
 
 .video-attachment > .va-inline.visible {
   opacity: 1;
+}
+
+.va-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  z-index: 2;
+  background: rgba(255, 255, 255, 0.35);
+  box-shadow: 0 -10px 14px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+}
+
+.va-progress-fill {
+  height: 100%;
+  background: #fff;
+  transition: width 0.25s linear;
+}
+
+.va-progress--reset .va-progress-fill {
+  transition: none;
 }
 
 /* Telegram's duration chip, top left; white on a dark pill in both themes. */

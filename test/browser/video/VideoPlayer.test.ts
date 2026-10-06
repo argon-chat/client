@@ -325,6 +325,10 @@ describe("VideoPlayer", () => {
     expect(video.muted).toBe(true);
     expect(getComputedStyle(video).objectFit).toBe("cover");
     expect(h.counts.find((c) => c.name === "video.play")?.attrs).toMatchObject({ source: "inline", result: "ok" });
+    // The chat bubble's pointer stays: only the full player hides the cursor while playing.
+    await until(() => !video.paused, 10_000, "playing");
+    expect(getComputedStyle(root).cursor).not.toBe("none");
+    expect(getComputedStyle(video).cursor).not.toBe("none");
   });
 
   test("unmounting lets the media go", async () => {
