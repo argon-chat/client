@@ -1399,7 +1399,9 @@ async function submitEdit(message: ArgonMessage) {
   }
 
   const { text, entities } = parseMessageContent();
-  const hasFiles = (message.entities ?? []).some((e) => e.type === EntityType.Attachment || e.type === EntityType.Gif);
+  const hasFiles = (message.entities ?? []).some(
+    (e) => e.type === EntityType.Attachment || e.type === EntityType.Video || e.type === EntityType.Gif,
+  );
   if (!text && !hasFiles) {
     triggerShake();
     return;

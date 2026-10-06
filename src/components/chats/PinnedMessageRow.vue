@@ -83,6 +83,9 @@ const sentAt = computed(() =>
 const preview = computed(() => maskSpoilers(props.pin.message.text ?? "", props.pin.message.entities).trim());
 
 const attachmentCount = computed(
-  () => (props.pin.message.entities ?? []).filter((e) => e.type === EntityType.Attachment || e.type === EntityType.Gif).length,
+  () =>
+    (props.pin.message.entities ?? []).filter(
+      (e) => e.type === EntityType.Attachment || e.type === EntityType.Video || e.type === EntityType.Gif,
+    ).length,
 );
 </script>

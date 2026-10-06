@@ -175,8 +175,9 @@ export function estimateMessageHeight(msg: ArgonMessage | undefined, _index?: nu
   );
   if (hasSystemEntity) return 40;
 
-  const attachments = entities.filter((e) => e.type === EntityType.Attachment);
+  const attachments = entities.filter((e) => e.type === EntityType.Attachment || e.type === EntityType.Video);
   const imageAttachments = attachments.filter((a: any) => {
+    if (a.type === EntityType.Video) return true;
     if (a.contentType?.startsWith("image/")) return true;
     const ext = a.fileName?.split(".").pop()?.toLowerCase();
     return !!ext && ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "avif"].includes(ext);

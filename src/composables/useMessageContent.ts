@@ -25,6 +25,7 @@ export interface IFrag {
 /** Drawn apart from the text (media above or below it), not inline. */
 const BLOCK_ENTITIES = new Set<EntityType>([
   EntityType.Attachment,
+  EntityType.Video,
   EntityType.Gif,
   EntityType.LinkPreview,
   EntityType.Sticker,

@@ -16,6 +16,7 @@ import {
   MessageEntityMention,
   MessageEntityMonospace,
   MessageEntitySticker,
+  MessageEntityVideo,
   type IMessageEntity,
 } from "@argon/glue";
 import { fragmentMessageText, type IFrag } from "@/composables/useMessageContent";
@@ -32,10 +33,21 @@ const view = (frags: IFrag[]): unknown[] =>
 
 const frag = (text: string, entities: IMessageEntity[]) => view(fragmentMessageText(text, entities));
 
+const video = () =>
+  new MessageEntityVideo(
+    EntityType.Video, 0, 0, 1, "file", "clip.mp4", 10n as never, "video/mp4", 1280, 720, 5000, true,
+    null, null, null, null, null, null, [] as never, null, null, null,
+  );
+
 describe("fragmentMessageText with expressions", () => {
   test("a sticker is not text", () => {
     expect(frag("", [sticker()])).toEqual([]);
     expect(frag("caption", [sticker()])).toEqual([["caption", null]]);
+  });
+
+  test("a video is block media, never an inline fragment", () => {
+    expect(frag("", [video()])).toEqual([]);
+    expect(frag("caption", [video()])).toEqual([["caption", null]]);
   });
 
   test("a custom emoji is its own inline fragment", () => {
