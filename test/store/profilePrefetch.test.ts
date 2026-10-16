@@ -42,7 +42,19 @@ vi.mock("@/store/system/sessionLifecycle", async () => {
     onSessionReset: (fn: () => void) => resetters.push(fn),
   };
 });
-vi.mock("@/store/realtime/busStore", () => ({ useBus: () => ({ onServerEvent: () => {} }) }));
+const { serverEvents, ownAccount } = vi.hoisted(() => ({
+  serverEvents: new Map<string, (event: any) => void>(),
+  ownAccount: { me: { userId: "me" }, meProfile: null as any },
+}));
+
+vi.mock("@/store/realtime/busStore", () => ({
+  useBus: () => ({
+    onServerEvent: (key: string, callback: (event: any) => void) => {
+      serverEvents.set(key, callback);
+    },
+  }),
+}));
+vi.mock("@/store/auth/meStore", () => ({ useMe: () => ownAccount }));
 vi.mock("@/store/system/systemStore", () => ({
   useSystemStore: () => ({ isLongReconnecting: false }),
 }));
@@ -135,6 +147,8 @@ beforeEach(() => {
   resetters.length = 0;
   sessionEpoch.value = 0;
   profileCache.clear();
+  serverEvents.clear();
+  ownAccount.meProfile = null;
   setActivePinia(createPinia());
 });
 
@@ -156,7 +170,7 @@ describe("member list prefetch", () => {
     expect(wire[0].userIds).toEqual(["u1"]);
 
     answerAll(wire[0], "away");
-    expect(await rows).toEqual(Array(4).fill({ customStatus: "away", customStatusIconId: null, customStatusEmoji: null }));
+    expect(await rows).toEqual(Array(4).fill({ customStatus: "away", customStatusIconId: null, customStatusEmoji: null, cosmetics: null }));
   });
 
   test("a screenful of members goes out as one call, not one call each", async () => {
@@ -177,6 +191,7 @@ describe("member list prefetch", () => {
       customStatus: "away",
       customStatusIconId: null,
       customStatusEmoji: null,
+      cosmetics: null,
     });
     expect(wire).toHaveLength(1);
   });
@@ -242,6 +257,7 @@ describe("member list prefetch", () => {
       customStatus: "back soon",
       customStatusIconId: null,
       customStatusEmoji: null,
+      cosmetics: null,
     });
     expect(wire).toHaveLength(1);
   });
@@ -271,7 +287,7 @@ describe("member list prefetch", () => {
     // The answer is paired up by userId, so a missing entry costs its own job and nothing else.
     wire[0].answer([serverProfile("u1", "away")]);
 
-    expect(await present).toEqual({ customStatus: "away", customStatusIconId: null, customStatusEmoji: null });
+    expect(await present).toEqual({ customStatus: "away", customStatusIconId: null, customStatusEmoji: null, cosmetics: null });
     await expect(absent).rejects.toThrow(/u2/);
   });
 });
@@ -312,7 +328,7 @@ describe("an answer that arrives after the ground moved", () => {
     expect(wire).toHaveLength(2);
 
     answerAll(wire[1], "current");
-    expect(await joining).toEqual({ customStatus: "current", customStatusIconId: null, customStatusEmoji: null });
+    expect(await joining).toEqual({ customStatus: "current", customStatusIconId: null, customStatusEmoji: null, cosmetics: null });
   });
 
   test("an update event for the previous account is not written into the new one's cache", async () => {
@@ -355,6 +371,7 @@ describe("an answer that arrives after the ground moved", () => {
       customStatus: "from before the reconnect",
       customStatusIconId: null,
       customStatusEmoji: null,
+      cosmetics: null,
     });
 
     // But nothing was written down, so the next reader goes and asks.
@@ -407,7 +424,7 @@ describe("an answer that arrives after the ground moved", () => {
     expect(wire[0].userIds).toEqual(["u1"]);
 
     answerAll(wire[0], "current");
-    expect(await reading).toEqual({ customStatus: "current", customStatusIconId: null, customStatusEmoji: null });
+    expect(await reading).toEqual({ customStatus: "current", customStatusIconId: null, customStatusEmoji: null, cosmetics: null });
   });
 
   test("a member still waiting its turn when the cache is emptied is cached as usual", async () => {
@@ -495,5 +512,196 @@ describe("what a prefetch leaves behind", () => {
 
     const again = await store.getProfile(SPACE, "u1");
     expect(again.badges).toEqual(["early"]);
+  });
+});
+
+describe("what a member wears", () => {
+  const worn = [{ UnionKey: "WornItem", UnionIndex: 0, itemId: "frame-1" }];
+
+  test("a list row keeps it, because the row draws it and nothing else would fetch it", async () => {
+    const store = useProfileCacheStore();
+
+    const row = store.getStatus(SPACE, "u1");
+    await settle();
+    wire[0].answer([{ ...serverProfile("u1", "away"), cosmetics: worn }]);
+
+    expect((await row).cosmetics).toEqual(worn);
+    await settle();
+
+    const cached = profileCache.peek(`${SPACE}:u1`);
+    expect(cached.scope).toBe("status");
+    expect(cached.profile.cosmetics).toEqual(worn);
+  });
+
+  test("an equip rewrites it on every row held for that person and leaves the rest of each row alone", async () => {
+    const store = useProfileCacheStore();
+
+    const row = store.getStatus(SPACE, "u1");
+    await settle();
+    wire[0].answer([{ ...serverProfile("u1", "away"), cosmetics: [] }]);
+    await row;
+    await settle();
+
+    await store.updateCosmetics("u1", worn as never);
+
+    expect(profileCache.peek(`${SPACE}:u1`).profile.cosmetics).toEqual(worn);
+    expect(profileCache.peek(`${SPACE}:u1`).profile.customStatus).toBe("away");
+    expect((await store.getStatus(SPACE, "u1")).cosmetics).toEqual(worn);
+    expect(wire).toHaveLength(1);
+  });
+
+  test("a row that re-asks while the old look is still on the wire is told to ask once more", async () => {
+    const store = useProfileCacheStore();
+
+    const first = store.getStatus(SPACE, "u1");
+    await settle();
+    expect(wire).toHaveLength(1);
+
+    await store.updateCosmetics("u1", worn as never);
+    const bumped = store.revisionOf("u1");
+
+    // The row re-asks on the bump and joins the call that was already carrying the old look.
+    const second = store.getStatus(SPACE, "u1");
+    expect(wire).toHaveLength(1);
+
+    wire[0].answer([{ ...serverProfile("u1"), cosmetics: [] }]);
+    await Promise.all([first, second]);
+    await settle();
+
+    expect(store.revisionOf("u1")).toBeGreaterThan(bumped);
+
+    const third = store.getStatus(SPACE, "u1");
+    await settle();
+    expect(wire).toHaveLength(2);
+
+    wire[1].answer([{ ...serverProfile("u1"), cosmetics: worn }]);
+    expect((await third).cosmetics).toEqual(worn);
+  });
+
+  test("a revision handed out before an account switch never comes round again", () => {
+    const store = useProfileCacheStore();
+
+    void store.updateCosmetics("u1", worn as never);
+    void store.updateCosmetics("u1", worn as never);
+    void store.updateCosmetics("u1", worn as never);
+    const before = store.revisionOf("u1");
+
+    switchAccount();
+
+    const seen = new Set<number>();
+
+    for (let touch = 0; touch < 5; touch++) {
+      seen.add(store.revisionOf("u1"));
+      void store.updateCosmetics("u1", worn as never);
+    }
+
+    expect(Math.min(...seen)).toBeGreaterThan(before);
+  });
+
+  test("callers get their own copy of the list", async () => {
+    const store = useProfileCacheStore();
+
+    const first = store.getProfile(SPACE, "u1");
+    await settle();
+    wire[0].answer([{ ...serverProfile("u1"), cosmetics: worn }]);
+    const held = await first;
+    await settle();
+
+    held.cosmetics?.push({ UnionKey: "WornItem", UnionIndex: 0, itemId: "other" } as never);
+
+    expect((await store.getProfile(SPACE, "u1")).cosmetics).toEqual(worn);
+  });
+});
+
+describe("a realtime profile update", () => {
+  const worn = [{ UnionKey: "WornItem", UnionIndex: 0, itemId: "frame-1" }];
+  const connections = [{ provider: "github" }];
+
+  /** What UserProfileUpdated carries: the broadcast projection, archetypes empty and connections untold. */
+  const broadcast = (userId: string) => ({
+    ...serverProfile(userId, "updated"),
+    archetypes: [],
+    connections: null,
+    cosmetics: worn,
+  }) as unknown as ArgonUserProfile;
+
+  test("keeps the archetypes and connections a full row already holds", async () => {
+    const store = useProfileCacheStore();
+
+    const card = store.getProfile(SPACE, "u1");
+    await settle();
+    wire[0].answer([{ ...serverProfile("u1"), connections }]);
+    await card;
+    await settle();
+
+    await store.updateProfile(SPACE, "u1", broadcast("u1"));
+
+    const held = profileCache.peek(`${SPACE}:u1`).profile;
+
+    expect(held.archetypes).toEqual([{ archetypeId: "role-1" }]);
+    expect(held.connections).toEqual(connections);
+    expect(held.customStatus).toBe("updated");
+    expect(held.cosmetics).toEqual(worn);
+    expect((await store.getProfile(SPACE, "u1")).archetypes).toEqual([{ archetypeId: "role-1" }]);
+  });
+
+  test("never takes roles from it: its one sender does not fill them", async () => {
+    const store = useProfileCacheStore();
+
+    const card = store.getProfile(SPACE, "u1");
+    await settle();
+    answerAll(wire[0]);
+    await card;
+    await settle();
+
+    await store.updateProfile(SPACE, "u1", { ...broadcast("u1"), archetypes: [{ archetypeId: "role-2" }] } as never);
+
+    expect(profileCache.peek(`${SPACE}:u1`).profile.archetypes).toEqual([{ archetypeId: "role-1" }]);
+  });
+
+  test("an update that does not say what is worn keeps the look a row already holds", async () => {
+    const store = useProfileCacheStore();
+
+    const card = store.getProfile(SPACE, "u1");
+    const row = store.getStatus(SPACE, "u2");
+    await settle();
+    wire[0].answer([
+      { ...serverProfile("u1"), cosmetics: worn },
+      { ...serverProfile("u2"), cosmetics: worn },
+    ]);
+    await Promise.all([card, row]);
+    await settle();
+
+    await store.updateProfile(SPACE, "u1", { ...broadcast("u1"), cosmetics: null } as never);
+    await store.updateProfile(SPACE, "u2", { ...broadcast("u2"), cosmetics: null } as never);
+
+    expect(profileCache.peek(`${SPACE}:u1`).profile.cosmetics).toEqual(worn);
+    expect(profileCache.peek(`${SPACE}:u2`).profile.cosmetics).toEqual(worn);
+    expect(profileCache.peek(`${SPACE}:u2`).profile.customStatus).toBe("updated");
+  });
+
+  test("puts only the new look on the account's own loaded profile", async () => {
+    useProfileCacheStore();
+    ownAccount.meProfile = { userId: "me", bio: "mine", archetypes: [{ archetypeId: "role-1" }], connections, cosmetics: [] };
+
+    serverEvents.get("UserProfileUpdated")!({ spaceId: SPACE, userId: "me", profile: broadcast("me") });
+
+    expect(ownAccount.meProfile.cosmetics).toEqual(worn);
+    expect(ownAccount.meProfile.bio).toBe("mine");
+    expect(ownAccount.meProfile.connections).toBe(connections);
+    expect(ownAccount.meProfile.archetypes).toEqual([{ archetypeId: "role-1" }]);
+  });
+
+  test("leaves the own profile alone for somebody else, or for an update that says nothing of the look", async () => {
+    useProfileCacheStore();
+
+    const mine = { userId: "me", cosmetics: [] };
+
+    ownAccount.meProfile = mine;
+
+    serverEvents.get("UserProfileUpdated")!({ spaceId: SPACE, userId: "u1", profile: broadcast("u1") });
+    serverEvents.get("UserProfileUpdated")!({ spaceId: SPACE, userId: "me", profile: { ...broadcast("me"), cosmetics: null } });
+
+    expect(ownAccount.meProfile).toBe(mine);
   });
 });

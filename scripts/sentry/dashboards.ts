@@ -162,6 +162,10 @@ const METRICS = {
   "video.upload.duration": MS,
   // a video edited in the composer's editor (path: convert = trim/crop/turn applied by the converter | render = frames rendered; reason: pixels | angle)
   "video.edit": C,
+  // cosmetics (action: equip | unequip; kind: the server's kind key; error: a CosmeticError name or errorKind)
+  "cosmetic.equip": C,
+  // a worn cosmetic this build could not draw (reason: missing_row | unknown_kind | unknown_entry | unimplemented_slug | payload_rejected | option_rejected)
+  "cosmetic.render.failed": C,
 } as const satisfies Record<string, MetricSpec>;
 
 type MetricName = keyof typeof METRICS;
@@ -344,6 +348,9 @@ const PRODUCT: WidgetDraft[] = [
   by("Video plays by source", M("video.play", "result:ok"), "source", { w: 3, description: "inline: silent autoplay in the chat; viewer: opened full size" }),
   by("Video edits by path", M("video.edit"), "path", { w: 3, description: "convert: trim/crop/turn applied by the converter, no frame rendered; render: drawn on, frames rendered" }),
   bars("Video edits rendered by reason", M("video.edit", "path:render"), "reason", "sum", { w: 3, description: "pixels: drawing, text, stickers, adjustments; angle: a free rotation" }),
+  by("Cosmetics equipped by kind", M("cosmetic.equip", "result:ok"), "kind", { w: 2, description: "Successful equips and unequips, per kind" }),
+  bars("Cosmetic equip refusals by error", M("cosmetic.equip", "result:failed"), "error", "sum", { w: 2, description: "CosmeticError names from the server, or a transport errorKind" }),
+  bars("Cosmetics not drawn by reason", M("cosmetic.render.failed"), "reason", "sum", { w: 2, description: "Worn cosmetics this build skipped; counted once per item per session" }),
 ];
 
 const CALLS: WidgetDraft[] = [

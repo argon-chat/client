@@ -3,6 +3,8 @@ import { Guid, IonDateTime } from "@argon-chat/ion.webcore";
 import Dexie, { type Table, type Transaction } from "dexie";
 import { delay, logger } from "@argon/core";
 
+import { reviveWornCosmetics } from "@/cosmetics/reviveWorn";
+
 /** ArgonMessage with a numeric _msgId for IndexedDB indexing (bigint can't be an IDB key) */
 export type StoredMessage = ArgonMessage & { _msgId: number };
 
@@ -193,6 +195,9 @@ export class PoolDatabase extends Dexie {
     this.version(10).stores({
       appTexts: "ref",
     });
+    // v11: profile rows written before worn cosmetics were kept hold `cosmetics: null` ("not told")
+    // for up to the cache's three hours. Only that table is emptied; the rest of the cache stands.
+    this.version(11).stores({}).upgrade((tx) => tx.table("profileCache").clear());
 
     // Registered after the last `stores()` call on purpose: `Version.stores()` runs
     // `removeTablesApi` before rebuilding the table objects, so a hook attached against an earlier
@@ -206,7 +211,11 @@ export class PoolDatabase extends Dexie {
       row.joinedAt = liveDateTime(row.joinedAt);
     }));
     this.profileCache.hook("reading", onRow((row) => {
-      if (row.profile) row.profile.registeredAt = liveDateTime(row.profile.registeredAt);
+      if (row.profile) {
+        row.profile.registeredAt = liveDateTime(row.profile.registeredAt);
+        // Worn cosmetics are union classes, flattened the same way; their isX() guards go with the prototype.
+        row.profile.cosmetics = reviveWornCosmetics(row.profile.cosmetics);
+      }
     }));
   }
 }
