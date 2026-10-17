@@ -310,6 +310,7 @@ export const useApi = defineStore("api", () => {
   const channelComposerInteraction = computed(() => rpcClient.value.ChannelComposerInteraction);
   const spaceExpressionInteraction = computed(() => rpcClient.value.SpaceExpressionInteraction);
   const connectionsInteraction = computed(() => rpcClient.value.ConnectionsInteraction);
+  const cosmeticsInteraction = computed(() => rpcClient.value.CosmeticsInteraction);
 
   const getRawClient = () => rpcClient;
 
@@ -348,5 +349,6 @@ export const useApi = defineStore("api", () => {
     channelComposerInteraction,
     spaceExpressionInteraction,
     connectionsInteraction,
+    cosmeticsInteraction,
   };
 });

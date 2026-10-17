@@ -3,6 +3,7 @@ import { computed, ref, watch } from "vue";
 import { useTone } from "@/store/media/toneStore";
 import { Subject } from "rxjs";
 import { useBus } from "@/store/realtime/busStore";
+import { ensureCosmeticsLoaded } from "@/store/features/ensureCosmeticsLoaded";
 
 const LONG_RECONNECT_TIMEOUT = 5000;
 const RESYNC_JITTER_MS = 15000;
@@ -151,9 +152,13 @@ export const useSystemStore = defineStore("system", () => {
   // The stream came back on the same server-side session: nothing to reload, however long it took.
   bus.resumed.subscribe(() => {
     isLongReconnecting.value = false;
+    // A cosmetics load that failed while the connection was down gets another go once it is back.
+    ensureCosmeticsLoaded();
   });
 
   bus.reconnected.subscribe(() => {
+    ensureCosmeticsLoaded();
+
     void (async () => {
       const wasLong = isLongReconnecting.value;
       isLongReconnecting.value = false;

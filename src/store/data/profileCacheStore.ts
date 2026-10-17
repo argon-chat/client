@@ -1,12 +1,17 @@
+import {
+  reactive,
+  ref,
+  watch,
+} from "vue";
 import { defineStore } from "pinia";
-import { watch } from "vue";
 import { logger } from "@argon/core";
 import { useApi } from "@/store/system/apiStore";
+import { useMe } from "@/store/auth/meStore";
 import { useBus } from "@/store/realtime/busStore";
 import { useSystemStore } from "@/store/system/systemStore";
 import { db, type CachedProfile, type ProfileScope } from "@/store/db/dexie";
 import { onSessionReset, sessionEpoch } from "@/store/system/sessionLifecycle";
-import type { ArgonUserProfile, StatusEmoji } from "@argon/glue";
+import type { ArgonUserProfile, IWornCosmetic, StatusEmoji } from "@argon/glue";
 import { UserProfileUpdated } from "@argon/glue";
 import type { Guid } from "@argon-chat/ion.webcore";
 
@@ -46,6 +51,8 @@ export interface ProfileStatus {
   customStatus: string | null;
   customStatusIconId: string | null;
   customStatusEmoji: StatusEmoji | null;
+  /** What the member wears, drawn on the row itself. Null means the server did not say. */
+  cosmetics: IWornCosmetic[] | null;
 }
 
 export interface ProfileRequestOptions {
@@ -101,6 +108,21 @@ export const useProfileCacheStore = defineStore("profileCache", () => {
    */
   let purge: Promise<unknown> | null = null;
 
+  /**
+   * Bumped whenever what is held for someone changes under a caller that already read it, so a row
+   * holding an earlier answer knows to ask again. Answers stay plain promises; this is the signal.
+   */
+  const userRevisions = reactive(new Map<string, number>());
+  const everyoneRevision = ref(0);
+
+  function revisionOf(userId: string): number {
+    return everyoneRevision.value + (userRevisions.get(userId) ?? 0);
+  }
+
+  function touchUser(userId: string) {
+    userRevisions.set(userId, (userRevisions.get(userId) ?? 0) + 1);
+  }
+
   // Outside a space — the friends list, a DM, a mention in a direct chat — there is nothing to
   // scope the profile to, and those rows get their own cache namespace.
   const GLOBAL_SCOPE = "@global";
@@ -146,7 +168,8 @@ export const useProfileCacheStore = defineStore("profileCache", () => {
       primaryColor: null,
       accentColor: null,
       registeredAt: null,
-      cosmetics: null,
+      // Worn cosmetics are drawn on the row itself, and no per-person call exists to fetch them.
+      cosmetics: profile.cosmetics ?? null,
       customStatusEmoji: profile.customStatusEmoji,
       // Linked accounts are read once per card, never kept on a list row.
       connections: null,
@@ -158,7 +181,12 @@ export const useProfileCacheStore = defineStore("profileCache", () => {
    * asks for it, and at least one caller appends to `badges` before rendering.
    */
   function cloneProfile(profile: ArgonUserProfile): ArgonUserProfile {
-    return { ...profile, badges: [...profile.badges], archetypes: [...profile.archetypes] };
+    return {
+      ...profile,
+      badges: [...profile.badges],
+      archetypes: [...profile.archetypes],
+      cosmetics: profile.cosmetics ? [...profile.cosmetics] : null,
+    };
   }
 
   function remember(key: string, profile: ArgonUserProfile, fetchedAt: number, scope: ProfileScope) {
@@ -330,6 +358,12 @@ export const useProfileCacheStore = defineStore("profileCache", () => {
 
         if (sameSession && !job.cancelled) keep(job, profile);
         settle(job, profile);
+
+        // A row that re-asked on a revision bump while this was on the wire joined it and got the
+        // answer the bump was about. Now it is out of `jobs`, the bump is repeated so the row asks anew.
+        if (sameSession && !job.cancelled && !job.cacheable) {
+          touchUser(job.userId);
+        }
       }
     } catch (err) {
       // The call failed, so every member it was carrying failed with it.
@@ -476,7 +510,34 @@ export const useProfileCacheStore = defineStore("profileCache", () => {
       customStatusIconId: profile.customStatusIconId,
       // Rows cached before the field existed have none.
       customStatusEmoji: profile.customStatusEmoji ?? null,
+      cosmetics: profile.cosmetics ?? null,
     };
+  }
+
+  /**
+   * A realtime profile update carries the broadcast projection, and laid over a full row it must not
+   * wipe what only a full lookup knows. Its one sender (UserGrain, via UserProfileEntity.Map) never
+   * fills archetypes, so roles are never taken from it; connections and cosmetics are null when the
+   * event did not say.
+   */
+  function overBroadcast(held: ArgonUserProfile, broadcast: ArgonUserProfile): ArgonUserProfile {
+    return {
+      ...broadcast,
+      archetypes: held.archetypes ?? [],
+      connections: broadcast.connections ?? held.connections ?? null,
+      cosmetics: broadcast.cosmetics ?? held.cosmetics ?? null,
+    };
+  }
+
+  /** The account's own full profile takes the new look only; the rest of the projection is not news. */
+  function wearOwnLook(userId: string, profile: ArgonUserProfile) {
+    const me = useMe();
+
+    if (!me.meProfile || me.me?.userId !== userId || !profile.cosmetics) {
+      return;
+    }
+
+    me.meProfile = { ...me.meProfile, cosmetics: profile.cosmetics };
   }
 
   /**
@@ -498,10 +559,35 @@ export const useProfileCacheStore = defineStore("profileCache", () => {
 
     const scope = existing.scope ?? "full";
     const fetchedAt = Date.now();
-    const kept = scope === "full" ? profile : statusProjection(profile);
+    const kept = scope === "full"
+      ? overBroadcast(existing.profile, profile)
+      : { ...statusProjection(profile), cosmetics: profile.cosmetics ?? existing.profile.cosmetics ?? null };
 
     remember(key, kept, fetchedAt, scope);
     await db.profileCache.put({ key, spaceId, userId, profile: kept, fetchedAt, scope });
+  }
+
+  /**
+   * Rewrites what one person wears on every row held for them, keeping the rest of each row.
+   *
+   * For the caller's own equip: the answer is the account's profile, which carries no space roles,
+   * so it cannot stand in for a space-scoped row wholesale. A lookup already on its way with the old
+   * look does not get to write it back.
+   */
+  async function updateCosmetics(userId: string, cosmetics: IWornCosmetic[] | null) {
+    overtakeInFlight(job => job.userId === userId);
+
+    for (const entry of memory.values()) {
+      if (entry.profile.userId === userId) {
+        entry.profile = { ...entry.profile, cosmetics };
+      }
+    }
+
+    await db.profileCache.where("userId").equals(userId).modify(row => {
+      row.profile = { ...row.profile, cosmetics };
+    });
+
+    touchUser(userId);
   }
 
   /**
@@ -538,6 +624,7 @@ export const useProfileCacheStore = defineStore("profileCache", () => {
     overtakeInFlight(() => true);
     memory.clear();
     await purging(() => db.profileCache.clear());
+    everyoneRevision.value++;
   }
 
   async function invalidateUser(userId: string) {
@@ -546,6 +633,7 @@ export const useProfileCacheStore = defineStore("profileCache", () => {
       if (entry.profile.userId === userId) memory.delete(key);
     }
     await purging(() => db.profileCache.where("userId").equals(userId).delete());
+    touchUser(userId);
   }
 
   // Seamless account switch: drop everything in flight and everything held in memory. The cached
@@ -558,10 +646,16 @@ export const useProfileCacheStore = defineStore("profileCache", () => {
     for (const job of [...jobs.values()]) cancel(job);
     queue.length = 0;
     memory.clear();
+    // Lifted past every revision handed out so far before the per-user counts go, so a revision a
+    // caller remembers from the previous account never comes round again.
+    everyoneRevision.value += 1 + Math.max(0, ...userRevisions.values());
+    userRevisions.clear();
   });
 
   // Subscribe to realtime event
   bus.onServerEvent<UserProfileUpdated>("UserProfileUpdated", (e) => {
+    wearOwnLook(e.userId, e.profile);
+
     void (async () => {
       await updateProfile(e.spaceId, e.userId, e.profile);
       // The space-less copy of a profile is a different thing — no archetypes — so a space-scoped
@@ -571,6 +665,7 @@ export const useProfileCacheStore = defineStore("profileCache", () => {
       overtakeInFlight(job => job.key === globalKey);
       memory.delete(globalKey);
       await db.profileCache.delete(globalKey);
+      touchUser(e.userId);
     })();
   });
 
@@ -585,6 +680,8 @@ export const useProfileCacheStore = defineStore("profileCache", () => {
     getProfile,
     getStatus,
     updateProfile,
+    updateCosmetics,
+    revisionOf,
     invalidateAll,
     invalidateUser,
   };

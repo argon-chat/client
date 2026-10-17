@@ -19,6 +19,7 @@ import { useInstance } from "@/store/system/instanceStore";
 import { useAccounts } from "@/store/auth/accountsStore";
 import { ensureDbOpen } from "@/store/db/dexie";
 import { metrics, bucket, errorKind } from "@/lib/telemetry/metrics";
+import { ensureCosmeticsLoaded } from "@/store/features/ensureCosmeticsLoaded";
 
 // Initialize worklets with audio getter to break circular dependency
 initWorklets(() => audio);
@@ -76,6 +77,10 @@ export const useAppState = defineStore("app", () => {
     await useNotificationStore().initFromGlobalBadges();
 
     await useMe().completeInit();
+
+    // Every surface needs the catalogue to draw a worn item, but none blocks on it.
+    ensureCosmeticsLoaded();
+
     await useIdleStore().init();
     await useActivity().init();
 

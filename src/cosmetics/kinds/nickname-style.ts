@@ -13,6 +13,8 @@
  * of it. Everything anybody sees comes from its two axes, the font and the treatment, and from
  * this.
  */
+export const NICKNAME_STYLE_KIND = "nickname.style";
+
 export type NicknameGradientShape = "linear" | "radial" | "conic";
 
 export interface NicknameStyleTuning {
