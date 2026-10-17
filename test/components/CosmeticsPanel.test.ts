@@ -93,6 +93,7 @@ vi.mock("@/components/settings/cosmetics/CosmeticPickerDialog.vue", async () => 
 import {
   CosmeticError,
   WornItem,
+  WornNickname,
   type CatalogueCosmetic,
 } from "@argon/glue";
 
@@ -105,7 +106,7 @@ import {
 
 const FRAME = "aaaaaaaa-0000-0000-0000-000000000001";
 
-const KIND_INDEX: Record<string, number> = { "profile.frame": 0 };
+const KIND_INDEX: Record<string, number> = { "profile.frame": 0, "nickname.style": 1 };
 
 function frameRow(): CatalogueCosmetic {
   return {
@@ -186,10 +187,12 @@ describe("worn label", () => {
     expect(wornLabelOf(wrapper, "profile.frame")).toBe("none");
   });
 
-  test("a bare kind is not offered", async () => {
+  test("a bare kind worn says it is configured", async () => {
+    h.worn.set("nickname.style", new WornNickname(null, null, null, null, null, null, null, null));
+
     const wrapper = await mountPanel();
 
-    expect(wrapper.findAll(".worn-row")).toHaveLength(1);
+    expect(wornLabelOf(wrapper, "nickname.style")).toBe("cosmetic_configured");
   });
 });
 
@@ -299,7 +302,7 @@ describe("applying from the picker", () => {
     await send(wrapper, frameChange("a"));
 
     expect(picker(wrapper).props("busy")).toBe(true);
-    expect(rowOf(wrapper, "profile.frame").attributes("disabled")).toBeDefined();
+    expect(rowOf(wrapper, "nickname.style").attributes("disabled")).toBeDefined();
 
     await send(wrapper, frameChange("b"));
 
