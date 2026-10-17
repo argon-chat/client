@@ -29,11 +29,20 @@ import {
   lockedAccessibleName,
 } from "@/components/settings/cosmetics/cosmeticLock";
 import {
+  emptyNicknameDraft,
+  isNicknameDraftAimable,
+  nicknameChange,
+  nicknameDraftOf,
+  sameNicknameDraft,
+  type NicknameDraft,
+} from "@/components/settings/cosmetics/nicknameDraft";
+import {
   focusRadioAt,
   radioStepTarget,
 } from "@/components/settings/cosmetics/rovingRadio";
 import {
   itemChange,
+  unequipChange,
   wornAfter,
   type WardrobeChange,
 } from "@/components/settings/cosmetics/wardrobeChange";
@@ -42,8 +51,12 @@ import {
   useLocale,
 } from "@/store/system/localeStore";
 import type { CosmeticKindModule } from "@/cosmetics/types";
+import type { NicknameAxes } from "@/cosmetics/wire";
+import type { NicknameStyleTuning } from "@/cosmetics/kinds/nickname-style";
 import CosmeticCell from "@/components/settings/cosmetics/CosmeticCell.vue";
 import CosmeticLookPreview, { type LookSurface } from "@/cosmetics/CosmeticLookPreview.vue";
+import NicknameAxesPicker from "@/components/settings/cosmetics/NicknameAxes.vue";
+import NicknameTuning from "@/cosmetics/tuning/NicknameTuning.vue";
 import { asWornItem } from "@/cosmetics/wornEntry";
 import { cosmeticIdKey } from "@/cosmetics/resolver";
 import { cosmeticName } from "@/lib/cosmeticText";
@@ -89,6 +102,15 @@ const nameOf = (item: CatalogueCosmetic) => cosmeticName(item, currentLocale.val
 const wearable = (item: CatalogueCosmetic) => cosmetics.mayWear(item);
 
 /**
+ * A kind with nothing to choose between.
+ *
+ * Everything it looks like comes from its axes and its wearer's own settings, so there is no grid:
+ * the dialog opens on the constructor. Two rows used to sit here and they were the same offer twice
+ * — whichever you picked, the axes and the tuning said it after.
+ */
+const bare = computed(() => props.kind.bare === true);
+
+/**
  * What shape the tiles in the list are, decided by what is being chosen rather than by which kind.
  *
  * <b>The previews beside the list are the same in every one of these dialogs</b> — that is the
@@ -118,10 +140,38 @@ const shape = computed<PickerShape>(() => {
 /** What is worn on this kind right now. */
 const current = computed(() => cosmetics.wornOfKind(props.profile, props.kind.key));
 
+/** Whether a bare kind is on at all, which is the one thing its row still records. */
+const bareWorn = computed(() => current.value !== null);
+
 /** The catalogue row worn on this kind, if it is one. */
 const wornItemId = computed(() => asWornItem(current.value)?.itemId ?? null);
 
+/**
+ * Whether an axis row the worn look names can still be offered.
+ *
+ * A row the catalogue dropped, moved to another kind or had switched off is left out of the draft,
+ * so the next Apply does not send it back. Nothing is judged before the catalogue has arrived.
+ */
+function axisOffered(axis: keyof NicknameAxes, optionId: string): boolean {
+  if (cosmetics.catalogue === null) {
+    return true;
+  }
+
+  const facet = props.kind.facets?.find(candidate => candidate.id === axis);
+  const row = cosmetics.itemById(optionId);
+
+  if (facet === undefined || row === null) {
+    return false;
+  }
+
+  return row.kindKey === facet.optionKindKey && cosmetics.isKindEnabled(row.kindKey);
+}
+
+/** What the wearer has already decided about a bare kind: its axes and their own settings. */
+const wornNickname = computed(() => nicknameDraftOf(current.value, axisOffered));
+
 const picked = ref<string | null>(null);
+const nickname = ref<NicknameDraft>(emptyNicknameDraft());
 
 /** Opening starts from what is worn, never from a draft somebody walked away from. */
 watch(() => [props.open, props.kind.key] as const, ([open]) => {
@@ -130,6 +180,7 @@ watch(() => [props.open, props.kind.key] as const, ([open]) => {
   }
 
   picked.value = wornItemId.value;
+  nickname.value = wornNickname.value;
 
   // A grant can start or lapse while the dialog is shut; what may be worn is asked again each time.
   void cosmetics.loadOwned({ force: true });
@@ -149,10 +200,23 @@ watch(wornItemId, (worn, wornBefore) => {
   }
 });
 
-/** What Apply would ask the server for. */
-const change = computed<WardrobeChange>(() => itemChange(props.kind.key, picked.value));
+watch(wornNickname, (worn, wornBefore) => {
+  if (props.open && sameNicknameDraft(nickname.value, wornBefore)) {
+    nickname.value = worn;
+  }
+});
 
-const dirty = computed(() => !sameId(picked.value, wornItemId.value));
+/** Whether the axes and the tuning have anything to act on: something chosen, or a bare kind. */
+const configuring = computed(() => bare.value || picked.value !== null);
+
+/** What Apply would ask the server for. */
+const change = computed<WardrobeChange>(() => (bare.value
+  ? nicknameChange(nickname.value, props.kind.key)
+  : itemChange(props.kind.key, picked.value)));
+
+const dirty = computed(() => (bare.value
+  ? !sameNicknameDraft(nickname.value, wornNickname.value)
+  : !sameId(picked.value, wornItemId.value)));
 
 function requestOpen(open: boolean): void {
   if (!open && props.busy) {
@@ -177,6 +241,8 @@ function isPicked(itemId: string): boolean {
 function toggle(item: CatalogueCosmetic | null): void {
   picked.value = item === null ? null : item.cosmeticId;
 }
+
+const axes = computed(() => (props.kind.facets ?? []).filter(facet => cosmetics.isKindEnabled(facet.optionKindKey)));
 
 /** The rest of the look: everything worn that this dialog is not about. */
 const rest = computed(() => (props.profile?.cosmetics ?? []).filter(entry => entry !== current.value));
@@ -271,9 +337,21 @@ const sample = computed(() => me.me?.displayName || "Argon");
 /** The account's own picture: a frame is chosen against the face it will sit on. */
 const face = computed(() => me.me?.avatarFileId ?? undefined);
 
-/** Every catalogue row the draft would put on: the chosen tile. */
+function setAxes(chosen: NicknameAxes): void {
+  nickname.value = { ...nickname.value, axes: chosen };
+}
+
+function setTuning(tuning: NicknameStyleTuning): void {
+  nickname.value = { ...nickname.value, tuning };
+}
+
+const aimable = computed(() => isNicknameDraftAimable(nickname.value));
+
+/** Every catalogue row the draft would put on: the chosen tile, or the chosen axis rows. */
 const draftRows = computed<CatalogueCosmetic[]>(() => {
-  const ids = [picked.value];
+  const ids = bare.value
+    ? [nickname.value.axes.font, nickname.value.axes.effect]
+    : [picked.value];
 
   const rows: CatalogueCosmetic[] = [];
 
@@ -300,6 +378,10 @@ const hovered = ref<CatalogueCosmetic | null>(null);
 const subject = computed(() => {
   if (lockedPick.value !== null) {
     return lockedPick.value;
+  }
+
+  if (bare.value) {
+    return null;
   }
 
   return hovered.value ?? itemById(picked.value);
@@ -358,15 +440,21 @@ function apply(): void {
  * picture of nothing — and a kind with no grid at all could never have one, so half the dialogs
  * said "take it off" one way and half the other.
  *
- * It clears the draft and leaves the rest to Apply, which is how every other click in this dialog
- * behaves.
+ * A kind with tiles clears its draft and leaves the rest to Apply, which is how every other click
+ * in this dialog behaves. A bare kind has no draft to clear — being worn at all is the only thing
+ * its row records — so for that one, taking it off <i>is</i> the change, and it is written.
  */
 function clear(): void {
-  toggle(null);
+  if (!bare.value) {
+    toggle(null);
+    return;
+  }
+
+  emit("apply", unequipChange(props.kind.key));
 }
 
-/** Whether there is anything to take off: something in the draft. */
-const wearing = computed(() => picked.value !== null);
+/** Whether there is anything to take off: something in the draft, or a bare kind that is on. */
+const wearing = computed(() => (bare.value ? bareWorn.value : picked.value !== null));
 
 /** The tiles that can be chosen, in the order the grid draws them: what the arrow keys walk. */
 const choosable = computed(() => props.items.filter(item => wearable(item)));
@@ -433,6 +521,7 @@ function upsell(): void {
 
         <div class="picker-choices">
         <div
+          v-if="!bare"
           class="picker-grid"
           role="radiogroup"
           :aria-label="t(kind.labelKey)"
@@ -487,7 +576,7 @@ function upsell(): void {
           which was the same word the tile itself already carries an inch above — the only reason
           anybody looked down here was to find out why something had a padlock on it.
         -->
-        <div class="picker-caption">
+        <div v-if="!bare || lock" class="picker-caption">
           <div v-if="lock" class="picker-lock-note">
             <component :is="lock.icon" class="w-3 h-3" />
             <span>{{ t(lock.key) }}</span>
@@ -501,6 +590,35 @@ function upsell(): void {
             <span>{{ t("cosmetic_available_until", { date: until }) }}</span>
           </div>
         </div>
+
+        <!--
+          The axes of whatever is on. They belong to the thing being chosen, so they live beside
+          the list and not under the whole dialog, and they read from the draft like everything
+          else here.
+        -->
+        <div v-if="configuring && axes.length > 0" class="picker-axes">
+          <NicknameAxesPicker
+            :kind="kind"
+            :axes="nickname.axes"
+            :tuning="nickname.tuning"
+            :wearable="wearable"
+            :sample="sample"
+            :disabled="busy"
+            @update:axes="setAxes"
+          />
+        </div>
+
+        <!--
+          The part of this that is nobody else's to decide. Only shown once something is on,
+          because there is nothing to tune about an empty slot.
+        -->
+        <NicknameTuning
+          v-if="bare && configuring"
+          :tuning="nickname.tuning"
+          :aimable="aimable"
+          :disabled="busy"
+          @update:tuning="setTuning"
+        />
         </div>
 
         <CosmeticLookPreview
@@ -839,6 +957,24 @@ function upsell(): void {
 
 .picker-upsell:hover {
   color: hsl(var(--foreground));
+}
+
+.picker-axes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/*
+ * The rule above the axes only when there is a list for it to be below.
+ *
+ * The caption is rendered exactly when the grid is, so it is the honest thing to hang this off. A
+ * kind with nothing to choose between opens straight onto its axes, and an unconditional border
+ * drew a line across the top of the column with nothing above it.
+ */
+.picker-caption + .picker-axes {
+  padding-top: 12px;
+  border-top: 1px solid hsl(var(--border) / 0.5);
 }
 
 /*

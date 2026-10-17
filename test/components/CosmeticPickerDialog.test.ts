@@ -1,7 +1,8 @@
 /**
  * The wardrobe picker: a draft until Apply, which emits exactly what goes over the wire — a WornItem
- * for a catalogue kind — and nothing at all while the draft holds a row this account may not wear.
- * Taking a kind off is a draft too, sent as an unequip.
+ * for a catalogue kind, a WornNickname for the bare nickname look — and nothing at all while the
+ * draft holds a row this account may not wear. Taking a tiled kind off is a draft too, sent as an
+ * unequip; taking a bare kind off is written at once.
  */
 
 import {
@@ -112,12 +113,47 @@ vi.mock("@/components/settings/cosmetics/CosmeticCell.vue", async () => {
 
   return { default: defineComponent({ setup: () => () => renderNode("span") }) };
 });
+vi.mock("@/cosmetics/tuning/NicknameTuning.vue", async () => {
+  const { defineComponent, h: renderNode } = await import("vue");
+
+  return {
+    default: defineComponent({
+      name: "NicknameTuning",
+      props: { tuning: { type: Object, required: true }, aimable: Boolean, disabled: Boolean },
+      emits: ["update:tuning"],
+      setup: () => () => renderNode("div", { class: "tuning-stub" }),
+    }),
+  };
+});
+vi.mock("@/components/settings/cosmetics/NicknameAxes.vue", async () => {
+  const { defineComponent, h: renderNode } = await import("vue");
+
+  return {
+    default: defineComponent({
+      name: "NicknameAxes",
+      props: {
+        kind: { type: Object, required: true },
+        axes: { type: Object, required: true },
+        tuning: { type: Object, required: true },
+        wearable: { type: Function, required: true },
+        sample: { type: String, required: true },
+        disabled: Boolean,
+      },
+      emits: ["update:axes"],
+      setup: () => () => renderNode("div", { class: "picker-axis" }),
+    }),
+  };
+});
 
 import {
   FrameRing,
+  NicknameGradientShape,
   PayloadAvatarDecoration,
+  PayloadFont,
   PayloadProfileFrame,
+  PayloadTextEffect,
   WornItem,
+  WornNickname,
   type ArgonUserProfile,
   type CatalogueCosmetic,
   type CosmeticCatalogue,
@@ -125,6 +161,8 @@ import {
   type IWornCosmetic,
 } from "@argon/glue";
 
+import type { NicknameAxes } from "@/cosmetics/wire";
+import type { NicknameStyleTuning } from "@/cosmetics/kinds/nickname-style";
 import type { WardrobeChange } from "@/components/settings/cosmetics/wardrobeChange";
 import CosmeticPickerDialog from "@/components/settings/cosmetics/CosmeticPickerDialog.vue";
 import { resolveKind } from "@/cosmetics/registry";
@@ -135,6 +173,8 @@ const FREE_FRAME = "aaaaaaaa-0000-0000-0000-000000000001";
 const LOCKED_FRAME = "aaaaaaaa-0000-0000-0000-000000000002";
 const WORN_FRAME = "aaaaaaaa-0000-0000-0000-000000000003";
 const DECORATION = "aaaaaaaa-0000-0000-0000-000000000004";
+const FONT = "aaaaaaaa-0000-0000-0000-000000000005";
+const LOCKED_GLOW = "aaaaaaaa-0000-0000-0000-000000000006";
 
 const ring = new FrameRing(true, 100, null, null, 2, [0xff00ff00 | 0], 90, 0);
 
@@ -164,12 +204,14 @@ function row(
 }
 
 const catalogue: CosmeticCatalogue = {
-  enabledKinds: ["avatar.decoration", "profile.frame"],
+  enabledKinds: ["avatar.decoration", "profile.frame", "nickname.style", "option.font", "option.text-effect"],
   items: [
     row(FREE_FRAME, "profile.frame", "vines", new PayloadProfileFrame([ring]), { free: true }),
     row(LOCKED_FRAME, "profile.frame", "gilded", new PayloadProfileFrame([ring]), { ultima: true }),
     row(WORN_FRAME, "profile.frame", "thorns", new PayloadProfileFrame([ring]), { free: true }),
     row(DECORATION, "avatar.decoration", "halo", new PayloadAvatarDecoration(10, false), { free: true }),
+    row(FONT, "option.font", "lato", new PayloadFont("Lato"), { free: true }),
+    row(LOCKED_GLOW, "option.text-effect", "glow", new PayloadTextEffect()),
   ],
 };
 
@@ -230,6 +272,22 @@ function applyButton(wrapper: Picker) {
 
 function applied(wrapper: Picker): WardrobeChange[] {
   return (wrapper.emitted("apply") ?? []).map(args => args[0] as WardrobeChange);
+}
+
+async function tune(wrapper: Picker, tuning: Partial<NicknameStyleTuning>): Promise<void> {
+  const editor = wrapper.getComponent({ name: "NicknameTuning" });
+  const current = editor.props("tuning") as NicknameStyleTuning;
+
+  editor.vm.$emit("update:tuning", { ...current, ...tuning });
+  await flushPromises();
+}
+
+async function chooseAxes(wrapper: Picker, axes: Partial<NicknameAxes>): Promise<void> {
+  const picker = wrapper.getComponent({ name: "NicknameAxes" });
+  const current = picker.props("axes") as NicknameAxes;
+
+  picker.vm.$emit("update:axes", { ...current, ...axes });
+  await flushPromises();
 }
 
 beforeEach(async () => {
@@ -482,6 +540,128 @@ describe("keyboard", () => {
     await tileNamed(wrapper, "thorns").trigger("keydown", { key: "Home", altKey: true });
 
     expect(tileNamed(wrapper, "thorns").attributes("aria-checked")).toBe("true");
+
+    wrapper.unmount();
+  });
+});
+
+describe("nickname look", () => {
+  test("opens on its axes and tuning, with no list and no caption", async () => {
+    const wrapper = await mountPicker("nickname.style", wearing());
+
+    expect(wrapper.findAll(".picker-cell")).toHaveLength(0);
+    expect(wrapper.find(".picker-caption").exists()).toBe(false);
+    expect(wrapper.findComponent({ name: "NicknameAxes" }).exists()).toBe(true);
+    expect(wrapper.findComponent({ name: "NicknameTuning" }).exists()).toBe(true);
+
+    wrapper.unmount();
+  });
+
+  test("a font and a colour are applied as one WornNickname", async () => {
+    const wrapper = await mountPicker("nickname.style", wearing());
+
+    await chooseAxes(wrapper, { font: FONT });
+    await tune(wrapper, { colors: [0xffff0000 | 0] });
+    await applyButton(wrapper).trigger("click");
+
+    const [change] = applied(wrapper);
+
+    expect(change.action).toBe("equip");
+    expect(change.kindKey).toBe("nickname.style");
+
+    const worn = (change as Extract<WardrobeChange, { action: "equip" }>).worn as WornNickname;
+
+    expect(worn).toBeInstanceOf(WornNickname);
+    expect(worn.font).toBe(FONT);
+    expect(worn.effect).toBeNull();
+    expect(worn.colors).toHaveLength(1);
+
+    wrapper.unmount();
+  });
+
+  test("a locked effect in the draft blocks apply and says why", async () => {
+    const wrapper = await mountPicker("nickname.style", wearing());
+
+    await chooseAxes(wrapper, { effect: LOCKED_GLOW });
+
+    expect(applyButton(wrapper).attributes("disabled")).toBeDefined();
+    expect(wrapper.get(".picker-caption").text()).toContain("cosmetic_locked_grant");
+
+    wrapper.unmount();
+  });
+
+  test("a direction is only offered once there is something to aim", async () => {
+    const wrapper = await mountPicker("nickname.style", wearing());
+    const editor = () => wrapper.getComponent({ name: "NicknameTuning" });
+
+    expect(editor().props("aimable")).toBe(false);
+
+    await tune(wrapper, { colors: [0xffff0000 | 0, 0xff0000ff | 0] });
+
+    expect(editor().props("aimable")).toBe(true);
+
+    wrapper.unmount();
+  });
+
+  test("editing one field of a fully worn look keeps every other field", async () => {
+    h.getMyCosmetics.mockResolvedValue({ owned: [{ cosmeticId: LOCKED_GLOW, expiresAt: null, viaSubscription: false }] });
+
+    const worn = new WornNickname(FONT, LOCKED_GLOW, [0xffff0000 | 0, 0xff0000ff | 0], 45, NicknameGradientShape.Radial, true, 700, 5);
+    const wrapper = await mountPicker("nickname.style", wearing(worn));
+
+    await tune(wrapper, { colors: [0xffff0000 | 0, 0xff0000ff | 0, 0xff00ff00 | 0] });
+    await applyButton(wrapper).trigger("click");
+
+    const [change] = applied(wrapper);
+    const sent = (change as Extract<WardrobeChange, { action: "equip" }>).worn as WornNickname;
+
+    expect(sent.colors).toHaveLength(3);
+    expect(sent.font).toBe(FONT);
+    expect(sent.effect).toBe(LOCKED_GLOW);
+    expect(sent.angle).toBe(45);
+    expect(sent.shape).toBe(NicknameGradientShape.Radial);
+    expect(sent.animate).toBe(true);
+    expect(sent.weight).toBe(700);
+    expect(sent.letterSpacing).toBe(5);
+
+    wrapper.unmount();
+  });
+
+  test("an axis row the catalogue no longer has is dropped from the next Apply", async () => {
+    const worn = new WornNickname("cccccccc-0000-0000-0000-000000000000", null, [0xffff0000 | 0], null, null, null, null, null);
+    const wrapper = await mountPicker("nickname.style", wearing(worn));
+
+    expect(applyButton(wrapper).attributes("disabled")).toBeDefined();
+
+    await tune(wrapper, { colors: [0xffff0000 | 0, 0xff0000ff | 0] });
+    await applyButton(wrapper).trigger("click");
+
+    const [change] = applied(wrapper);
+
+    expect(((change as Extract<WardrobeChange, { action: "equip" }>).worn as WornNickname).font).toBeNull();
+
+    wrapper.unmount();
+  });
+
+  test("taking the look off is written at once, since being on is all a bare kind records", async () => {
+    const worn = new WornNickname(FONT, null, [0xffff0000 | 0], null, null, null, 700, null);
+    const wrapper = await mountPicker("nickname.style", wearing(worn));
+
+    await buttonSaying(wrapper, "cosmetic_clear")!.trigger("click");
+
+    expect(applied(wrapper)).toEqual([{ action: "unequip", kindKey: "nickname.style" }]);
+
+    wrapper.unmount();
+  });
+
+  test("clearing everything from a worn look takes it off", async () => {
+    const worn = new WornNickname(null, null, [0xffff0000 | 0], null, null, null, null, null);
+    const wrapper = await mountPicker("nickname.style", wearing(worn));
+
+    await tune(wrapper, { colors: null });
+    await applyButton(wrapper).trigger("click");
+
+    expect(applied(wrapper)).toEqual([{ action: "unequip", kindKey: "nickname.style" }]);
 
     wrapper.unmount();
   });

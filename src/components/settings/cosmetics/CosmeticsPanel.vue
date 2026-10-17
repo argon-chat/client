@@ -69,6 +69,12 @@ function wornLabel(kindKey: string): string {
     return t("none");
   }
 
+  // A bare kind has no row to name. What it is, is what was set on it, and the line beside this
+  // already draws that — so the word here is only whether anything was.
+  if (kinds.value.find(kind => kind.key === kindKey)?.bare) {
+    return t("cosmetic_configured");
+  }
+
   const item = cosmetics.itemById(asWornItem(worn)?.itemId);
 
   return item ? cosmeticName(item, currentLocale.value) : t("none");
@@ -107,8 +113,7 @@ onMounted(async () => {
  * kinds are absent for a different reason — a font is not a thing you wear, it is a thing you
  * choose on the axis of something you do.
  */
-// A bare kind is set up in its own editor rather than picked from a grid; none is offered yet.
-const kinds = computed(() => cosmetics.wearableKinds.filter(kind => kind.bare !== true));
+const kinds = computed(() => cosmetics.wearableKinds);
 
 async function run(action: () => Promise<CosmeticError | null>): Promise<boolean> {
   if (busy.value) {
