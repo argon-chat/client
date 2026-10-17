@@ -73,6 +73,7 @@ const TransactionSettings = defineAsyncComponent(() => import("./settings/Transa
 const ConnectionsSettings = defineAsyncComponent(() => import("./settings/ConnectionsSettings.vue"));
 import { useConfigStore } from "@/store/ui/configStore";
 import { useFeatureFlags } from "@/store/features/featureFlagsStore";
+import { isEscapeLayerOpen } from "@/lib/modalLayers";
 
 // Stores
 const { t } = useLocale();
@@ -165,9 +166,16 @@ const changeCategory = (categoryId: string) => {
 };
 
 const handleEscape = (event: KeyboardEvent) => {
-    if (event.key === "Escape" && windows.settingsOpen) {
-        closeSettings();
+    if (event.key !== "Escape" || !windows.settingsOpen) {
+        return;
     }
+
+    // A dialog that claimed Escape owns it; one press must not close both.
+    if (isEscapeLayerOpen()) {
+        return;
+    }
+
+    closeSettings();
 };
 
 // Lifecycle

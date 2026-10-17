@@ -212,6 +212,13 @@
           </div>
         </div>
 
+        <!--
+          Cosmetics live in their own component rather than in this file: this one is already past
+          two and a half thousand lines and holds sessions, passkeys, phone, email and the danger
+          zone as well as the profile. It renders nothing when the build ships no enabled kinds.
+        -->
+        <CosmeticsPanel :can-upsell="ultimaActive && !me.isPremium" @upsell="scrollToUpsell" />
+
         <!-- Username Card (read-only, separate) -->
         <div class="setting-card">
           <div class="flex items-center gap-2 mb-4">
@@ -829,6 +836,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, shallowRef } from "vue";
+import { storeToRefs } from "pinia";
 
 // The security-details subscription is bound in onMounted; without an unsubscribe every opening of
 // this pane (and every account switch, which remounts it) left another permanent bus subscriber
@@ -854,6 +862,7 @@ import AvatarCropDialog from "./AvatarCropDialog.vue";
 import ChangeEmailDialog from "./ChangeEmailDialog.vue";
 import ActiveSessions from "./ActiveSessions.vue";
 import ProfileCardPreview from "./ProfileCardPreview.vue";
+import CosmeticsPanel from "./cosmetics/CosmeticsPanel.vue";
 import UltimaCheckoutDialog from "@/components/modals/UltimaCheckoutDialog.vue";
 import QRStyled from "../login/QRStyled.vue";
 import { useMe } from "@/store/auth/meStore";
@@ -903,7 +912,7 @@ const { toast } = useToast();
 
 const api = useApi();
 const bus = useBus();
-const { passkeyActive, autoDeleteAccountActive, ultimaActive } = useFeatureFlags();
+const { passkeyActive, autoDeleteAccountActive, ultimaActive } = storeToRefs(useFeatureFlags());
 
 // ── Ultima Upsell State ──
 const ultima = useUltimaStore();
