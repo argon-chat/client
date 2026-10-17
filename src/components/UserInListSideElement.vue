@@ -1,19 +1,22 @@
 <template>
   <Popover v-if="props.enablePopup" v-model:open="isOpened">
-    <PopoverContent style="width: 24rem;"
-      class="profile-popover p-0 rounded-2xl shadow-xl border overflow-hidden">
+    <!-- Not clipped: a worn frame draws deliberately outside the card, and the card rounds itself. -->
+    <PopoverContent style="width: 24rem;" :collision-padding="popoverRoom"
+      class="profile-popover p-0 rounded-2xl shadow-xl border overflow-visible">
       <UserProfilePopover :user-id="user.userId" @close:pressed="isOpened = false" @report="onReportProfile" />
     </PopoverContent>
     <PopoverTrigger as-child>
       <div class="user-element" :class="{ 'is-offline': isOffline }" v-on="rowEvents">
         <div class="user-avatar-wrap">
-          <ArgonAvatar :fallback="user.displayName" :file-id="user.avatarFileId" :user-id="user.userId"
-            :overridedSize="34" />
+          <ArgonAvatar :fallback="user.displayName"
+            :file-id="user.avatarFileId"
+            :user-id="user.userId"
+            :overridedSize="34" :profile="worn" />
           <StatusDot :status="user.status" class="status-dot" />
         </div>
         <div class="user-text">
           <span class="user-name-row">
-            <span class="user-name">{{ user.displayName }}</span>
+            <CosmeticNickname class="user-name" surface="memberListRow" :profile="worn">{{ user.displayName }}</CosmeticNickname>
             <BotTag :flags="user.flags" />
           </span>
           <span class="user-activity" v-if="user.activity && props.showActivity">
@@ -31,13 +34,15 @@
 
   <div v-else class="user-element" :class="{ 'is-offline': isOffline }" v-on="rowEvents">
     <div class="user-avatar-wrap">
-      <ArgonAvatar :fallback="user.displayName" :file-id="user.avatarFileId" :user-id="user.userId"
-        :overridedSize="34" />
+      <ArgonAvatar :fallback="user.displayName"
+        :file-id="user.avatarFileId"
+        :user-id="user.userId"
+        :overridedSize="34" :profile="worn" />
       <StatusDot :status="user.status" class="status-dot" />
     </div>
     <div class="user-text">
       <span class="user-name-row">
-        <span class="user-name">{{ user.displayName }}</span>
+        <CosmeticNickname class="user-name" surface="memberListRow" :profile="worn">{{ user.displayName }}</CosmeticNickname>
         <BotTag :flags="user.flags" />
       </span>
       <span class="user-activity" v-if="user.activity && props.showActivity">
@@ -71,13 +76,17 @@ import {
 } from "@argon/ui/popover";
 import UserProfilePopover from "./popovers/UserProfilePopover.vue";
 import ReportDialog from "./modals/ReportDialog.vue";
-import { ref, computed, watch, onUnmounted, shallowRef } from "vue";
+import { ref, computed } from "vue";
 import { ActivityPresenceKind, ReportTargetKind, UserStatus } from "@argon/glue";
 import { Gamepad2, Headphones, Monitor, Radio } from "lucide-vue-next";
 import { usePoolStore } from "@/store/data/poolStore";
-import { useProfileCacheStore, type ProfileStatus } from "@/store/data/profileCacheStore";
 import StatusEmoji from "@/components/expressions/StatusEmoji.vue";
 import { hasCustomStatus } from "@/lib/statusIcon";
+import CosmeticNickname from "@/cosmetics/CosmeticNickname.vue";
+import { useCosmeticOverhang } from "@/composables/useCosmeticFit";
+import { useCosmeticsDrawnOn } from "@/composables/useCosmeticsDrawnOn";
+import { useProfileStatus } from "@/composables/useProfileStatus";
+import { useWornProfile } from "@/composables/useWornProfile";
 
 const isOpened = ref(false);
 const reportDialogOpen = ref(false);
@@ -107,42 +116,52 @@ const rowEvents = {
   focusin: () => (focused.value = true),
   focusout: () => (focused.value = false),
 };
-const profileCache = useProfileCacheStore();
-/** Set only when there is something to show: text, an icon, or both. */
-const status = shallowRef<ProfileStatus | null>(null);
-
 // A custom status is only ever rendered when the row is showing activity at all and the member has
 // no activity to show instead. The member list is virtualised, so every row used to ask for a full
 // profile on mount — including the rows that had nowhere to put the answer (the role editor renders
 // them with show-activity off) and the ones the user scrolled straight past.
 const wantsStatus = computed(() => props.showActivity && !props.user.activity);
 
-let inflight: AbortController | null = null;
-
-watch(
-  () => [pool.selectedServer, props.user.userId, wantsStatus.value] as const,
-  ([spaceId, userId, wanted]) => {
-    inflight?.abort();
-    inflight = null;
-    status.value = null;
-
-    if (!wanted || !spaceId) return;
-
-    const request = new AbortController();
-    inflight = request;
-    profileCache
-      .getStatus(spaceId, userId, { signal: request.signal })
-      .then(row => {
-        if (!request.signal.aborted) status.value = hasCustomStatus(row) ? row : null;
-      })
-      // Aborted on unmount, or the member's profile could not be read — the row renders without it.
-      .catch(() => {});
-  },
-  { immediate: true },
-);
+// What a member wears rides the same row, so a member with an activity is asked too — but only in
+// the member list, and only while the catalogue has anything on for a row to draw — or for the card
+// it opens, whose frame keeps that card clear of the window through this same row.
+const cosmeticsDrawn = useCosmeticsDrawnOn(["memberListRow", "avatar", "profileCard"]);
+const wantsCosmetics = computed(() => props.showActivity && cosmeticsDrawn.value);
 
 // Scrolling a row out of view drops its request before it reaches the wire.
-onUnmounted(() => inflight?.abort());
+const row = useProfileStatus(
+  () => pool.selectedServer,
+  () => props.user.userId,
+  () => !!pool.selectedServer && (wantsStatus.value || wantsCosmetics.value),
+);
+
+/** Set only when there is something to show: text, an icon, or both. */
+const status = computed(() => {
+  if (!wantsStatus.value || !hasCustomStatus(row.value)) {
+    return null;
+  }
+
+  return row.value;
+});
+
+const heldWorn = computed(() => {
+  if (!wantsCosmetics.value) {
+    return null;
+  }
+
+  return row.value;
+});
+
+const worn = useWornProfile(() => props.user.userId, heldWorn);
+
+/**
+ * How far this person's frame hangs outside their card, kept as room between the card and the window.
+ *
+ * A popover is placed by measuring its own box, and a frame draws outside that box on purpose — so a
+ * card opened from this list, which lives against the right edge, had its right-hand side cut off by
+ * the window. Zero for anyone wearing nothing, and the card sits where it always did.
+ */
+const popoverRoom = useCosmeticOverhang(worn);
 
 const getTextForActivityKind = (activityKind: ActivityPresenceKind) => {
   switch (activityKind) {
@@ -236,7 +255,11 @@ function onReportProfile(userId: string) {
   font-weight: 600;
   color: hsl(var(--foreground));
   white-space: nowrap;
-  overflow: hidden;
+
+  /* Clip, not hidden: a worn glow may then spill past the box by the room the name style leaves it.
+     Clip is no scroll container, which is what let the name shrink before; hence the min-width. */
+  overflow: clip;
+  min-width: 0;
   text-overflow: ellipsis;
 }
 

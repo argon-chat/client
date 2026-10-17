@@ -1,7 +1,8 @@
 <template>
     <Popover v-model:open="isOpened">
-        <PopoverContent style="width: 24rem;"
-            class="profile-popover p-0 rounded-2xl shadow-xl border border-border bg-popover text-popover-foreground overflow-hidden">
+        <!-- Not clipped: a worn frame draws deliberately outside the card, and the card rounds itself. -->
+        <PopoverContent style="width: 24rem;" :collision-padding="popoverRoom"
+            class="profile-popover p-0 rounded-2xl shadow-xl border border-border bg-popover text-popover-foreground overflow-visible">
             <UserProfilePopover :user-id="user!.userId" @close:pressed="isOpened = false" @report="onReportProfile" />
         </PopoverContent>
         <PopoverTrigger>
@@ -22,7 +23,14 @@
 import type { RealtimeUser } from "@/store/db/dexie";
 import { useMe } from "@/store/auth/meStore";
 import { usePoolStore } from "@/store/data/poolStore";
-import { computed, ref } from "vue";
+import {
+  NO_EDGES,
+  type CosmeticEdges,
+} from "@/cosmetics/edges";
+import { useCosmeticOverhang } from "@/composables/useCosmeticFit";
+import { useProfileStatus } from "@/composables/useProfileStatus";
+import { useWornProfile } from "@/composables/useWornProfile";
+import { computed, ref, shallowRef, watchEffect } from "vue";
 import UserProfilePopover from "../popovers/UserProfilePopover.vue";
 import ReportDialog from "../modals/ReportDialog.vue";
 import {
@@ -43,6 +51,29 @@ const props = defineProps<{
 }>();
 
 const user = computed(() => pool.getUserReactive(computed(() => props.entity.userId)).value);
+
+/**
+ * Room between the card and the window for whatever this person's frame hangs outside it. Asked
+ * only while the card is open, through the same cache entry the card reads, so it costs no call.
+ */
+const worn = useWornProfile(
+  () => props.entity.userId,
+  useProfileStatus(() => pool.selectedServer, () => props.entity.userId, isOpened),
+);
+const overhang = useCosmeticOverhang(worn);
+
+/**
+ * The room the card opened with, kept while it animates out: the status is dropped the moment the
+ * card closes, and room falling to zero then moved the card in the middle of its exit.
+ */
+const popoverRoom = shallowRef<CosmeticEdges>(NO_EDGES);
+
+watchEffect(() => {
+  if (isOpened.value) {
+    popoverRoom.value = overhang.value;
+  }
+});
+
 const me = useMe();
 
 const isForMeMention = computed(() => user.value?.userId === me.me?.userId);

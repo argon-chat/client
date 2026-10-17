@@ -45,13 +45,16 @@
               :file-id="user.avatarFileId"
               :fallback="user.displayName"
               :userId="user.userId"
+              :profile="authorWorn"
               :overrided-size="36"
               class="w-9 h-9 rounded-full cursor-pointer transition-transform hover:scale-105"
             />
           </PopoverTrigger>
+          <!-- Not clipped: a worn frame draws deliberately outside the card, and the card rounds itself. -->
           <PopoverContent
             style="width: 24rem"
-            class="p-0 rounded-2xl shadow-xl border border-border bg-popover text-popover-foreground overflow-hidden"
+            :collision-padding="popoverRoom"
+            class="profile-popover p-0 rounded-2xl shadow-xl border border-border bg-popover text-popover-foreground overflow-visible"
           >
             <UserProfilePopover :user-id="user!.userId" @close:pressed="profileOpen = false" @report="onReportProfile" />
           </PopoverContent>
@@ -84,12 +87,19 @@
           </span>
         </template>
         <template v-else-if="user">
-          <span
+          <!--
+            The role colour goes in as the fallback and nowhere else. Set as an inline style it won the
+            cascade against what the person is wearing, so a styled name came out flat here and styled
+            everywhere else; handed over, it is what gets painted only when nothing is worn.
+          -->
+          <CosmeticNickname
             class="text-[13px] font-semibold leading-none"
-            :style="{ color: userColor }"
+            surface="nicknameInMessages"
+            :profile="authorWorn"
+            :fallback-color="userColor"
           >
             {{ user.displayName || t('unknown_display_name') }}
-          </span>
+          </CosmeticNickname>
 
           <BotTag :flags="user?.flags" />
         </template>
@@ -540,6 +550,11 @@ import { EXPRESSION_INFO_SPACE, type ExpressionInfoTarget } from "@/lib/expressi
 import { CUSTOM_EMOJI_SIZE } from "./chats/customEmojiSize";
 
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
+import { useCosmeticOverhang } from "@/composables/useCosmeticFit";
+import CosmeticNickname from "@/cosmetics/CosmeticNickname.vue";
+import { useCosmeticsDrawnOn } from "@/composables/useCosmeticsDrawnOn";
+import { useProfileStatus } from "@/composables/useProfileStatus";
+import { useWornProfile } from "@/composables/useWornProfile";
 import BotTag from "@/components/shared/BotTag.vue";
 import MessageWebhookAuthor from "./chats/MessageWebhookAuthor.vue";
 import UserProfilePopover from "./popovers/UserProfilePopover.vue";
@@ -929,6 +944,32 @@ const spaceHeader = computed(() => {
   const header = cardHeader(a.settings, { name: user.value?.displayName || t("unknown_display_name"), avatarFileId: user.value?.avatarFileId ?? null }, a.space);
   return header.asSpace ? header : null;
 });
+
+// Only a group's first message draws its author, so only it joins the profile cache's batched queue;
+// the caller's own look comes from meProfile and asks for nothing. The card it opens counts too: its
+// frame keeps that card clear of the window through this same row.
+const authorCosmeticsDrawn = useCosmeticsDrawnOn(["nicknameInMessages", "avatar", "profileCard"]);
+
+const drawsAuthor = computed(() =>
+  !!props.isFirstInGroup
+  && !!user.value
+  && !props.message.crosspost
+  && !webhook.value
+  && !spaceHeader.value
+  && authorCosmeticsDrawn.value
+  && props.message.sender !== me.me?.userId,
+);
+
+// A direct message has no space, and the profile cache answers a null space with the space-less lookup.
+const authorSpaceId = computed(() => props.message.spaceId || null);
+
+const authorStatus = useProfileStatus(authorSpaceId, userIdRef, drawsAuthor);
+
+const authorWorn = useWornProfile(userIdRef, authorStatus);
+
+/** Room between the card and the window for whatever this person's frame hangs outside it. */
+const popoverRoom = useCosmeticOverhang(authorWorn);
+
 // A crosspost is a copy: an edit here would never reach the original. A sticker has no text to edit.
 const canEditThis = computed(
   () => props.canEdit && isOwnMessage.value && !isOptimistic.value && !isFailed.value && !props.message.crosspost && !isStickerOnly.value,

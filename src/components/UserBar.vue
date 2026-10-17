@@ -3,10 +3,20 @@
     <Popover>
       <PopoverTrigger as-child>
         <button type="button" class="user-info" style="width: 150px;">
-          <ArgonAvatar class="user-avatar" :fallback="me.me.displayName" :file-id="me.me?.avatarFileId"
-            :user-id="me.me.userId" />
+          <!--
+            The look worn, decoration and all. This bar is the one place somebody sees themselves as
+            everybody else sees them.
+          -->
+          <ArgonAvatar class="user-avatar" :fallback="me.me.displayName"
+            :file-id="me.me?.avatarFileId"
+            :user-id="me.me.userId" :profile="me.meProfile" />
+
           <div class="user-details items-start">
-            <span class="user-name">{{ me.me?.displayName }}</span>
+            <CosmeticNickname
+              class="user-name"
+              surface="memberListRow"
+              :profile="me.meProfile"
+            >{{ me.me?.displayName }}</CosmeticNickname>
             <span :class="['user-status', me.statusClass(me.me!.currentStatus, false)]">
               {{ t(`status_${me.me?.currentStatus}`) }}
             </span>
@@ -35,6 +45,7 @@
 import { ref } from "vue";
 import { useMe } from "@/store/auth/meStore";
 import ArgonAvatar from "./ArgonAvatar.vue";
+import CosmeticNickname from "@/cosmetics/CosmeticNickname.vue";
 import { useWindow } from "@/store/ui/windowStore";
 import { Settings } from "lucide-vue-next";
 import { useLocale } from "@/store/system/localeStore";
@@ -75,10 +86,11 @@ const addAccountOpen = ref(false);
 }
 
 .user-avatar {
+  flex: 0 0 auto;
   width: 38px;
   height: 38px;
-  border-radius: 50%;
   margin-right: 10px;
+  border-radius: 50%;
 }
 
 .user-details {

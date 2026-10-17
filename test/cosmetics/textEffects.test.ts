@@ -87,11 +87,34 @@ describe("glow", () => {
 });
 
 describe("shimmer", () => {
-  it("lays the colours out twice so the sweep loops with no jump", () => {
+  it("lays a band over the colours as they are, rather than reshaping them", () => {
     const style = textEffect("shimmer")!.style(context(["#111111", "#222222"]));
+    const [band, colours] = style!.backgroundImage.split(/,\s*(?=linear-gradient)/);
 
-    expect(style!.backgroundImage).toBe("linear-gradient(90deg, #111111, #222222, #111111, #222222)");
-    expect(style!.backgroundSize).toBe("250% 100%");
+    expect(band).toContain("transparent 40%");
+    expect(colours).toBe("linear-gradient(90deg, #111111, #222222)");
+    expect(style!.backgroundSize).toBe("250% 100%, auto");
+    expect(style!.backgroundPosition).toBe("var(--cosmetic-shimmer) 0, 0 0");
+    expect(style!.animation).toBe("cosmetic-shimmer 4s linear infinite");
+  });
+
+  it("keeps the wearer's own travel running under the band", () => {
+    const travelling: TextEffectContext = {
+      ...context(["#111111", "#222222"]),
+      gradient: (...laid) => ({
+        backgroundImage: `linear-gradient(90deg, ${laid.join(", ")})`,
+        backgroundSize: "200% 100%",
+        backgroundPosition: "var(--cosmetic-name-drift) 0",
+        animation: "cosmetic-name-drift 6s linear infinite",
+      }),
+    };
+
+    const style = textEffect("shimmer")!.style(travelling);
+
+    expect(style!.backgroundImage).toContain("linear-gradient(90deg, #111111, #222222)");
+    expect(style!.backgroundSize).toBe("250% 100%, 200% 100%");
+    expect(style!.backgroundPosition).toBe("var(--cosmetic-shimmer) 0, var(--cosmetic-name-drift) 0");
+    expect(style!.animation).toBe("cosmetic-name-drift 6s linear infinite, cosmetic-shimmer 4s linear infinite");
   });
 
   it("brings its own keyframes, which a still treatment does not", () => {

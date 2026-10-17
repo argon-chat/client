@@ -79,7 +79,7 @@ vi.mock("@/store/data/ultimaStore", () => ({
 }));
 vi.mock("@/lib/uploadFile", () => ({ uploadFile: async () => ({ blobId: "b" }) }));
 vi.mock("@/store/data/poolStore", () => ({ usePoolStore: () => ({ selectedServer: "s1" }) }));
-vi.mock("@/store/data/profileCacheStore", () => ({ useProfileCacheStore: () => ({ getStatus: h.getStatus }) }));
+vi.mock("@/store/data/profileCacheStore", () => ({ useProfileCacheStore: () => ({ getStatus: h.getStatus, revisionOf: () => 0 }) }));
 vi.mock("@/components/settings/AvatarCropDialog.vue", () => h.stub("AvatarCropDialog"));
 vi.mock("@/components/settings/ActiveSessions.vue", () => h.stub("ActiveSessions"));
 vi.mock("@/components/modals/UltimaCheckoutDialog.vue", () => h.stub("UltimaCheckoutDialog"));
