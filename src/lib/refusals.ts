@@ -1,6 +1,7 @@
 import {
   ArchetypeError,
   ChannelLayoutError,
+  CosmeticError,
   EmailChangeError,
   ExpressionError,
   RegistrationError,
@@ -60,6 +61,16 @@ const EXPRESSION: Partial<Record<ExpressionError, string>> = {
   [ExpressionError.NAME_TAKEN]: "expression_error_name_taken",
   [ExpressionError.CONTENT_REJECTED]: "expression_error_content_rejected",
   [ExpressionError.RATE_LIMITED]: "expression_error_rate_limited",
+};
+
+const COSMETIC: Partial<Record<CosmeticError, string>> = {
+  [CosmeticError.NOT_FOUND]: "cosmetic_error_not_found",
+  [CosmeticError.UNKNOWN_KIND]: "cosmetic_error_unknown_kind",
+  [CosmeticError.KIND_DISABLED]: "cosmetic_error_kind_disabled",
+  [CosmeticError.ITEM_UNAVAILABLE]: "cosmetic_error_item_unavailable",
+  [CosmeticError.NOT_OWNED]: "cosmetic_error_not_owned",
+  [CosmeticError.CHOICE_INVALID]: "cosmetic_error_choice_invalid",
+  [CosmeticError.VALUE_OUT_OF_RANGE]: "cosmetic_error_value_out_of_range",
 };
 
 const UPDATE_ME: Partial<Record<UpdateMeError, string>> = {
@@ -131,6 +142,10 @@ export function archetypeErrorKey(error: ArchetypeError): string {
 
 export function expressionErrorKey(error: ExpressionError): string {
   return EXPRESSION[error] ?? "expression_error_unknown";
+}
+
+export function cosmeticErrorKey(error: CosmeticError): string {
+  return COSMETIC[error] ?? "cosmetic_equip_failed";
 }
 
 export function updateMeErrorKey(error: UpdateMeError): string {
