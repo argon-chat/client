@@ -31,6 +31,7 @@
                 :accent-color="editAccentColor"
                 :avatar-preview="avatarLocalPreview"
                 :avatar-upload-failed="avatarUploadFailed"
+                :profile="me.meProfile"
                 editable
                 @click-avatar="avatarFileInput?.click()"
               />

@@ -531,7 +531,13 @@ const formatColour = (argb: number) => {
   border-radius: calc(var(--radius) - 4px);
   cursor: pointer;
   transition: background 0.15s ease;
-  overflow: hidden;
+
+  /*
+   * No clip. The row is exactly as tall as an avatar's decoration is wide, so hiding what leaves it
+   * took the top and bottom off every one of them. Nothing here needs the row to clip: the hover
+   * background is a background and follows the corners on its own, and a long name is cut by its
+   * own rule.
+   */
 }
 
 .user-item:hover {

@@ -1,7 +1,11 @@
 <template>
     <template v-if="!isLoading && user && userProfile">
         <Transition name="profile-reveal" appear>
-        <div class="popover-inner" :style="cardGlowStyle">
+        <div
+            class="popover-inner"
+            :style="[cardGlowStyle, cosmeticFit.style]"
+            :data-framed="framedSides"
+        >
             <!-- Three-dot menu -->
             <div class="popover-menu-anchor">
                 <DropdownMenu v-model:open="menuOpen">
@@ -36,6 +40,17 @@
                 <div v-else class="card-bg-media card-bg-default" />
             </div>
 
+            <!--
+              Over everything on the card: the frame around it. Outside the background wrapper on
+              purpose — that one is under the card's own contents, and a frame's whole point is that
+              it is not.
+            -->
+            <CosmeticSurface
+                surface="profileCard"
+                :profile="wornProfile"
+                :primitives="OVERLAY_PRIMITIVES"
+            />
+
             <!-- Empty hero zone to reserve space for the background -->
             <div class="hero-spacer"></div>
 
@@ -52,14 +67,21 @@
                     <div class="profile-header">
                         <div class="avatar-anchor">
                             <div class="hero-avatar" :style="avatarRingStyle">
-                                <ArgonAvatar :fallback="user.displayName" :file-id="user.avatarFileId" :user-id="props.userId"
-                                    :overridedSize="80" />
+                                <ArgonAvatar :fallback="user.displayName"
+                                    :file-id="user.avatarFileId"
+                                    :user-id="props.userId"
+                                    :overridedSize="80" :profile="wornProfile" />
                                 <StatusDot :status="user.status" :size="18" class="status-dot-pos" />
                             </div>
                         </div>
                         <div class="hero-info">
                             <div class="hero-name-row">
-                                <span class="hero-display-name" :style="nameAccentStyle">{{ user.displayName }}</span>
+                                <CosmeticNickname
+                                    class="hero-display-name"
+                                    :profile="wornProfile"
+                                    surface="profileCard"
+                                    :fallback-color="nameAccentColor"
+                                >{{ user.displayName }}</CosmeticNickname>
                                 <BotTag :flags="user.flags" />
                             </div>
                             <div class="hero-username-row">
@@ -228,7 +250,12 @@ import ProfileConnections from "@/components/connections/ProfileConnections.vue"
 import { useConnectionsStore } from "@/store/features/connectionsStore";
 import { openExternalUrl } from "@/lib/linkPreview/openExternal";
 import { Guid } from "@argon-chat/ion.webcore";
-import { argbToRgba } from "@/lib/profileCustomization";
+import { argbToRgba, shadeArgb } from "@/lib/profileCustomization";
+import { useCosmeticFit } from "@/composables/useCosmeticFit";
+import { useWornProfile } from "@/composables/useWornProfile";
+import CosmeticNickname from "@/cosmetics/CosmeticNickname.vue";
+import CosmeticSurface from "@/cosmetics/CosmeticSurface.vue";
+import type { RenderPrimitive } from "@/cosmetics/types";
 import { hasCustomStatus } from "@/lib/statusIcon";
 import StatusEmoji from "@/components/expressions/StatusEmoji.vue";
 
@@ -300,20 +327,18 @@ const glassShineTint = computed(() => {
   return { background: `linear-gradient(90deg, transparent, ${accent.replace(/[\d.]+\)$/, opacity)}, transparent)` };
 });
 
-// Accent glow on card border — more dramatic multi-layer glow
+// Accent ring on the card border. Inset only: the portal box used to clip every outer layer away,
+// and now that it lets a frame overhang, an outer glow would spill round the card instead.
 const cardGlowStyle = computed(() => {
   if (!userProfile.value?.accentColor) return {};
   const accent = argbToRgba(userProfile.value.accentColor);
   if (isLightTheme.value) {
     const border = accent.replace(/[\d.]+\)$/, "0.3)");
-    const shadow = accent.replace(/[\d.]+\)$/, "0.15)");
-    return { boxShadow: `0 4px 20px ${shadow}, inset 0 0 0 1px ${border}` };
+    return { boxShadow: `inset 0 0 0 1px ${border}` };
   }
-  const outerGlow = accent.replace(/[\d.]+\)$/, "0.25)");
-  const midGlow = accent.replace(/[\d.]+\)$/, "0.12)");
   const innerBorder = accent.replace(/[\d.]+\)$/, "0.2)");
   return {
-    boxShadow: `0 0 30px ${outerGlow}, 0 0 60px ${midGlow}, inset 0 0 0 1px ${innerBorder}`,
+    boxShadow: `inset 0 0 0 1px ${innerBorder}`,
   };
 });
 
@@ -332,18 +357,16 @@ const avatarRingStyle = computed(() => {
   };
 });
 
-// Name accent highlight
-const nameAccentStyle = computed(() => {
-  if (!userProfile.value?.accentColor) return {};
-  const accent = argbToRgba(userProfile.value.accentColor);
-  if (isLightTheme.value) {
-    // Darken the accent for readability on white
-    const darkened = accent.replace(/rgba\((\d+), (\d+), (\d+)/, (_m, r, g, b) => {
-      return `rgba(${Math.round(r * 0.7)}, ${Math.round(g * 0.7)}, ${Math.round(b * 0.7)}`;
-    });
-    return { color: darkened };
+/** The colour this card would paint the name in, handed to whatever is worn as its fallback. */
+const nameAccentColor = computed(() => {
+  const accent = userProfile.value?.accentColor;
+
+  if (!accent) {
+    return undefined;
   }
-  return { color: accent };
+
+  // Darkened for readability on white.
+  return argbToRgba(isLightTheme.value ? shadeArgb(accent, 0.3) : accent);
 });
 
 // Status text + class
@@ -446,6 +469,35 @@ const formatDate = (date: Date) => {
 
 const me = useMe();
 const isOwnProfile = computed(() => me.me?.userId === props.userId);
+
+/**
+ * Mounted beside the card's own contents rather than inside them: a frame is a set of pieces
+ * arranged against the card's edges, some of which hang outside it.
+ */
+const OVERLAY_PRIMITIVES: readonly RenderPrimitive[] = ["frameAssembly"];
+
+/** One's own card follows an equip at once; anybody else's is the profile this card read. */
+const wornProfile = useWornProfile(() => props.userId, userProfile);
+
+/**
+ * The room a worn frame asks the card to leave it, as custom properties the layout below adds to
+ * what it already had. Empty numbers when nothing is worn, so the card is unchanged.
+ */
+const cosmeticFit = useCosmeticFit(wornProfile, "profileCard");
+
+/** The edges a worn frame has taken over, as a word list the portal's border reads side by side. */
+const framedSides = computed(() => {
+  const covered = cosmeticFit.value.covered;
+  const sides: string[] = [];
+
+  for (const side of ["top", "right", "bottom", "left"] as const) {
+    if (covered[side]) {
+      sides.push(side);
+    }
+  }
+
+  return sides.length > 0 ? sides.join(" ") : null;
+});
 
 // A popover that is closed before its profile arrives gives the slot back to the member list.
 const profileRequest = new AbortController();
@@ -559,10 +611,18 @@ function onCopyUserId() {
   transform: scale(0.96) translateY(6px);
 }
 
+/*
+ * Not clipped, which is what lets a frame hang a piece over the card's edge.
+ *
+ * The clip used to live here and did two jobs at once: it rounded the full-bleed background and it
+ * fenced everything in. Only the first was ever wanted, so it moved down to the two things that
+ * actually paint into the corners — the background and the glass — and a frame is now free to draw
+ * outside. Nothing else on the card reaches past its own box, so nothing else notices.
+ */
 .popover-inner {
   position: relative;
   border-radius: 16px;
-  overflow: hidden;
+  overflow: visible;
   transition: box-shadow 0.3s ease;
   background: hsl(var(--card));
 }
@@ -572,6 +632,9 @@ function onCopyUserId() {
   position: absolute;
   inset: 0;
   z-index: 0;
+
+  /* Its own clip now rounds it, rather than the card's doing it from outside. */
+  border-radius: inherit;
   overflow: hidden;
 }
 
@@ -588,7 +651,10 @@ function onCopyUserId() {
 /* ── Hero spacer — reserves space for the visible background ── */
 .hero-spacer {
   position: relative;
-  height: 100px;
+
+  /* Grows by whatever a worn frame asks for, so an avatar does not end up under a branch. Nothing
+     worn, nothing asked for, and this is the 100px it has always been. */
+  height: calc(100px + var(--cosmetic-inset-top, 0px));
   z-index: 1;
 }
 
@@ -634,6 +700,11 @@ function onCopyUserId() {
 .glass-zone {
   position: relative;
   z-index: 2;
+
+  /* Handed down to the glass body, the one thing that paints into the bottom corners. Not a clip:
+     the avatar is lifted out of this zone into the hero, and a clip here cut its top off flat. */
+  border-bottom-left-radius: inherit;
+  border-bottom-right-radius: inherit;
 }
 
 /* Frosted glass transition band */
@@ -662,7 +733,17 @@ function onCopyUserId() {
   background: hsl(var(--card) / 0.92);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  padding: 0 16px 16px;
+
+  /* Rounds its own background and blur into the card's corners, which a clip used to do. */
+  border-bottom-left-radius: inherit;
+  border-bottom-right-radius: inherit;
+
+  /* Added to the padding rather than replacing it: a card with nothing worn is the card it was. */
+  padding:
+    0
+    calc(16px + var(--cosmetic-inset-right, 0px))
+    calc(16px + var(--cosmetic-inset-bottom, 0px))
+    calc(16px + var(--cosmetic-inset-left, 0px));
 }
 
 /* ── Profile header: overlapping avatar + name ── */
@@ -721,7 +802,11 @@ function onCopyUserId() {
   color: hsl(var(--foreground));
   transition: color 0.3s ease;
   white-space: nowrap;
-  overflow: hidden;
+
+  /* Clip, not hidden: a worn glow may then spill past the box by the room the name style leaves it.
+     Clip is no scroll container, which is what let the name shrink before; hence the min-width. */
+  overflow: clip;
+  min-width: 0;
   text-overflow: ellipsis;
 }
 
@@ -978,10 +1063,6 @@ function onCopyUserId() {
 }
 
 /* ── Light theme overrides ── */
-:root:not(.dark) .popover-inner {
-  box-shadow: 0 4px 24px hsl(var(--foreground) / 0.1), 0 0 0 1px hsl(var(--border));
-}
-
 :root:not(.dark) .card-bg-default {
   background: linear-gradient(160deg, hsl(var(--muted)) 0%, hsl(var(--border)) 100%);
 }
@@ -1029,5 +1110,29 @@ function onCopyUserId() {
 .profile-popover[data-state="closed"] {
   animation-duration: 0.15s !important;
   animation-timing-function: ease-in !important;
+}
+
+/*
+ * A framed card's hairline belongs to the frame now, on the sides the frame covers.
+ *
+ * The line is drawn by the portal box around the card, not by the card, so no custom property set
+ * inside can reach it — hence a selector that looks down instead. Art has gaps in it, and a popover
+ * that went on drawing its own border put a thin rule through every space between the thorns; a
+ * band along the top alone leaves the other three edges where they were, as the preview does.
+ */
+.profile-popover:has(.popover-inner[data-framed~="top"]) {
+  border-top-color: transparent;
+}
+
+.profile-popover:has(.popover-inner[data-framed~="right"]) {
+  border-right-color: transparent;
+}
+
+.profile-popover:has(.popover-inner[data-framed~="bottom"]) {
+  border-bottom-color: transparent;
+}
+
+.profile-popover:has(.popover-inner[data-framed~="left"]) {
+  border-left-color: transparent;
 }
 </style>
