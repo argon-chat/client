@@ -26,6 +26,9 @@ vi.mock("@argon/ui/toast", () => ({ useToast: () => ({ toast() {} }) }));
 vi.mock("@/store/auth/meStore", () => ({ useMe: () => ({ me: { userId: "me" } }) }));
 vi.mock("@/store/chat/userColors", () => ({ useUserColors: () => ({ getColorByUserId: () => "#fff" }) }));
 vi.mock("@/store/data/permissionStore", () => ({ usePexStore: () => ({ hasIn: () => false, hasInSpace: () => false }) }));
+// Worn cosmetics are their own suites' business: with no kind enabled, an author is neither asked for nor dressed.
+vi.mock("@/store/features/cosmeticsStore", () => ({ useCosmeticsStore: () => ({ isKindEnabled: () => false, resolve: () => [] }) }));
+vi.mock("@/store/data/profileCacheStore", () => ({ useProfileCacheStore: () => ({ getStatus: async () => null, revisionOf: () => 0 }) }));
 vi.mock("@/store/data/poolStore", async () => {
   const { computed } = await import("vue");
   return {
