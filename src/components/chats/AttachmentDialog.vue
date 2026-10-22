@@ -1,7 +1,7 @@
 <template>
   <Dialog :open="open" @update:open="(v) => { if (!v) $emit('close') }">
     <DialogContent
-      class="attach-dialog max-w-[520px] gap-0 p-0 overflow-x-hidden"
+      class="attach-dialog grid-cols-1 max-w-[520px] gap-0 p-0 overflow-x-hidden"
       :show-close-button="false"
       data-testid="attachment-dialog"
       @open-auto-focus="onOpenAutoFocus"

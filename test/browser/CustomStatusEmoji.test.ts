@@ -44,11 +44,15 @@ const h = await vi.hoisted(async () => {
   };
 });
 
-vi.mock("@/store/system/localeStore", () => ({ useLocale: () => ({ t: (k: string) => k }) }));
+vi.mock("@/store/system/localeStore", () => ({ useLocale: () => ({ t: (k: string) => k }), documentLanguage: h.ref('en') }));
 vi.mock("@argon/ui/toast", () => ({ useToast: () => ({ toast: h.toast }) }));
 vi.mock("@/store/system/apiStore", () => ({
   useApi: () => ({
     userInteraction: { UpdateMe: h.updateMe },
+    cosmeticsInteraction: {
+      GetCatalogue: async () => ({ enabledKinds: [], items: [] }),
+      GetMyCosmetics: async () => ({ owned: [] }),
+    },
     securityInteraction: {
       GetSecurityDetails: async () => ({
         otpEnabled: false,
@@ -87,6 +91,10 @@ vi.mock("@/components/login/QRStyled.vue", () => h.stub("QRStyled"));
 vi.mock("@/components/ArgonAvatar.vue", () => h.stub("ArgonAvatar"));
 vi.mock("@/components/popovers/UserProfilePopover.vue", () => h.stub("UserProfilePopover"));
 vi.mock("@/components/modals/ReportDialog.vue", () => h.stub("ReportDialog"));
+vi.mock("@/store/media/unifiedCallStore", () => ({ useUnifiedCall: () => ({ connectedVoiceChannelId: null }) }));
+vi.mock("@/store/system/systemStore", () => ({ useSystemStore: () => ({ headphoneMuted: false }) }));
+vi.mock("@/store/data/friendsStore", () => ({ useFriendsStore: () => ({ isBlocked: () => false }) }));
+vi.mock("vue-router", () => ({ useRouter: () => ({ push() {} }) }));
 
 import ProfileSettings from "@/components/settings/ProfileSettings.vue";
 import UserInListSideElement from "@/components/UserInListSideElement.vue";

@@ -108,6 +108,10 @@ vi.mock("@/components/shared/BotTag.vue", () => h.stub("BotTag"));
 vi.mock("@/components/expressions/StatusEmoji.vue", () => h.stub("StatusEmoji"));
 vi.mock("@/components/popovers/UserProfilePopover.vue", () => h.stub("UserProfilePopover"));
 vi.mock("@/components/modals/ReportDialog.vue", () => h.stub("ReportDialog"));
+vi.mock("@/store/media/unifiedCallStore", () => ({ useUnifiedCall: () => ({ connectedVoiceChannelId: null }) }));
+vi.mock("@/store/system/systemStore", () => ({ useSystemStore: () => ({ headphoneMuted: false }) }));
+vi.mock("@/store/data/friendsStore", () => ({ useFriendsStore: () => ({ isBlocked: () => false }) }));
+vi.mock("vue-router", () => ({ useRouter: () => ({ push() {} }) }));
 
 import FriendListItem from "@/components/home/views/friends/FriendListItem.vue";
 import MentionSegment from "@/components/chats/MentionSegment.vue";

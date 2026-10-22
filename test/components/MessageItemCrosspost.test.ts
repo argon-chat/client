@@ -19,6 +19,9 @@ const h = await vi.hoisted(async () => ({
 }));
 
 vi.mock("@/store/system/apiStore", () => ({ useApi: () => ({}) }));
+vi.mock("@/store/media/toneStore", () => ({ useTone: () => ({}) }));
+vi.mock("@/store/features/cosmeticsStore", () => ({ useCosmeticsStore: () => ({ isKindEnabled: () => false, resolve: () => [] }) }));
+vi.mock("@/store/data/profileCacheStore", () => ({ useProfileCacheStore: () => ({ revisionOf: () => 0, getStatus: async () => null }) }));
 vi.mock("@/store/system/localeStore", () => ({
   useLocale: () => ({ t: (k: string, p?: Record<string, unknown>) => (p ? `${k}:${JSON.stringify(p)}` : k) }),
 }));

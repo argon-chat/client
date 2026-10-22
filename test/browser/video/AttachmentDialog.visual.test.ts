@@ -151,6 +151,7 @@ afterEach(() => {
   wrapper = null;
   document.body.innerHTML = "";
   document.documentElement.classList.remove("dark");
+  document.documentElement.style.removeProperty('font-family');
 });
 
 const $ = <T extends Element = HTMLElement>(id: string) => document.querySelector<T>(`[data-testid="${id}"]`);
@@ -190,6 +191,13 @@ async function shoot(name: string, element?: Element) {
 }
 
 describe("the attach window, looked at", () => {
+  test.each(['Arial', 'Verdana'])('a video fits the narrow dialog with %s font metrics', async (font) => {
+    document.documentElement.style.fontFamily = font;
+    const dialog = await show([realVideo], 360, 'light');
+    await vi.waitFor(() => expect($("attachment-video-timeline")).not.toBeNull(), { timeout: 10_000 });
+    expectLaidOut(dialog, 360);
+  }, 30_000);
+
   for (const width of WIDTHS) {
     for (const theme of THEMES) {
       test(`one video with sound, ${width} px, ${theme}`, async () => {

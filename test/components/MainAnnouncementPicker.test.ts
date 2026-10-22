@@ -72,6 +72,9 @@ vi.mock("@/store/data/poolStore", () => ({ usePoolStore: () => ({ selectedServer
 vi.mock("@/store/data/serverStore", () => ({
   useSpaceStore: () => ({ deletionStateOf: () => null, setDeletionState: () => {} }),
 }));
+// The overview only supplies the selected channel here; avatar/banner editors own their uploads.
+vi.mock("@/components/settings/spaces/ServerAvatarUploader.vue", () => ({ default: { setup: () => () => null } }));
+vi.mock("@/components/settings/spaces/ServerHeaderUploader.vue", () => ({ default: { setup: () => () => null } }));
 
 // A select that is always open: options are clickable rows, the trigger shows the chosen value.
 vi.mock("@argon/ui/select", async () => {
