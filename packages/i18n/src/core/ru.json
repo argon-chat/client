@@ -2591,5 +2591,12 @@
   "cosmetic_error_item_unavailable": "Этот предмет больше недоступен.",
   "cosmetic_error_not_owned": "У вас пока нет этого предмета.",
   "cosmetic_error_choice_invalid": "Один из выбранных вариантов здесь не подходит.",
-  "cosmetic_error_value_out_of_range": "Одна из настроек вне допустимого диапазона."
+  "cosmetic_error_value_out_of_range": "Одна из настроек вне допустимого диапазона.",
+  "manage_space": "Управление спейсом",
+  "move_to_folder": "Переместить в папку",
+  "remove_from_folder": "Убрать из папки",
+  "mute_space": "Отключить уведомления спейса",
+  "unmute_space": "Включить уведомления спейса",
+  "copy_space_id": "Копировать ID спейса",
+  "inventory_redeem_action": "Активировать код"
 }

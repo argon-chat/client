@@ -1,4 +1,6 @@
 <template>
+  <ContextMenu @update:open="onContextMenuOpen">
+  <ContextMenuTrigger as="div" :disabled="!props.enablePopup" class="w-full">
   <Popover v-if="props.enablePopup" v-model:open="isOpened">
     <!-- Not clipped: a worn frame draws deliberately outside the card, and the card rounds itself. -->
     <PopoverContent style="width: 24rem;" :collision-padding="popoverRoom"
@@ -56,6 +58,33 @@
     </div>
   </div>
 
+  </ContextMenuTrigger>
+  <ContextMenuContent v-if="props.enablePopup" class="w-64">
+    <ContextMenuItem @select="isOpened = true">
+      <UserRound class="w-4 h-4 mr-2" />{{ t('profile') }}
+    </ContextMenuItem>
+    <ContextMenuItem v-if="!isSelf && !isBot" @select="openDirectChat">
+      <MessageSquare class="w-4 h-4 mr-2" />{{ t('send_message') }}
+    </ContextMenuItem>
+    <template v-if="voiceMember && !isSelf">
+      <ContextMenuSeparator />
+      <ContextMenuLabel><VolumeSlider :user="voiceMember" /></ContextMenuLabel>
+    </template>
+    <template v-if="!isSelf && !isBot">
+      <ContextMenuSeparator />
+      <ContextMenuItem @select="toggleBlock">
+        <Ban class="w-4 h-4 mr-2" />{{ friends.isBlocked(user.userId) ? t('unblock_user') : t('block_user') }}
+      </ContextMenuItem>
+    </template>
+    <ContextMenuItem v-if="!isSelf" @select="onReportProfile(user.userId)">
+      <Flag class="w-4 h-4 mr-2" />{{ t('report_user_profile') }}
+    </ContextMenuItem>
+    <ContextMenuSeparator />
+    <ContextMenuItem @select="copyUserId">
+      <Copy class="w-4 h-4 mr-2" />{{ t('copy_user_id') }}
+    </ContextMenuItem>
+  </ContextMenuContent>
+  </ContextMenu>
   <ReportDialog
     v-model:open="reportDialogOpen"
     :target-kind="ReportTargetKind.PROFILE"
@@ -77,8 +106,15 @@ import {
 import UserProfilePopover from "./popovers/UserProfilePopover.vue";
 import ReportDialog from "./modals/ReportDialog.vue";
 import { ref, computed } from "vue";
-import { ActivityPresenceKind, ReportTargetKind, UserStatus } from "@argon/glue";
-import { Gamepad2, Headphones, Monitor, Radio } from "lucide-vue-next";
+import { ActivityPresenceKind, ReportTargetKind, UserStatus, UserFlag } from "@argon/glue";
+import { Gamepad2, Headphones, Monitor, Radio, UserRound, MessageSquare, Ban, Flag, Copy } from "lucide-vue-next";
+import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuLabel } from '@argon/ui/context-menu';
+import { useRouter } from 'vue-router';
+import { useFriendsStore } from '@/store/data/friendsStore';
+import { useUnifiedCall } from '@/store/media/unifiedCallStore';
+import VolumeSlider from './audio/VolumeSlider.vue';
+import { useToast } from '@argon/ui/toast';
+import { logger } from '@argon/core';
 import { usePoolStore } from "@/store/data/poolStore";
 import StatusEmoji from "@/components/expressions/StatusEmoji.vue";
 import { hasCustomStatus } from "@/lib/statusIcon";
@@ -102,6 +138,48 @@ const props = withDefaults(
 const me = useMe();
 const { t } = useLocale();
 const pool = usePoolStore();
+const router = useRouter();
+const friends = useFriendsStore();
+const voice = useUnifiedCall();
+const { toast } = useToast();
+const isSelf = computed(() => me.me?.userId === props.user.userId);
+const isBot = computed(() => ((props.user.flags ?? 0) & (UserFlag.BOT | UserFlag.SYSTEM)) !== 0);
+const voiceMember = computed(() => {
+  const channelId = voice.connectedVoiceChannelId;
+  return channelId ? pool.realtimeChannelUsers.get(channelId)?.Users.get(props.user.userId) : undefined;
+});
+
+function onContextMenuOpen(open: boolean) {
+  if (!open) return;
+  isOpened.value = false;
+  if (!isSelf.value && !isBot.value) void friends.ensureLoaded();
+}
+
+function openDirectChat() {
+  void router.push({ name: 'HomeChat', params: { userId: props.user.userId } });
+}
+
+async function toggleBlock() {
+  try {
+    if (friends.isBlocked(props.user.userId)) await friends.unblock(props.user.userId);
+    else await friends.block(props.user.userId);
+  } catch (error) {
+    actionFailed(error);
+  }
+}
+
+async function copyUserId() {
+  try {
+    await navigator.clipboard.writeText(props.user.userId);
+  } catch (error) {
+    actionFailed(error);
+  }
+}
+
+function actionFailed(error: unknown) {
+  logger.warn('Member context menu action failed', error);
+  toast({ title: t('error'), description: t('unexpected_error'), variant: 'destructive' });
+}
 
 // Dim offline members (status dot already shows it; dim the whole row too).
 const isOffline = computed(() => props.user.status === UserStatus.Offline);

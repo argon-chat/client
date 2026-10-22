@@ -69,6 +69,10 @@ vi.mock("@/store/data/profileCacheStore", () => ({
 vi.mock("@/components/expressions/StatusEmoji.vue", () => h.stub("StatusEmoji"));
 vi.mock("@/components/popovers/UserProfilePopover.vue", () => h.stub("UserProfilePopover"));
 vi.mock("@/components/modals/ReportDialog.vue", () => h.stub("ReportDialog"));
+vi.mock("@/store/media/unifiedCallStore", () => ({ useUnifiedCall: () => ({ connectedVoiceChannelId: null }) }));
+vi.mock("@/store/system/systemStore", () => ({ useSystemStore: () => ({ headphoneMuted: false }) }));
+vi.mock("@/store/data/friendsStore", () => ({ useFriendsStore: () => ({ isBlocked: () => false }) }));
+vi.mock("vue-router", () => ({ useRouter: () => ({ push() {} }) }));
 
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
 import UserInListSideElement from "@/components/UserInListSideElement.vue";

@@ -1103,7 +1103,7 @@ export function createCallManager(config: CallManagerConfig) {
     const isMutedAll = sys.headphoneMuted;
 
     if (isMutedAll) {
-      setVolume(uid, 0);
+      setVolume(uid, 0, true);
     } else {
       setVolume(uid, savedVolume);
     }
@@ -1984,12 +1984,13 @@ export function createCallManager(config: CallManagerConfig) {
 
   function setVolume(userId: string, vol: number, skipSave = false) {
     const u = participants[userId];
-    if (!u || (!u.audioGraph && !u.screenAudioGraph)) return;
-
-    u.audioGraph?.setVolume(vol);
+    // A bot can be in the roster before its ingress audio track is subscribed. Remember the
+    // choice now; setupAudioGraph will apply it when the track arrives.
+    const audibleVolume = sys.headphoneMuted ? 0 : vol;
+    u?.audioGraph?.setVolume(audibleVolume);
     // Keep the user's desktop-audio at the same level as their voice.
-    u.screenAudioGraph?.setVolume(vol);
-    u.volume = [vol];
+    u?.screenAudioGraph?.setVolume(audibleVolume);
+    if (u) u.volume = [vol];
 
     if (!skipSave) {
       userVolume.setUserVolume(userId, vol);

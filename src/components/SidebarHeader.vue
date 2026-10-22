@@ -225,16 +225,11 @@ const backgroundImage = computed(() => {
 }
 
 .header-admin {
+  /* Keep actions reachable before hover, including Firefox and keyboard/touch input. */
   position: absolute;
   top: 6px;
   right: 6px;
   z-index: 4;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.15s ease;
-}
-
-.header-list:hover .header-admin {
   opacity: 1;
   pointer-events: auto;
 }

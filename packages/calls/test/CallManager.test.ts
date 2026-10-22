@@ -160,6 +160,28 @@ async function joined(config = makeConfig()) {
   return { calls, room: rooms.last, config };
 }
 
+describe('member volume before ingress audio arrives', () => {
+  test('a bot volume chosen before subscription is saved and applied to its track', async () => {
+    const saved = new Map<string, number>();
+    const base = makeConfig();
+    const createGraph = vi.fn(() => ({ setVolume: vi.fn(), dispose() {} }));
+    const { calls, room } = await joined(makeConfig({
+      audio: { ...base.audio, createRemoteAudioGraph: createGraph },
+      userVolume: { getUserVolume: (id) => saved.get(id) ?? 100, setUserVolume: (id, volume) => { saved.set(id, volume); } },
+    }));
+    calls.setVolume('bot-1', 35);
+    expect(saved.get('bot-1')).toBe(35);
+
+    room.emit(RoomEvent.TrackSubscribed,
+      { kind: Track.Kind.Audio, source: Track.Source.Microphone, mediaStreamTrack: fakeTrack('audio') },
+      { isMuted: false, source: Track.Source.Microphone },
+      { identity: 'bot-1', attributes: {} });
+    await vi.waitFor(() => expect(createGraph).toHaveBeenCalled());
+    expect(createGraph.mock.calls[0]?.[0]).toMatchObject({ initialVolume: 35 });
+    await calls.leave();
+  });
+});
+
 describe("the package builds from a plain config", () => {
   test("no pinia, no app stores, no module mocks beyond the SDK", async () => {
     const calls = createCallManager(makeConfig());

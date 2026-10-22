@@ -16,13 +16,19 @@
                 </AlertTitle>
 
                 <AlertDescription class="ml-auto flex gap-2">
-                    <Input 
+                    <form class="relative" @submit.prevent="redeem">
+                    <Input
                         type="text" 
                         :placeholder="t('inventory_redeem_placeholder')" 
-                        class="w-64 transition-all focus:w-80" 
+                        class="w-64 pr-11 transition-all focus:w-80"
                         v-model="redeemModel"
-                        @keydown.enter="redeem" 
                     />
+                    <button type="submit" :disabled="!redeemModel.trim() || disabled"
+                        :aria-label="t('inventory_redeem_action')" :title="t('inventory_redeem_action')"
+                        class="absolute right-1 top-1 flex h-8 w-8 items-center justify-center rounded-md text-primary hover:bg-primary/10 focus-visible:outline focus-visible:outline-ring disabled:opacity-40 disabled:cursor-default">
+                        <Check class="w-4 h-4" />
+                    </button>
+                    </form>
                     <slot name="actions" />
                 </AlertDescription>
             </Alert>
@@ -91,6 +97,7 @@ import { Card, CardContent } from '@argon/ui/card'
 import { Input } from '@argon/ui/input';
 import { useLocale } from '@/store/system/localeStore';
 import { IconBasket, IconQuestionMark } from '@tabler/icons-vue';
+import { Check } from 'lucide-vue-next';
 import EmptyStateArt from '@/components/shared/EmptyStateArt.vue';
 import { computed, CSSProperties, ref } from 'vue'
 
@@ -127,8 +134,8 @@ const emit = defineEmits<{
 }>()
 
 function redeem() {
-    if (!redeemModel.value.trim()) return;
-    emit('redeem', redeemModel.value);
+    if (props.disabled || !redeemModel.value.trim()) return;
+    emit('redeem', redeemModel.value.trim());
     redeemModel.value = "";
 }
 

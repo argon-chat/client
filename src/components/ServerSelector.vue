@@ -9,9 +9,8 @@
       >
         <!-- Pinned -->
         <template v-if="pinnedServers.length > 0">
+          <SpaceContextMenu v-for="server in pinnedServers" :key="server.spaceId" :space-id="server.spaceId">
           <ServerRailIcon
-            v-for="server in pinnedServers"
-            :key="server.spaceId"
             :server="server"
             :active="isSelected(server.spaceId)"
             :pinned="true"
@@ -20,8 +19,8 @@
             @dragover="onDragOver($event, server.spaceId)"
             @drop="onDrop($event, server.spaceId)"
             @dragend="onDragEnd"
-            @contextmenu="openContextMenu($event, server.spaceId)"
           />
+          </SpaceContextMenu>
           <Separator class="rail-sep" />
         </template>
 
@@ -55,9 +54,8 @@
         </Tooltip>
 
         <!-- Uncategorized -->
+        <SpaceContextMenu v-for="server in uncategorizedServers" :key="server.spaceId" :space-id="server.spaceId">
         <ServerRailIcon
-          v-for="server in uncategorizedServers"
-          :key="server.spaceId"
           :server="server"
           :active="isSelected(server.spaceId)"
           @select="select(server.spaceId)"
@@ -65,8 +63,8 @@
           @dragover="onDragOver($event, server.spaceId)"
           @drop="onDrop($event, server.spaceId)"
           @dragend="onDragEnd"
-          @contextmenu="openContextMenu($event, server.spaceId)"
         />
+        </SpaceContextMenu>
       </div>
 
       <Separator class="rail-sep" />
@@ -90,66 +88,25 @@
     <!-- Folder Popup -->
     <Transition name="rail-pop">
       <div
-        v-if="folderPopup.show"
+        v-show="folderPopup.show"
         class="rail-popover"
         :style="{ top: folderPopup.y + 'px', left: folderPopup.x + 'px' }"
         @click.stop
       >
         <div class="rail-popover-grid">
+          <SpaceContextMenu v-for="server in folderServers" :key="server.spaceId" :space-id="server.spaceId">
           <ServerRailIcon
-            v-for="server in folderServers"
-            :key="server.spaceId"
             :server="server"
             :active="isSelected(server.spaceId)"
             @select="select(server.spaceId); folderPopup.show = false"
             @dragstart="onDragStart($event, server.spaceId, folderPopup.folderId!)"
             @dragend="onDragEnd"
-            @contextmenu="openContextMenu($event, server.spaceId)"
           />
+          </SpaceContextMenu>
         </div>
       </div>
     </Transition>
 
-    <!-- Context Menu -->
-    <Transition name="rail-pop">
-      <div
-        v-if="contextMenu.show"
-        class="rail-ctx"
-        :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }"
-        @click="contextMenu.show = false"
-      >
-        <button class="rail-ctx-item icon-motion" @click="togglePin(contextMenu.serverId!)">
-          <IconPinFilled v-if="isServerPinned(contextMenu.serverId!)" class="w-4 h-4 icon-appear" />
-          <IconPin v-else class="w-4 h-4 icon-appear" />
-          {{ isServerPinned(contextMenu.serverId!) ? t('unpin') : t('pin') }}
-        </button>
-
-        <template v-if="org.folders.length > 0">
-          <div class="rail-ctx-sep" />
-          <button
-            v-for="folder in org.folders"
-            :key="folder.id"
-            class="rail-ctx-item"
-            @click="addToFolder(folder.id, contextMenu.serverId!)"
-          >
-            <div class="w-3 h-3 rounded-full shrink-0" :style="{ backgroundColor: folder.color }" />
-            {{ folder.name }}
-          </button>
-        </template>
-
-        <div class="rail-ctx-sep" />
-        <button class="rail-ctx-item rail-ctx-item--danger icon-motion icon-motion--shake" @click="reportSpaceId = contextMenu.serverId!; reportDialogOpen = true">
-          <Flag class="w-4 h-4" />
-          {{ t('report_space') }}
-        </button>
-      </div>
-    </Transition>
-
-    <ReportDialog
-      v-model:open="reportDialogOpen"
-      :target-kind="ReportTargetKind.SPACE"
-      :target-id="reportSpaceId"
-    />
   </TooltipProvider>
 </template>
 
@@ -159,30 +116,24 @@ import { Separator } from "@argon/ui/separator"
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@argon/ui/tooltip"
 import ArgonAvatar from "./ArgonAvatar.vue"
 import ServerRailIcon from "./ServerRailIcon.vue"
-import { Plus, Flag } from "lucide-vue-next"
-import { IconPin, IconPinFilled } from '@tabler/icons-vue'
-import { ArgonSpaceBase, ReportTargetKind } from "@argon/glue"
+import SpaceContextMenu from "./SpaceContextMenu.vue"
+import { Plus } from "lucide-vue-next"
+import { ArgonSpaceBase } from "@argon/glue"
 import { Guid } from "@argon-chat/ion.webcore"
-import { useLocale } from "@/store/system/localeStore"
 import { addRecentSpace } from "@/lib/recentSpaces"
 import { useServerOrganization } from "@/lib/serverOrganization"
 import CreateOrJoinSpace from "./modals/CreateOrJoinSpace.vue"
 import CreateSpaceDetailed from "./modals/CreateSpaceDetailed.vue"
-import ReportDialog from "./modals/ReportDialog.vue"
 import { useNotificationStore } from "@/store/data/notificationStore"
 import { useAnnouncementStore } from "@/store/data/announcementStore"
 
-const { t } = useLocale();
 const ntf = useNotificationStore();
 
 const createSpaceOpened = ref(false);
 const openDetailed = ref(false);
-const reportDialogOpen = ref(false);
-const reportSpaceId = ref<Guid>("");
 
 const {
     organization: org,
-    toggleServerPin,
     isServerPinned,
     addServerToFolder,
     removeServerFromFolder,
@@ -202,13 +153,6 @@ const emit = defineEmits<{
     (e: 'select', id: Guid): void
     (e: 'home'): void
 }>()
-
-const contextMenu = ref({
-    show: false,
-    x: 0,
-    y: 0,
-    serverId: null as string | null
-});
 
 const folderPopup = ref({
     show: false,
@@ -265,20 +209,6 @@ const select = (id: string) => {
 
 const initials = (name: string) =>
     name.trim().split(/\s+/).map(w => w[0]?.toUpperCase() ?? '').slice(0, 2).join('');
-
-function openContextMenu(event: MouseEvent, serverId: string) {
-    contextMenu.value = { show: true, x: event.clientX, y: event.clientY, serverId };
-}
-
-function togglePin(serverId: string) {
-    toggleServerPin(serverId);
-    contextMenu.value.show = false;
-}
-
-function addToFolder(folderId: string, serverId: string) {
-    addServerToFolder(folderId, serverId);
-    contextMenu.value.show = false;
-}
 
 // ── Drag and drop ──────────────────────────────────────────────────
 function onDragStart(event: DragEvent, serverId: string, folderId?: string) {
@@ -350,7 +280,6 @@ function toggleFolderPopup(folderId: string, event: MouseEvent) {
 }
 
 function closeAll() {
-    contextMenu.value.show = false;
     folderPopup.value.show = false;
 }
 
@@ -500,41 +429,6 @@ onUnmounted(() => document.removeEventListener('click', closeAll));
     display: grid;
     grid-template-columns: repeat(2, 40px);
     gap: 8px;
-}
-
-/* ── Context menu ── */
-.rail-ctx {
-    position: fixed;
-    z-index: 50;
-    min-width: 160px;
-    background: hsl(var(--card));
-    border: 1px solid hsl(var(--border));
-    border-radius: calc(var(--radius) - 2px);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-    padding: 4px;
-}
-.rail-ctx-item {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 7px 10px;
-    border: none;
-    background: transparent;
-    color: hsl(var(--foreground));
-    font-size: 13px;
-    border-radius: 7px;
-    cursor: pointer;
-    transition: background 0.12s ease;
-    text-align: left;
-}
-.rail-ctx-item:hover { background: hsl(var(--accent)); }
-.rail-ctx-item--danger { color: hsl(var(--destructive)); }
-.rail-ctx-item--danger:hover { background: hsl(var(--destructive) / 0.12); }
-.rail-ctx-sep {
-    height: 1px;
-    margin: 4px 6px;
-    background: hsl(var(--border));
 }
 
 /* Popover/menu transition */

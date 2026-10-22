@@ -1,4 +1,4 @@
-import { ref, type Ref } from "vue";
+import { ref, watch, type Ref } from "vue";
 import { useApi } from "@/store/system/apiStore";
 import { logger } from "@argon/core";
 import type { SpaceCommand } from "@argon/glue";
@@ -11,6 +11,15 @@ export function useSlashCommands(spaceId: () => Guid | undefined) {
   const api = useApi();
   const commands: Ref<SpaceCommand[]> = ref([]);
   const isLoading = ref(false);
+  let pending: { sid: Guid; promise: Promise<SpaceCommand[]> } | null = null;
+  let revision = 0;
+
+  watch(spaceId, () => {
+    revision++;
+    commands.value = [];
+    isLoading.value = false;
+    pending = null;
+  }, { flush: 'sync' });
 
   async function fetchCommands(): Promise<SpaceCommand[]> {
     const sid = spaceId();
@@ -22,19 +31,28 @@ export function useSlashCommands(spaceId: () => Guid | undefined) {
       return cached.commands;
     }
 
+    if (pending?.sid === sid) return pending.promise;
     isLoading.value = true;
-    try {
-      const result = await api.botManagementInteraction.GetSpaceCommands(sid);
-      const cmds = [...result];
-      commandCache.set(sid, { commands: cmds, fetchedAt: Date.now() });
-      commands.value = cmds;
-      return cmds;
-    } catch (error) {
-      logger.error("Failed to fetch slash commands:", error);
-      return [];
-    } finally {
-      isLoading.value = false;
-    }
+    const requestRevision = ++revision;
+    const promise = (async () => {
+      try {
+        const result = await api.botManagementInteraction.GetSpaceCommands(sid);
+        const cmds = [...result];
+        commandCache.set(sid, { commands: cmds, fetchedAt: Date.now() });
+        if (spaceId() === sid && revision === requestRevision) commands.value = cmds;
+        return cmds;
+      } catch (error) {
+        logger.error("Failed to fetch slash commands:", error);
+        return [];
+      } finally {
+        if (revision === requestRevision) {
+          pending = null;
+          isLoading.value = false;
+        }
+      }
+    })();
+    pending = { sid, promise };
+    return promise;
   }
 
   function invalidateCache() {

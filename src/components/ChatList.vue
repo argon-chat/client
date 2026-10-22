@@ -1,5 +1,7 @@
 <template>
-  <div class="chat-list flex flex-col">
+  <ContextMenu>
+  <ContextMenuTrigger as-child :disabled="!pex.has('ManageChannels')">
+  <div class="chat-list flex flex-col" v-bind="$attrs">
     <div ref="scrollEl" class="chat-list-scroll">
       <BroadcastConnectors :container="scrollEl" :links="broadcastLinks" :revision="layoutRevision" />
       <Transition name="panel-swap" mode="out-in">
@@ -134,18 +136,30 @@
       </Transition>
     </div>
 
+  </div>
+  </ContextMenuTrigger>
+  <ContextMenuContent v-if="pex.has('ManageChannels')" class="w-56">
+    <ContextMenuItem @select="openAddChannelForGroup(null)">
+      <PlusIcon class="w-4 h-4 mr-2" />{{ t('add_channel') }}
+    </ContextMenuItem>
+    <ContextMenuItem @select="addGroupOpened = true">
+      <FolderPlusIcon class="w-4 h-4 mr-2" />{{ t('add_category_channels') }}
+    </ContextMenuItem>
+  </ContextMenuContent>
+  </ContextMenu>
+
     <AddChannel
       v-model:open="addChannelInGroupOpened"
       v-model:group-id="selectedGroupId"
       :selected-space="selectedSpaceId"
       @close="addChannelInGroupOpened = false; selectedGroupId = null"
     />
-  </div>
+    <AddChannelGroup v-model:open="addGroupOpened" :selected-space="selectedSpaceId" />
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { PlusIcon } from 'lucide-vue-next';
+import { PlusIcon, FolderPlusIcon } from 'lucide-vue-next';
 import EmptyStateArt from '@/components/shared/EmptyStateArt.vue';
 import { usePoolStore } from '@/store/data/poolStore';
 import { useLocale } from '@/store/system/localeStore';
@@ -167,6 +181,7 @@ import ChannelItem from './ChannelItem.vue';
 import ChannelGroupHeader from './ChannelGroupHeader.vue';
 import BroadcastConnectors, { type BroadcastLink } from './channels/BroadcastConnectors.vue';
 import AddChannel from './modals/AddChannel.vue';
+import AddChannelGroup from './modals/AddChannelGroup.vue';
 import Skeleton from './shared/Skeleton.vue';
 import { useChannelGroups } from '@/composables/useChannelGroups';
 import { useListLoading } from '@/composables/useListLoading';
@@ -178,6 +193,8 @@ import { isVoiceLikeChannel } from '@/lib/voice/channels';
 import { channelLayoutErrorKey, channelLayoutRefusal } from '@/lib/refusals';
 import type { Guid } from '@argon-chat/ion.webcore';
 import type { IRealtimeChannel } from '@/store/realtime/realtimeStore';
+
+defineOptions({ inheritAttrs: false });
 
 const pool = usePoolStore();
 const voice = useUnifiedCall();
@@ -304,6 +321,7 @@ async function deleteGroup(groupId: Guid, deleteChannels: boolean) {
 }
 
 const addChannelInGroupOpened = ref(false);
+const addGroupOpened = ref(false);
 const selectedGroupId = ref<Guid | null>(null);
 
 const openAddChannelForGroup = (groupId: Guid | null) => {

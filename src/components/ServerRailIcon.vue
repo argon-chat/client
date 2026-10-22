@@ -12,7 +12,7 @@
           @dragover.prevent="emit('dragover', $event)"
           @drop="emit('drop', $event)"
           @dragend="emit('dragend')"
-          @contextmenu.prevent="emit('contextmenu', $event)"
+          @contextmenu="emit('contextmenu', $event)"
         >
           <span class="rail-avatar" :data-announcement="hasUnreadAnnouncement || undefined">
             <ArgonAvatar

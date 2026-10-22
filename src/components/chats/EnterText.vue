@@ -61,7 +61,7 @@
                     @input="onEditorInput"
                     @keydown="onEditorKeydown"
                     @paste="onPaste"
-                    @focus="emojiSuggest.onFocus()"
+                    @focus="onEditorFocus"
                     @blur="onEditorBlur"
                     @custom-emoji-limit="onCustomEmojiLimit"
                 />
@@ -200,9 +200,10 @@
           enter-from-class="opacity-0 translate-y-1.5"
           leave-to-class="opacity-0 translate-y-1.5"
         >
-        <ul v-if="slashCmd.show && slashCmd.candidates.length"
+        <ul v-if="slashCmd.show && slashCmd.candidates.length" ref="slashListRef" data-testid="slash-commands"
             class="absolute bottom-full left-0 right-0 max-w-[min(100%,420px)] max-h-[200px] mb-1 overflow-y-auto bg-popover text-popover-foreground border border-border rounded-lg shadow-lg z-50 list-none p-1 m-0">
             <li v-for="(cmd, i) in slashCmd.candidates" :key="cmd.commandId"
+                :data-selected="i === slashCmd.index || undefined"
                 :class="['flex items-center gap-2.5 px-2 py-1.5 rounded-md cursor-pointer transition-colors', i === slashCmd.index ? 'bg-primary text-primary-foreground' : 'hover:bg-muted']"
                 @mousedown.prevent="selectSlashCommand(cmd)"
                 @mouseenter="slashCmd.index = i">
@@ -417,6 +418,7 @@ import { useMediaEditorCloseGuard } from "@/components/common/mediaEditorCloseGu
 import { usePexStore } from "@/store/data/permissionStore";
 import type { ArgonEntitlementFlag } from "@/lib/rbac/ArgonEntitlement";
 import { useSlashCommands } from "@/composables/useSlashCommands";
+import { resolveSlashCommand } from "@/lib/chat/slashCommand";
 import { useBotInteraction } from "@/composables/useBotInteraction";
 import type { SpaceCommand } from "@argon/glue";
 import { useConfigStore } from "@/store/ui/configStore";
@@ -820,11 +822,25 @@ const mention = reactive({
 });
 
 // Slash command autocomplete
+const slashListRef = ref<HTMLElement | null>(null);
+const editorFocused = ref(false);
+const sendingSlashCommand = ref(false);
+const selectedSlashCommand = ref<SpaceCommand | null>(null);
+watch(messageText, (text) => {
+  if (selectedSlashCommand.value && text.match(/^\/([\w-]+)/)?.[1]?.toLowerCase() !== selectedSlashCommand.value.name.toLowerCase()) {
+    selectedSlashCommand.value = null;
+  }
+});
 const slashCmd = reactive({
   show: false,
   query: "",
   candidates: [] as SpaceCommand[],
   index: 0,
+});
+
+watch(() => [slashCmd.show, slashCmd.index, slashCmd.candidates], async () => {
+  await nextTick();
+  slashListRef.value?.querySelector('[data-selected]')?.scrollIntoView({ block: 'nearest' });
 });
 
 // Emoji suggestions and the instant replacements (`:)`, `:joy:`, `--`).
@@ -840,8 +856,42 @@ const emojiSuggest = useEmojiSuggest({
 });
 
 function onEditorBlur() {
+  editorFocused.value = false;
+  slashCmd.show = false;
+  mention.show = false;
   draft.blurred();
   emojiSuggest.hide();
+}
+
+function onEditorFocus() {
+  editorFocused.value = true;
+  emojiSuggest.onFocus();
+  // MessageInput restores its saved caret after dispatching focus.
+  void nextTick(updateSlashSuggestions);
+}
+
+function updateSlashSuggestions() {
+  const text = messageText.value;
+  const cursorPos = editorRef.value?.getCursorOffset() ?? 0;
+  const query = text.slice(1, cursorPos);
+  if (!editorFocused.value || !canUseCommands.value || !text.startsWith('/') || cursorPos < 1 || !/^[\w-]{0,32}$/.test(query)) {
+    slashCmd.show = false;
+    return;
+  }
+  slashCmd.query = query;
+  slashCmd.index = 0;
+  slashCmd.candidates = slashCommands.filterCommands(query);
+  slashCmd.show = slashCmd.candidates.length > 0;
+  if (!slashCommands.commands.value.length) {
+    const spaceId = props.spaceId;
+    void slashCommands.fetchCommands().then(() => {
+      if (props.spaceId !== spaceId || !editorFocused.value || !canUseCommands.value) return;
+      const currentPos = editorRef.value?.getCursorOffset() ?? 0;
+      if (!messageText.value.startsWith('/') || messageText.value.slice(1, currentPos) !== query) return;
+      slashCmd.candidates = slashCommands.filterCommands(query);
+      slashCmd.show = slashCmd.candidates.length > 0;
+    });
+  }
 }
 
 /** A sticker from the strip: sent as the picker sends it; the emoji it was found by goes once it is. */
@@ -1071,28 +1121,7 @@ function onEditorInput(previous: string) {
 
   // Check for slash command trigger: "/" at start of line (bots live in spaces, not in direct chats,
   // and only for members with UseCommands there)
-  if (canUseCommands.value && text.startsWith("/") && cursorPos > 0) {
-    const query = text.slice(1, cursorPos);
-    if (/^[\w\d_-]{0,32}$/.test(query)) {
-      const filtered = slashCommands.filterCommands(query);
-      if (filtered.length > 0 || slashCommands.commands.value.length === 0) {
-        slashCmd.show = true;
-        slashCmd.query = query;
-        slashCmd.index = 0;
-        // Fetch commands lazily on first "/"
-        if (slashCommands.commands.value.length === 0) {
-          slashCommands.fetchCommands().then(() => {
-            slashCmd.candidates = slashCommands.filterCommands(slashCmd.query);
-          });
-        } else {
-          slashCmd.candidates = filtered;
-        }
-        return;
-      }
-    }
-  }
-
-  slashCmd.show = false;
+  updateSlashSuggestions();
 }
 
 
@@ -1198,47 +1227,14 @@ function onCustomEmojiLimit() {
 function selectSlashCommand(cmd: SpaceCommand) {
   slashCmd.show = false;
   if (!canUseCommands.value) return;
-  messageText.value = "";
-
-  const spaceId = props.spaceId;
-  if (!spaceId) return;
-
-  // If command has no options, invoke immediately
-  if (!cmd.options || cmd.options.length === 0) {
-    const resolvedChannelId = props.channelId ?? pool.selectedTextChannel;
-    if (resolvedChannelId) {
-      botInteraction.invokeSlashCommand(spaceId, resolvedChannelId, cmd.commandId, []);
-    }
-    return;
-  }
-
-  // If command has options, build a simple prompt string and invoke
-  // For now, show a basic prompt-based approach via the text field
-  // TODO: In the future, implement inline option inputs
-  const resolvedChannelId = props.channelId ?? pool.selectedTextChannel;
-  if (resolvedChannelId) {
-    // Pre-fill the text with the command for user context
-    messageText.value = `/${cmd.name} `;
-    nextTick(() => {
-      if (editorRef.value) {
-        const newPos = messageText.value.length;
-        editorRef.value.setCursorOffset(newPos);
-        editorRef.value.focus();
-      }
-    });
-    // Store selected command for send interception
-    selectedSlashCommand.value = { cmd, channelId: resolvedChannelId };
-  }
+  selectedSlashCommand.value = cmd;
+  messageText.value = `/${cmd.name}${cmd.options?.length ? ' ' : ''}`;
+  nextTick(() => {
+    editorRef.value?.setCursorOffset(messageText.value.length);
+    editorRef.value?.focus();
+    if (!cmd.options?.length) void handleSend();
+  });
 }
-
-const selectedSlashCommand = ref<{ cmd: SpaceCommand; channelId: string } | null>(null);
-
-// Watch for send with active slash command
-watch(messageText, (val: string) => {
-  if (selectedSlashCommand.value && !val.startsWith("/")) {
-    selectedSlashCommand.value = null;
-  }
-});
 
 onMounted(() => {
   if (!props.captionMode) {
@@ -1664,7 +1660,7 @@ const handleSend = async (captionContent?: { text: string; entities: IMessageEnt
     await submitEdit(props.editing);
     return;
   }
-  if (!canSendMessages.value) return;
+  if (!canSendMessages.value || sendingSlashCommand.value) return;
   const resolvedChannelId = resolveTargetId();
   if (!resolvedChannelId) {
     logger.warn("selected text channel is not defined");
@@ -1672,40 +1668,27 @@ const handleSend = async (captionContent?: { text: string; entities: IMessageEnt
   }
 
   // Handle slash command invocation
-  if (selectedSlashCommand.value && props.spaceId && messageText.value.startsWith("/")) {
-    const { cmd, channelId } = selectedSlashCommand.value;
-    const optionText = messageText.value.slice(cmd.name.length + 2).trim(); // Remove "/name "
-    const options: { name: string; value: string }[] = [];
-
-    // Parse simple "key:value" pairs from the remaining text
-    if (optionText && cmd.options?.length) {
-      // If command has a single required option, use the whole text as its value
-      if (cmd.options.length === 1) {
-        options.push({ name: cmd.options[0].name, value: optionText });
-      } else {
-        // Try to parse "key:value key2:value2" format
-        const parts = optionText.match(/(\w+):("[^"]*"|\S+)/g);
-        if (parts) {
-          for (const part of parts) {
-            const colonIdx = part.indexOf(":");
-            const key = part.slice(0, colonIdx);
-            let value = part.slice(colonIdx + 1);
-            if (value.startsWith('"') && value.endsWith('"')) {
-              value = value.slice(1, -1);
-            }
-            options.push({ name: key, value });
-          }
+  if (!captionContent && !props.captionMode && canUseCommands.value && props.spaceId && messageText.value.startsWith('/')) {
+    const text = messageText.value;
+    const spaceId = props.spaceId;
+    sendingSlashCommand.value = true;
+    try {
+      const commands = await slashCommands.fetchCommands();
+      if (props.spaceId !== spaceId || resolveTargetId() !== resolvedChannelId || messageText.value !== text || !canUseCommands.value) return;
+      const invocation = resolveSlashCommand(text, commands, selectedSlashCommand.value?.commandId);
+      if (invocation) {
+        const sent = await botInteraction.invokeSlashCommand(spaceId, resolvedChannelId, invocation.cmd.commandId, invocation.options);
+        if (sent && messageText.value === text && props.spaceId === spaceId && resolveTargetId() === resolvedChannelId) {
+          messageText.value = '';
+          editorRef.value?.clear();
+          slashCmd.show = false;
+          void draft.clear();
         }
+        return;
       }
+    } finally {
+      sendingSlashCommand.value = false;
     }
-
-    botInteraction.invokeSlashCommand(props.spaceId, channelId, cmd.commandId, options);
-    selectedSlashCommand.value = null;
-    messageText.value = "";
-    if (editorRef.value) {
-      editorRef.value.clear();
-    }
-    return;
   }
 
   const { text: plainText, entities } = captionContent ?? parseMessageContent();

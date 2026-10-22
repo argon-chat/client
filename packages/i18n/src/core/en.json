@@ -2591,5 +2591,12 @@
   "cosmetic_error_item_unavailable": "That item is no longer available.",
   "cosmetic_error_not_owned": "You don't have that item yet.",
   "cosmetic_error_choice_invalid": "One of the chosen options can't be used here.",
-  "cosmetic_error_value_out_of_range": "One of the settings is out of range."
+  "cosmetic_error_value_out_of_range": "One of the settings is out of range.",
+  "manage_space": "Manage Space",
+  "move_to_folder": "Move to folder",
+  "remove_from_folder": "Remove from folder",
+  "mute_space": "Mute Space",
+  "unmute_space": "Unmute Space",
+  "copy_space_id": "Copy Space ID",
+  "inventory_redeem_action": "Redeem code"
 }

@@ -29,10 +29,7 @@ const toast = useToast();
 const notificationsStore = useNotifications();
 
 const configStore = useConfigStore();
-const isDevMode = computed(() => {
-  if (!argon.isArgonHost) return true;
-  return configStore.devModeEnabled;
-});
+const isDevMode = computed(() => configStore.devModeEnabled);
 
 const myInventoryItems = ref<InventoryItemView[]>([]);
 const itemsByInstanceId = computed(() => new Map(myInventoryItems.value.map(i => [i.instanceId, i])));

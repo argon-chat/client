@@ -35,6 +35,8 @@ const h = await vi.hoisted(async () => {
     denied: new Set<string>(),
     sendMessage: vi.fn(),
     sendDirect: vi.fn(),
+    commands: ref<any[]>([]),
+    invokeCommand: vi.fn(async () => true),
     computed,
     reactive,
     ref,
@@ -87,9 +89,13 @@ vi.mock("@/composables/useChannelDraft", () => ({
 vi.mock("@/composables/useScheduledPosts", () => ({ useScheduledPosts: () => ({ schedule: async () => true }) }));
 vi.mock("@/lib/chat/composerMention", () => ({ useDroppedMentions: () => {} }));
 vi.mock("@/composables/useSlashCommands", () => ({
-  useSlashCommands: () => ({ commands: h.ref([]), filterCommands: () => [], fetchCommands: async () => {} }),
+  useSlashCommands: () => ({
+    commands: h.commands,
+    filterCommands: (query: string) => h.commands.value.filter((cmd) => cmd.name.includes(query)),
+    fetchCommands: async () => h.commands.value,
+  }),
 }));
-vi.mock("@/composables/useBotInteraction", () => ({ useBotInteraction: () => ({ invokeSlashCommand() {} }) }));
+vi.mock("@/composables/useBotInteraction", () => ({ useBotInteraction: () => ({ invokeSlashCommand: h.invokeCommand }) }));
 vi.mock("@/composables/useAttachmentUpload", () => ({
   useAttachmentUpload: () => ({
     hasFiles: h.computed(() => false),
@@ -207,6 +213,8 @@ beforeEach(async () => {
   h.perms.clear();
   h.perms.add("CreateExpressions");
   h.denied.clear();
+  h.commands.value = [];
+  h.invokeCommand.mockReset().mockResolvedValue(true);
   h.sendMessage.mockReset();
   h.sendMessage.mockImplementation(async (spaceId: string, channelId: string) => ({
     isSuccessSendMessage: () => true,
@@ -222,6 +230,60 @@ afterEach(async () => {
   for (const w of mounted.splice(0)) w.unmount();
   await flushPromises();
   document.body.innerHTML = "";
+});
+
+describe('bot commands in the composer', () => {
+  function commands(count = 20) {
+    h.commands.value = Array.from({ length: count }, (_, i) => ({
+      commandId: `cmd-${i}`, name: `play${i || ''}`, description: `command ${i}`, options: [{ name: 'query' }],
+    }));
+  }
+
+  async function type(editor: HTMLElement, text: string) {
+    await userEvent.click(editor);
+    document.execCommand('insertText', false, text);
+    await nextTick();
+  }
+
+  test('a complete pasted command invokes the bot without picking from the list', async () => {
+    commands(1);
+    const { editor, value } = composer();
+    await type(editor, '/play https://example.com/song?a=1&b=2');
+    await userEvent.keyboard('{Enter}');
+    await until(() => h.invokeCommand.mock.calls.length === 1);
+    expect(h.invokeCommand).toHaveBeenCalledWith('s1', 'c1', 'cmd-0', [{ name: 'query', value: 'https://example.com/song?a=1&b=2' }]);
+    expect(h.sendMessage).not.toHaveBeenCalled();
+    await until(() => value().text === '');
+  });
+
+  test('arrow navigation scrolls the selected command into view and blur hides the list until refocus', async () => {
+    commands();
+    const { editor } = composer();
+    await type(editor, '/');
+    await until(() => !!$('[data-testid=slash-commands]'));
+    for (let i = 0; i < 15; i++) await userEvent.keyboard('{ArrowDown}');
+    await nextTick();
+    const list = $('[data-testid=slash-commands]')!;
+    const selected = list.querySelector<HTMLElement>('[data-selected]')!;
+    expect(selected.textContent).toContain('play15');
+    expect(list.scrollTop).toBeGreaterThan(0);
+    expect(selected.getBoundingClientRect().bottom).toBeLessThanOrEqual(list.getBoundingClientRect().bottom + 1);
+    editor.blur();
+    await until(() => !$('[data-testid=slash-commands]'));
+    editor.focus();
+    await until(() => !!$('[data-testid=slash-commands]'));
+  });
+
+  test('a refused invocation leaves the command available for retry', async () => {
+    commands(1);
+    h.invokeCommand.mockResolvedValue(false);
+    const { editor, value } = composer();
+    await type(editor, '/play song');
+    await userEvent.keyboard('{Enter}');
+    await until(() => h.invokeCommand.mock.calls.length === 1);
+    expect(value().text).toBe('/play song');
+    expect(h.sendMessage).not.toHaveBeenCalled();
+  });
 });
 
 describe("the composer's expressions picker", () => {

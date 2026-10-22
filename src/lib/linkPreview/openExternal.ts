@@ -1,5 +1,6 @@
 import { argon } from "@argon/glue";
 import { native } from "@argon/glue/native";
+import { logger } from "@argon/core";
 
 /**
  * Opens a web address in the system browser. Only http(s) — a card or a link in a message never
@@ -12,5 +13,9 @@ export function openExternalUrl(url: string): void {
     window.open(url, "_blank", "noopener");
     return;
   }
-  native?.hostProc.openUrl(url);
+  if (window.argonIpc) {
+    void native?.hostProc.openUrl(url).catch((error) => logger.warn("Failed to open external URL", error));
+    return;
+  }
+  window.open(url, "_blank", "noopener,noreferrer");
 }
