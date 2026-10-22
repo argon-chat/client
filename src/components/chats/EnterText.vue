@@ -438,6 +438,22 @@ import ScheduleSendButton from "./ScheduleSendButton.vue";
 import { useChannelDraft } from "@/composables/useChannelDraft";
 import { useDroppedMentions } from "@/lib/chat/composerMention";
 import { useScheduledPosts } from "@/composables/useScheduledPosts";
+
+// Composables may read their source getters while installing watchers during setup.
+const props = defineProps<{
+  replyTo: ArgonMessage | null;
+  /** The space of a channel composer. Absent in a direct chat. */
+  spaceId?: Guid;
+  channelId?: Guid;
+  /** Set for a direct chat: the message goes to this person instead of a channel. */
+  receiverId?: Guid;
+  captionMode?: boolean;
+  /** A sent message of the user's own being edited in this composer, or null. Channels only. */
+  editing?: ArgonMessage | null;
+  /** An announcement channel: say what @everyone costs here. */
+  announcement?: boolean;
+}>();
+
 const localeStore = useLocale();
 const { t } = localeStore;
 
@@ -919,20 +935,6 @@ watch(debouncedQuery, async (query) => {
   if (!query || !mention.show) return;
   mention.candidates = await pool.searchMentions(query);
 });
-
-const props = defineProps<{
-  replyTo: ArgonMessage | null;
-  /** The space of a channel composer. Absent in a direct chat. */
-  spaceId?: Guid;
-  channelId?: Guid;
-  /** Set for a direct chat: the message goes to this person instead of a channel. */
-  receiverId?: Guid;
-  captionMode?: boolean;
-  /** A sent message of the user's own being edited in this composer, or null. Channels only. */
-  editing?: ArgonMessage | null;
-  /** An announcement channel: say what @everyone costs here. */
-  announcement?: boolean;
-}>();
 
 // ── Where the message goes ──
 // One composer for channels and direct chats. What differs: which call sends the message, which

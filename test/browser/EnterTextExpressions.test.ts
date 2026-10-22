@@ -12,7 +12,7 @@
 import "../../packages/assets/styles/index.css";
 import { describe, test, expect, vi, beforeAll, beforeEach, afterEach } from "vitest";
 import { mount, flushPromises, type VueWrapper } from "@vue/test-utils";
-import { nextTick } from "vue";
+import { effectScope, nextTick } from "vue";
 import { page, userEvent } from "vitest/browser";
 import { createPinia, setActivePinia } from "pinia";
 import { emojiRegistry, initializeEmojix } from "@argon-chat/emojix";
@@ -36,6 +36,7 @@ const h = await vi.hoisted(async () => {
     sendMessage: vi.fn(),
     sendDirect: vi.fn(),
     commands: ref<any[]>([]),
+    getCommands: vi.fn(),
     invokeCommand: vi.fn(async () => true),
     computed,
     reactive,
@@ -48,6 +49,7 @@ vi.mock("@argon/ui/toast", () => ({ useToast: () => ({ toast() {} }) }));
 vi.mock("@/store/system/apiStore", () => ({
   useApi: () => ({
     channelInteraction: { SendMessage: h.sendMessage },
+    botManagementInteraction: { GetSpaceCommands: h.getCommands },
     userChatInteractions: { SendDirectMessage: h.sendDirect },
     spaceExpressionInteraction: {
       // `known` matched: the seeded copy is current.
@@ -88,13 +90,6 @@ vi.mock("@/composables/useChannelDraft", () => ({
 }));
 vi.mock("@/composables/useScheduledPosts", () => ({ useScheduledPosts: () => ({ schedule: async () => true }) }));
 vi.mock("@/lib/chat/composerMention", () => ({ useDroppedMentions: () => {} }));
-vi.mock("@/composables/useSlashCommands", () => ({
-  useSlashCommands: () => ({
-    commands: h.commands,
-    filterCommands: (query: string) => h.commands.value.filter((cmd) => cmd.name.includes(query)),
-    fetchCommands: async () => h.commands.value,
-  }),
-}));
 vi.mock("@/composables/useBotInteraction", () => ({ useBotInteraction: () => ({ invokeSlashCommand: h.invokeCommand }) }));
 vi.mock("@/composables/useAttachmentUpload", () => ({
   useAttachmentUpload: () => ({
@@ -115,6 +110,7 @@ vi.mock("@/components/ArgonAvatar.vue", () => h.stub("ArgonAvatar"));
 vi.mock("@/components/chats/GifPicker.vue", () => h.stub("GifPicker"));
 
 import EnterText from "@/components/chats/EnterText.vue";
+import { useSlashCommands } from "@/composables/useSlashCommands";
 import MessageInput from "@/components/chats/MessageInput.vue";
 import { useExpressionsStore } from "@/store/data/expressionsStore";
 import { useWindow } from "@/store/ui/windowStore";
@@ -214,6 +210,10 @@ beforeEach(async () => {
   h.perms.add("CreateExpressions");
   h.denied.clear();
   h.commands.value = [];
+  h.getCommands.mockReset().mockImplementation(async () => h.commands.value);
+  const scope = effectScope();
+  scope.run(() => useSlashCommands(() => 's1').invalidateCache());
+  scope.stop();
   h.invokeCommand.mockReset().mockResolvedValue(true);
   h.sendMessage.mockReset();
   h.sendMessage.mockImplementation(async (spaceId: string, channelId: string) => ({
@@ -233,6 +233,12 @@ afterEach(async () => {
 });
 
 describe('bot commands in the composer', () => {
+  test('mounts the channel composer with the real command watcher before any commands are requested', () => {
+    const { editor } = composer();
+    expect(editor.getAttribute('contenteditable')).toBe('true');
+    expect(h.getCommands).not.toHaveBeenCalled();
+  });
+
   function commands(count = 20) {
     h.commands.value = Array.from({ length: count }, (_, i) => ({
       commandId: `cmd-${i}`, name: `play${i || ''}`, description: `command ${i}`, options: [{ name: 'query' }],
