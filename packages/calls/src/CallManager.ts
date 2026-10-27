@@ -1517,13 +1517,22 @@ export function createCallManager(config: CallManagerConfig) {
       }
     });
 
-    // The SFU unpublishes our mic when a moderator mutes us, and restores nothing when they lift
-    // it: that is on us, once the permissions allow the microphone again.
+    // This also fires during the SDK's full reconnect (unpublish -> republish), not just
+    // when a moderator removes our microphone permission.
     r.on(RoomEvent.LocalTrackUnpublished, (pub) => {
       if (pub.source === Track.Source.Microphone && (!pub.track || toRaw(pub.track) === localMic)) {
-        logger.info("[CALL] microphone unpublished by the server");
+        logger.info("[CALL] microphone unpublished");
         localMic = null;
       }
+    });
+    r.on(RoomEvent.LocalTrackPublished, (pub) => {
+      if (toRaw(room.value) !== r || pub.source !== Track.Source.Microphone || !pub.track) return;
+      // The SDK republishes on reconnect without going through publishMicrophone().
+      // Restore the handle or subsequent mute events silently do nothing. Reapply the
+      // current state too: a toggle while the track was unpublished had no handle to mute.
+      localMic = toRaw(pub.track) as LocalAudioTrack;
+      const update = sys.microphoneMuted ? localMic.mute() : localMic.unmute();
+      void update.catch(err => logger.error("[CALL] failed to restore microphone mute after publish", err));
     });
     r.on(RoomEvent.ParticipantPermissionsChanged, (_prev, participant) => {
       if (participant && isLocalParticipant(participant)) void ensureMicrophonePublished();

@@ -9,6 +9,7 @@
 
 import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
 import { ref, type Ref } from "vue";
+import { Subject } from "rxjs";
 
 const rooms = vi.hoisted(() => ({
   last: null as any,
@@ -571,6 +572,40 @@ describe("the microphone follows the SFU's permissions", () => {
 
     await vi.waitFor(() => expect(micPublishes(room)).toHaveLength(1));
     await vi.waitFor(() => expect(micPublishes(room)[0][0].isMuted).toBe(true));
+  });
+});
+
+describe("microphone mute after LiveKit republishes on reconnect", () => {
+  test.each([false, true])("mute still reaches the republished track (toggle during reconnect: %s)", async (duringReconnect) => {
+    const setup = makeConfig();
+    const muteEvent = new Subject<boolean>();
+    const sys = setup.config.sys as any;
+    sys.muteEvent = muteEvent;
+    const { calls, room } = await joined(setup);
+    const mic = micPublishes(room)[0][0];
+
+    // Room.handleSignalRestarted -> republishAllTracks: the same user-provided track
+    // is unpublished without stopping it, then published again by the SDK itself.
+    room.emit(RoomEvent.Reconnecting);
+    room.emit(RoomEvent.LocalTrackUnpublished, { source: Track.Source.Microphone, track: mic });
+    if (duringReconnect) {
+      sys.microphoneMuted = true;
+      muteEvent.next(true);
+    }
+    room.emit(RoomEvent.LocalTrackPublished, { source: Track.Source.Microphone, track: mic });
+    room.emit(RoomEvent.Reconnected);
+    if (!duringReconnect) {
+      sys.microphoneMuted = true;
+      muteEvent.next(true);
+    }
+
+    await vi.waitFor(() => expect(mic.isMuted).toBe(true));
+    sys.microphoneMuted = false;
+    muteEvent.next(false);
+    await vi.waitFor(() => expect(mic.isMuted).toBe(false));
+    // The SDK owns the reconnect publication; the call manager must not create another mic.
+    expect(micPublishes(room)).toHaveLength(1);
+    await calls.leave();
   });
 });
 
