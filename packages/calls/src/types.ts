@@ -214,6 +214,8 @@ export interface ICallCurrentUser {
 /** The slice of user preferences that affects a call. Written back on device switch. */
 export interface ICallPreferences {
   adaptiveVideoQuality: boolean;
+  /** Allow the SFU to pause incoming video under congestion. Read on the next join. */
+  allowVideoPause?: boolean;
   defaultVideoDevice: string;
 }
 

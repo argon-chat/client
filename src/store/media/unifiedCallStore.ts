@@ -52,6 +52,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     // lazy accessors rather than a plain object.
     preference: {
       get adaptiveVideoQuality() { return usePreference().adaptiveVideoQuality; },
+      get allowVideoPause() { return usePreference().allowVideoPause; },
       get defaultVideoDevice() { return usePreference().defaultVideoDevice; },
       set defaultVideoDevice(v: string) { usePreference().defaultVideoDevice = v; },
     },

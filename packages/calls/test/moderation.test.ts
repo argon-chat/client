@@ -327,7 +327,7 @@ describe("being moved by a moderator", () => {
     room.emit("trackSubscribed", audioTrack(), { isMuted: false, source: Track.Source.Microphone }, u1);
     await vi.waitFor(() => expect(calls.participants.u1.audioGraph).not.toBeNull());
     room.emit(RoomEvent.ConnectionQualityChanged, ConnectionQuality.Poor, u1);
-    room.emit(RoomEvent.TrackSubscriptionFailed, "TR_1", u1, SubscriptionError.PermissionDenied);
+    room.emit(RoomEvent.TrackSubscriptionFailed, "TR_1", u1, SubscriptionError.SE_TRACK_NOTFOUND);
     room.emit(RoomEvent.ActiveSpeakersChanged, [u1]);
     expect(calls.activeSpeakerId.value).toBe("u1");
     tone.playSoftEnterSound.mockClear();

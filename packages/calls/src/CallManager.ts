@@ -368,6 +368,10 @@ export function createCallManager(config: CallManagerConfig) {
   // adaptiveStream and dynacast at construction, so flipping the preference mid-call
   // can't take effect until we build the next Room — adaptiveSettingPending says so.
   const adaptiveStreamActive = ref(false);
+  const allowVideoPauseActive = ref(true);
+  const videoPauseSettingPending = computed(() =>
+    isConnected.value && allowVideoPauseActive.value !== (preference.allowVideoPause ?? true),
+  );
   const adaptiveSettingPending = computed(
     () =>
       isConnected.value &&
@@ -517,7 +521,7 @@ export function createCallManager(config: CallManagerConfig) {
     try {
       if (room.value) {
         room.value.removeAllListeners();
-        room.value.disconnect();
+        await room.value.disconnect();
       }
     } catch (err) {
       logger.error("[CALL] leave error", err);
@@ -1132,7 +1136,8 @@ export function createCallManager(config: CallManagerConfig) {
       }
     });
 
-    p.setAudioContext(audio.getCurrentAudioContext());
+    // The room assigns its shared webAudioMix context to remote participants.
+    // Let the SDK own that asynchronous setup and handle failures.
 
     p.on("attributesChanged", (changed) => {
       logger.info("attributesChanged", uid, changed);
@@ -1349,6 +1354,8 @@ export function createCallManager(config: CallManagerConfig) {
     // nobody ended up consuming. Both are read once here — see adaptiveSettingPending.
     const adaptive = preference.adaptiveVideoQuality;
     adaptiveStreamActive.value = adaptive;
+    const allowVideoPause = preference.allowVideoPause ?? true;
+    allowVideoPauseActive.value = allowVideoPause;
 
     const r = createRoom({
       loggerName: `${callId.value}-room`,
@@ -1364,6 +1371,9 @@ export function createCallManager(config: CallManagerConfig) {
         // shares adapt by framerate rather than resolution; they still pause outright
         // when nobody is looking, which is where the real saving is.
         videoCodec: "vp9",
+        // Since SDK 2.22, L1T3 + simulcast means separate VP9 encodes. Keep the
+        // screen-share path on one encode as well as the camera's L3T3_KEY SVC.
+        simulcast: false,
         // No vp8 fallback layer: publishing one costs a second encode and doubles
         // upstream, which defeats the point. Everything Chromium-based, Firefox and
         // Safari 16+ decode vp9 — older Safari/iOS would see no video at all.
@@ -1392,7 +1402,14 @@ export function createCallManager(config: CallManagerConfig) {
       recomputeRadioBusy();
     });
 
-    r.on("participantDisconnected", (p) => {
+    r.on("participantDisconnected", (p, reason) => {
+      const why = reason === undefined ? "unknown" : (DisconnectReason[reason] ?? "unknown");
+      telemetry.count("call.participant.disconnected", {
+        mode: mode.value,
+        reason: why,
+        participant_kind: isRadioIdentity(p.identity) ? "radio" : "user",
+        room_moving: roomIsMoving(r),
+      });
       const uid = p.identity;
       if (isRadioIdentity(uid)) {
         releaseRadioGraph(uid);
@@ -1551,6 +1568,7 @@ export function createCallManager(config: CallManagerConfig) {
 
     try {
       await connectRoom(r, opts.rts, opts.token, {
+        connect: { subscriberAllowPause: allowVideoPause },
         // How often the relay path is actually there when a call needs it.
         onTurnProbed: ({ total, alive }) =>
           telemetry.count("call.turn.probe", {
@@ -2190,8 +2208,7 @@ export function createCallManager(config: CallManagerConfig) {
         resolution: VideoPresets.h720.resolution,
       });
 
-      // No simulcast flag: vp9 is SVC, so the layers come from scalabilityMode
-      // (L3T3_KEY) in a single encode and the flag is ignored.
+      // The room explicitly disables simulcast; VP9 uses L3T3_KEY SVC layers.
       cameraTrackPub = await room.value.localParticipant.publishTrack(cam, {
         videoEncoding: VideoPresets.h720.encoding,
       });
@@ -3033,6 +3050,7 @@ export function createCallManager(config: CallManagerConfig) {
 
     adaptiveStreamActive,
     adaptiveSettingPending,
+    videoPauseSettingPending,
 
     ping,
     pingHistory,

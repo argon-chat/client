@@ -57,6 +57,7 @@ const { audio, devicesByKind, sys, voice, callRights, windows } = await vi.hoist
     systemAudioEnabled: false,
     lastShareOpts: null as null | Record<string, unknown>,
     adaptiveSettingPending: false,
+    videoPauseSettingPending: false,
     microphoneUnavailable: false,
     switchCamera: vi.fn(async () => {}),
     toggleCamera: vi.fn(),
@@ -85,9 +86,11 @@ vi.mock("@/store/features/playframeStore", () => ({
 vi.mock("@/store/features/drawingSessionStore", () => ({
   useDrawingSession: () => ({ canDrawAnywhere: false, drawMode: false, toggleDrawMode() {} }),
 }));
-vi.mock("@/store/ui/preferenceStore", () => ({
-  usePreference: () => ({ adaptiveVideoQuality: false, defaultVideoDevice: "" }),
-}));
+const { preference } = await vi.hoisted(async () => {
+  const { reactive } = await import("vue");
+  return { preference: reactive({ adaptiveVideoQuality: false, allowVideoPause: true, defaultVideoDevice: "" }) };
+});
+vi.mock("@/store/ui/preferenceStore", () => ({ usePreference: () => preference }));
 vi.mock("@/store/system/localeStore", () => ({ useLocale: () => ({ t: (k: string) => k }) }));
 vi.mock("@argon/core", () => ({ logger: { warn() {}, info() {}, error() {} } }));
 vi.mock("@/composables/useScreenShareSources", () => ({ qualityPresets: [] }));
@@ -182,6 +185,8 @@ beforeEach(() => {
   voice.isCameraOn = false;
   voice.isSharing = false;
   voice.microphoneUnavailable = false;
+  preference.allowVideoPause = true;
+  voice.videoPauseSettingPending = false;
   windows.openSettings.mockClear();
   voice.toggleCamera.mockClear();
   voice.stopScreenShare.mockClear();
@@ -479,5 +484,22 @@ describe("a device menu still waiting for its first list", () => {
     await nextTick();
     await nextTick();
     expect(split(w, "mic").find(".device-row--empty").text()).toBe("no_microphones_found");
+  });
+});
+
+
+describe("incoming video pauses", () => {
+  test("is independent of adaptive quality and marks a policy waiting for reconnect", async () => {
+    const w = render();
+    await split(w, "share").find(".ctrl-chevron").trigger("click");
+    const button = w.find('[data-testid="video-congestion-pause"]');
+    expect(button.attributes("aria-pressed")).toBe("true");
+    expect(button.attributes("title")).toBe("video_congestion_pause_description");
+    await button.trigger("click");
+    expect(preference.allowVideoPause).toBe(false);
+    expect(preference.adaptiveVideoQuality).toBe(false);
+    voice.videoPauseSettingPending = true;
+    await nextTick();
+    expect(button.find(".device-hint").text()).toBe("adaptive_video_quality_pending");
   });
 });

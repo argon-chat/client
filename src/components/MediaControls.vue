@@ -160,6 +160,20 @@
                             </span>
                             <Check v-if="pref.adaptiveVideoQuality" class="w-3.5 h-3.5 ml-auto shrink-0" />
                         </button>
+                        <button
+                            class="device-row"
+                            :class="{ active: pref.allowVideoPause }"
+                            :aria-pressed="pref.allowVideoPause"
+                            :title="t('video_congestion_pause_description')"
+                            data-testid="video-congestion-pause"
+                            @click="pref.allowVideoPause = !pref.allowVideoPause">
+                            <Gauge class="w-3.5 h-3.5 shrink-0" />
+                            <span class="device-name device-name--wrap">
+                                {{ t('video_congestion_pause') }}
+                                <span v-if="voice.videoPauseSettingPending" class="device-hint">{{ t('adaptive_video_quality_pending') }}</span>
+                            </span>
+                            <Check v-if="pref.allowVideoPause" class="w-3.5 h-3.5 ml-auto shrink-0" />
+                        </button>
                     </PopoverContent>
                 </Popover>
             </div>
@@ -586,6 +600,10 @@ const activeCamId = computed(() => pref.defaultVideoDevice);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.device-name--wrap {
+    white-space: normal;
 }
 
 .device-hint {

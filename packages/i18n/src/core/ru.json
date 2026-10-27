@@ -560,6 +560,8 @@
   "live_badge": "LIVE",
   "monitor_index": "Монитор {idx}",
   "quality": "Качество",
+  "video_congestion_pause": "Пауза видео при слабом соединении",
+  "video_congestion_pause_description": "Разрешить приостанавливать входящее видео при перегрузке сети, освобождая канал для звука. Применится после переподключения.",
   "adaptive_video_quality": "Адаптивное качество видео",
   "adaptive_video_quality_pending": "Применится после переподключения",
   "video_paused": "Пауза",

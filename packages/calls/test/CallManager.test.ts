@@ -37,7 +37,7 @@ vi.mock("livekit-client", async (importOriginal) => {
     on(e: string, cb: Function) { this.handlers.set(e, [...(this.handlers.get(e) ?? []), cb]); return this; }
     off() { return this; }
     removeAllListeners() { this.handlers.clear(); return this; }
-    async connect() {}
+    connect = vi.fn(async (_url: string, _token: string, _options?: unknown) => {});
     async prepareConnection() {}
     disconnect() { this.disconnected = true; }
     async startAudio() {}
@@ -56,7 +56,7 @@ vi.mock("livekit-client", async (importOriginal) => {
   return { ...actual, Room: FakeRoom, LocalAudioTrack: FakeLocalAudioTrack };
 });
 
-import { RoomEvent, Track, ConnectionQuality } from "livekit-client";
+import { RoomEvent, Track, ConnectionQuality, DisconnectReason } from "livekit-client";
 import { createCallManager, type CallManagerConfig } from "../src";
 
 /** Enough of a MediaStreamTrack for LiveKit's real LocalVideoTrack to wrap it. */
@@ -164,7 +164,7 @@ describe('member volume before ingress audio arrives', () => {
   test('a bot volume chosen before subscription is saved and applied to its track', async () => {
     const saved = new Map<string, number>();
     const base = makeConfig();
-    const createGraph = vi.fn(() => ({ setVolume: vi.fn(), dispose() {} }));
+    const createGraph = vi.fn((_options: Parameters<CallManagerConfig["audio"]["createRemoteAudioGraph"]>[0]) => ({ setVolume: vi.fn(), dispose() {} }));
     const { calls, room } = await joined(makeConfig({
       audio: { ...base.audio, createRemoteAudioGraph: createGraph },
       userVolume: { getUserVolume: (id) => saved.get(id) ?? 100, setUserVolume: (id, volume) => { saved.set(id, volume); } },
@@ -193,6 +193,7 @@ describe("the package builds from a plain config", () => {
     const { room } = await joined();
     expect(room.options.adaptiveStream).toEqual({ pixelDensity: "screen" });
     expect(room.options.publishDefaults.videoCodec).toBe("vp9");
+    expect(room.options.publishDefaults.simulcast).toBe(false);
   });
 
   test("a host that disables adaptive quality gets a plain room", async () => {
@@ -373,6 +374,22 @@ describe("call behaviour survived the move", () => {
     expect(calls.room.value).toBeNull();
   });
 
+  test("leaving waits for the SDK to release its audio graphs", async () => {
+    const { calls, room } = await joined();
+    let finishDisconnect!: () => void;
+    room.disconnect = vi.fn(() => new Promise<void>((resolve) => { finishDisconnect = resolve; }));
+    let left = false;
+
+    const leaving = calls.leave().then(() => { left = true; });
+    await Promise.resolve();
+    expect(left).toBe(false);
+
+    finishDisconnect();
+    await leaving;
+    expect(left).toBe(true);
+    expect(calls.room.value).toBeNull();
+  });
+
   test("dispose releases the bus, and only dispose does", async () => {
     const unsubscribe = vi.fn();
     const config = makeConfig({
@@ -485,10 +502,61 @@ describe("joining without a usable microphone", () => {
   });
 });
 
+describe("incoming video congestion policy", () => {
+  test("defaults to allowing pauses, independently of adaptive tile sizing", async () => {
+    const { calls, room } = await joined(makeConfig({ preference: { adaptiveVideoQuality: false, defaultVideoDevice: "" } }));
+    expect(room.connect).toHaveBeenCalledWith(expect.any(String), expect.any(String), expect.objectContaining({ subscriberAllowPause: true }));
+    expect(room.options.adaptiveStream).toBe(false);
+    await calls.leave();
+  });
+
+  test("a changed pause policy takes effect on the next join and clears the pending hint", async () => {
+    const preference = (await import("vue")).reactive({ adaptiveVideoQuality: true, allowVideoPause: false, defaultVideoDevice: "" });
+    const { calls, room } = await joined(makeConfig({ preference }));
+    expect(room.connect).toHaveBeenCalledWith(expect.any(String), expect.any(String), expect.objectContaining({ subscriberAllowPause: false }));
+    expect(calls.videoPauseSettingPending.value).toBe(false);
+    preference.allowVideoPause = true;
+    expect(calls.videoPauseSettingPending.value).toBe(true);
+    await calls.leave();
+    expect(calls.videoPauseSettingPending.value).toBe(false);
+    await calls.joinVoiceChannel("chan-1");
+    expect(rooms.last.connect).toHaveBeenCalledWith(expect.any(String), expect.any(String), expect.objectContaining({ subscriberAllowPause: true }));
+    expect(calls.videoPauseSettingPending.value).toBe(false);
+    await calls.leave();
+  });
+});
+
 describe("product metrics go through the host's telemetry sink", () => {
   const telemetry = () => ({ count: vi.fn(), distribution: vi.fn() });
   const named = (fn: ReturnType<typeof vi.fn>, name: string) =>
     fn.mock.calls.filter(([n]) => n === name);
+
+  test.each([
+    [DisconnectReason.CLIENT_INITIATED, "CLIENT_INITIATED"],
+    [DisconnectReason.PARTICIPANT_REMOVED, "PARTICIPANT_REMOVED"],
+    [DisconnectReason.MIGRATION, "MIGRATION"],
+    [DisconnectReason.SIGNAL_CLOSE, "SIGNAL_CLOSE"],
+    [undefined, "unknown"],
+    [9999 as DisconnectReason, "unknown"],
+  ])("a remote departure preserves the reason %s without participant identifiers", async (reason, name) => {
+    const t = telemetry();
+    const { calls, room } = await joined(makeConfig({ telemetry: t }));
+    room.emit(RoomEvent.ParticipantDisconnected, { identity: "private-user-id" }, reason);
+    expect(t.count).toHaveBeenCalledWith("call.participant.disconnected", {
+      mode: "channel", reason: name, participant_kind: "user", room_moving: false,
+    });
+    await calls.leave();
+  });
+
+  test("radio departures are counted separately", async () => {
+    const t = telemetry();
+    const { calls, room } = await joined(makeConfig({ telemetry: t }));
+    room.emit(RoomEvent.ParticipantDisconnected, { identity: "bc:private-user-id" }, DisconnectReason.MIGRATION);
+    expect(t.count).toHaveBeenCalledWith("call.participant.disconnected", {
+      mode: "channel", reason: "MIGRATION", participant_kind: "radio", room_moving: false,
+    });
+    await calls.leave();
+  });
 
   test("a successful join reports the join, how long it took and the room size", async () => {
     const t = telemetry();

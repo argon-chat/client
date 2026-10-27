@@ -83,7 +83,7 @@
     "howler": "^2.2.4",
     "idb": "^8.0.3",
     "jsbarcode": "^3.12.3",
-    "livekit-client": "^2.21.0",
+    "livekit-client": "^2.23.0",
     "lucide-vue-next": "^0.548.0",
     "maska": "^3.2.0",
     "mediabunny": "^1.61.3",

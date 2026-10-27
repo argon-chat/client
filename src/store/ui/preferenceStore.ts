@@ -73,6 +73,9 @@ export const usePreference = defineStore("preference", () => {
     true,
   );
 
+  // Congestion pauses are independent of off-screen tile adaptation.
+  const allowVideoPause = persistedValue<boolean>("allowVideoPause", true);
+
   return {
     forceToMono,
 
@@ -97,5 +100,6 @@ export const usePreference = defineStore("preference", () => {
     isEnable_playRingSound,
     defaultVideoDevice,
     adaptiveVideoQuality,
+    allowVideoPause,
   };
 });
