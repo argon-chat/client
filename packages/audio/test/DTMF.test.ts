@@ -213,6 +213,18 @@ describe("playDTMF", () => {
 });
 
 describe("playBusyTone", () => {
+  test("stops and disconnects the oscillator pair when the sequence ends", async () => {
+    vi.useFakeTimers();
+    const done = createDTMFPlayer(audio.manager).playBusyTone(1);
+    await vi.advanceTimersByTimeAsync(1000);
+    await done;
+    for (const osc of audio.created.oscillators) {
+      expect(osc.stopped).not.toBeNull();
+      expect(osc.outputs).toHaveLength(0);
+    }
+    expect(audio.created.gains[0].outputs).toHaveLength(0);
+  });
+
   test("uses the standard busy pair and cycles the requested number of times", async () => {
     vi.useFakeTimers();
     const player = createDTMFPlayer(audio.manager);
@@ -249,10 +261,9 @@ describe("playBusyTone", () => {
   test("routes through the shared output destination", async () => {
     vi.useFakeTimers();
     const done = createDTMFPlayer(audio.manager).playBusyTone(1);
-    await vi.advanceTimersByTimeAsync(1000);
-    await done;
-
     const [gain] = audio.created.gains;
     expect(gain.outputs).toContain(audio.destination);
+    await vi.advanceTimersByTimeAsync(1000);
+    await done;
   });
 });

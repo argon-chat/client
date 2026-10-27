@@ -140,6 +140,17 @@ describe("activate", () => {
     expect(lib.speexLoads).toBe(1);
   });
 
+  test("a second context registers its own worklet module", async () => {
+    const a = makeCtx();
+    const b = makeCtx();
+    const ns = new NoiseSuppressor(URLS);
+    await ns.activate("speex", a.ctx);
+    await ns.activate("speex", b.ctx);
+    expect(a.modules).toEqual(["/ns/speex.js"]);
+    expect(b.modules).toEqual(["/ns/speex.js"]);
+    expect(lib.speexLoads).toBe(1);
+  });
+
   test("switching modes tears the previous node down first", async () => {
     // Leaving the old node connected would run both suppressors in series.
     const { ctx } = makeCtx();
@@ -176,6 +187,21 @@ describe("activate", () => {
 });
 
 describe("deactivate", () => {
+  test.each(["off", "dispose", "speex"] as const)("a pending activation cannot undo a later %s", async (next) => {
+    const { ctx } = makeCtx();
+    let finish!: () => void;
+    (ctx.audioWorklet.addModule as any).mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve; }));
+    const ns = new NoiseSuppressor(URLS);
+    const pending = ns.activate("rnnoise", ctx);
+    if (next === "dispose") ns.dispose();
+    else await ns.activate(next, ctx);
+    const current = ns.getNode();
+    finish();
+    expect(await pending).toBeNull();
+    expect(ns.getMode()).toBe(next === "speex" ? "speex" : "off");
+    expect(ns.getNode()).toBe(current);
+  });
+
   test("releases the node and reports off", async () => {
     const { ctx } = makeCtx();
     const ns = new NoiseSuppressor(URLS);

@@ -99,18 +99,26 @@ export function createDTMFPlayer(audio: IAudioManagement) {
 
     const sleep = (ms: number) =>
       new Promise<void>((resolve) => setTimeout(resolve, ms));
-    let i = len;
-    while (i) {
-      --i;
-      const now = audioCtx.currentTime;
+    try {
+      let i = len;
+      while (i) {
+        --i;
+        const now = audioCtx.currentTime;
 
-      gain.gain.cancelScheduledValues(now);
-      gain.gain.setValueAtTime(0, now);
-      gain.gain.linearRampToValueAtTime(0.08, now + attack);
-      gain.gain.setValueAtTime(0.08, now + onTime - release);
-      gain.gain.linearRampToValueAtTime(0, now + onTime);
+        gain.gain.cancelScheduledValues(now);
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.08, now + attack);
+        gain.gain.setValueAtTime(0.08, now + onTime - release);
+        gain.gain.linearRampToValueAtTime(0, now + onTime);
 
-      await sleep((onTime + offTime) * 1000);
+        await sleep((onTime + offTime) * 1000);
+      }
+    } finally {
+      osc1.stop();
+      osc2.stop();
+      osc1.disconnect();
+      osc2.disconnect();
+      gain.disconnect();
     }
   };
 

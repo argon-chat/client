@@ -46,8 +46,9 @@ class FakeWorkletNode extends FakeNode {
  */
 function fakeStream(): MediaStream {
   const s: any = typeof MediaStream !== "undefined" ? new MediaStream() : {};
-  s.getAudioTracks = () => [{ getSettings: () => ({ sampleRate: 48000 }), stop() {} }];
-  s.getTracks = () => [{ stop() {} }];
+  const track = { readyState: "live", getSettings: () => ({ sampleRate: 48000 }), stop: vi.fn(() => { track.readyState = "ended"; }) };
+  s.getAudioTracks = () => [track];
+  s.getTracks = () => [track];
   return s as MediaStream;
 }
 
@@ -189,6 +190,124 @@ describe("processing configured before the pipeline exists still applies", () =>
     await m.setInputGateEnabled(false);
 
     expect(chainFrom(managerInternals(m as any).gain)).toEqual(["stream-destination"]);
+  });
+});
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason: unknown) => void;
+  const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; });
+  return { promise, resolve, reject };
+}
+
+describe("microphone capture races", () => {
+  test("parallel acquires after idle share a single capture", async () => {
+    const m = make({ releaseInputWhenIdle: true });
+    await m.acquireInput();
+    m.releaseInput();
+    const capture = deferred<MediaStream>();
+    getUserMedia.mockClear();
+    getUserMedia.mockImplementation(() => capture.promise);
+    const a = m.acquireInput();
+    const b = m.acquireInput();
+    capture.resolve(fakeStream());
+    expect(await a).toBe(await b);
+    expect(getUserMedia).toHaveBeenCalledTimes(1);
+    m.releaseInput();
+    expect(m.isMicrophoneAttached().value).toBe(true);
+    m.releaseInput();
+    expect(m.isMicrophoneAttached().value).toBe(false);
+  });
+
+  test("a slower old device selection cannot replace the newest microphone", async () => {
+    const m = make();
+    await m.acquireInput();
+    const old = deferred<MediaStream>();
+    const latest = fakeStream();
+    getUserMedia.mockImplementationOnce(() => old.promise).mockResolvedValueOnce(latest);
+    const a = m.setInputDevice("old");
+    await m.setInputDevice("latest");
+    const stale = fakeStream();
+    old.resolve(stale);
+    await a;
+    expect((m as any).currentMicStream).toBe(latest);
+    expect(stale.getTracks()[0].stop).toHaveBeenCalled();
+    expect(m.getInputDevice().value).toBe("latest");
+  });
+
+  test("an obsolete failure does not revert the newest selection or fall back", async () => {
+    const m = make();
+    await m.acquireInput();
+    const old = deferred<MediaStream>();
+    getUserMedia.mockImplementationOnce(() => old.promise);
+    const a = m.setInputDevice("old");
+    await m.setInputDevice("latest");
+    const latest = (m as any).currentMicStream;
+    const calls = getUserMedia.mock.calls.length;
+    old.reject(Object.assign(new Error("gone"), { name: "NotFoundError" }));
+    await a;
+    expect(getUserMedia).toHaveBeenCalledTimes(calls);
+    expect(m.getInputDevice().value).toBe("latest");
+    expect((m as any).currentMicStream).toBe(latest);
+  });
+
+  test("a selection while initial capture is pending actually selects that device", async () => {
+    const m = make();
+    const old = deferred<MediaStream>();
+    getUserMedia.mockImplementationOnce(() => old.promise);
+    const hold = m.holdInput();
+    const selection = m.setInputDevice("usb-mic");
+    const stale = fakeStream();
+    old.resolve(stale);
+    await Promise.all([hold, selection]);
+    expect(getUserMedia).toHaveBeenCalledTimes(2);
+    expect((getUserMedia.mock.calls[1] as any[])[0].audio.deviceId).toEqual({ exact: "usb-mic" });
+    expect(stale.getTracks()[0].stop).toHaveBeenCalled();
+  });
+
+  test("releasing the last hold during capture stops the late stream", async () => {
+    const m = make({ releaseInputWhenIdle: true });
+    const capture = deferred<MediaStream>();
+    getUserMedia.mockImplementationOnce(() => capture.promise);
+    const hold = m.holdInput();
+    m.releaseInput();
+    const stream = fakeStream();
+    capture.resolve(stream);
+    await hold;
+    expect(stream.getTracks()[0].stop).toHaveBeenCalled();
+    expect(m.isMicrophoneAttached().value).toBe(false);
+  });
+
+  test("a new hold after cancellation does not reuse the cancelled initial capture", async () => {
+    const m = make({ releaseInputWhenIdle: true });
+    const old = deferred<MediaStream>();
+    getUserMedia.mockImplementationOnce(() => old.promise);
+    const a = m.holdInput();
+    m.releaseInput();
+    const b = await m.holdInput();
+    const latest = (m as any).currentMicStream;
+    const stale = fakeStream();
+    old.resolve(stale);
+    expect((await a).stream).toBe(b.stream);
+    expect((m as any).currentMicStream).toBe(latest);
+    expect(stale.getTracks()[0].stop).toHaveBeenCalled();
+    expect(m.isMicrophoneAttached().value).toBe(true);
+    m.releaseInput();
+  });
+
+  test("dispose during capture cannot resurrect a microphone or its graph", async () => {
+    const m = make();
+    const capture = deferred<MediaStream>();
+    getUserMedia.mockImplementationOnce(() => capture.promise);
+    const input = m.acquireInput();
+    const rejected = expect(input).rejects.toThrow(/disposed/i);
+    m.dispose();
+    const stream = fakeStream();
+    capture.resolve(stream);
+    await rejected;
+    expect(stream.getTracks()[0].stop).toHaveBeenCalled();
+    expect(m.isMicrophoneAttached().value).toBe(false);
+    expect(m.isVirtualStreamInitialized()).toBe(false);
   });
 });
 
@@ -480,6 +599,24 @@ describe("the input reference count", () => {
 
 describe("remote participant volume", () => {
   const track = () => ({ kind: "audio" }) as unknown as MediaStreamTrack;
+
+  test("disposing the manager tears down remote graphs, meters and media elements", () => {
+    const m = make();
+    const graph = m.createRemoteAudioGraph({ track: track(), onSpeakingChange: vi.fn() });
+    const el = [...m.getMediaElements()][0];
+    const raf = vi.mocked(requestAnimationFrame);
+    const detect = raf.mock.calls.at(-1)![0];
+    m.dispose();
+    expect(m.getRemoteAudioGraphs().size).toBe(0);
+    expect(m.getMediaElements().size).toBe(0);
+    expect(el.isConnected).toBe(false);
+    expect(el.srcObject).toBeNull();
+    expect((graph.gainNode as unknown as FakeNode).outputs.size).toBe(0);
+    raf.mockClear();
+    detect(0);
+    expect(raf).not.toHaveBeenCalled();
+    expect(() => graph.dispose()).not.toThrow();
+  });
 
   test("a participant subscribed while deafened can be heard again", async () => {
     // The graph latched its creation-time mute flag, so undeafening — which the caller

@@ -296,6 +296,10 @@ export class AudioManagement implements IAudioManagement {
   // Number of live consumers holding the real mic via acquireInput()/releaseInput().
   private inputRefCount = 0;
   private micAttached: Ref<boolean> = ref(false);
+  private micRequestId = 0;
+  private micConnectionPromise: Promise<void> | null = null;
+  private inputSelectionId = 0;
+  private disposed = false;
   
   // Virtual output stream architecture
   private outputAnalyserNode: AnalyserNode | null = null;
@@ -328,6 +332,7 @@ export class AudioManagement implements IAudioManagement {
   
   // Remote audio graphs tracking
   private remoteAudioGraphs = new Map<string, { label: string; volume: number; speaking: boolean }>();
+  private remoteAudioGraphDisposers = new Set<() => void>();
 
   // Noise suppression
   private noiseSuppressor: NoiseSuppressor | null;
@@ -378,6 +383,9 @@ export class AudioManagement implements IAudioManagement {
   // ==================== LIFECYCLE ====================
 
   dispose(): void {
+    this.disposed = true;
+    this.micRequestId++;
+    this.micConnectionPromise = null;
     this.inputDevice$.complete();
     this.outputDevice$.complete();
     this.inputVolume$.complete();
@@ -406,6 +414,14 @@ export class AudioManagement implements IAudioManagement {
     
     // Cleanup input level monitor
     this.inputLevelMonitorDisposable?.dispose();
+    for (const disposeGraph of this.remoteAudioGraphDisposers) disposeGraph();
+    for (const el of this.mediaElements) {
+      el.pause();
+      el.srcObject = null;
+      el.removeAttribute('src');
+      el.remove();
+    }
+    this.mediaElements.clear();
     
     // Cleanup output level monitor
     if (this.outputLevelAnimationFrame) {
@@ -415,6 +431,10 @@ export class AudioManagement implements IAudioManagement {
     
     // Cleanup noise suppressor
     this.noiseSuppressor?.dispose();
+    this.inputGateNode?.port.close();
+    this.inputGateNode?.disconnect();
+    this.inputGateNode = null;
+    this.inputGateStateCallbacks.clear();
     
     // Cleanup virtual input stream
     this.cleanupCurrentMicSource();
@@ -617,9 +637,10 @@ export class AudioManagement implements IAudioManagement {
   }
 
   private async handleDeviceChange(): Promise<void> {
+    if (this.disposed) return;
     logger.info("[AudioManagement] Device change detected");
     const { devices, hidden, fresh } = await this.readDevices();
-    if (!fresh) return;
+    if (!fresh || this.disposed) return;
     this.devices$.next(devices);
 
     const audioInputs = devices.filter(d => d.kind === 'audioinput');
@@ -705,12 +726,13 @@ export class AudioManagement implements IAudioManagement {
     logger.info("[AudioManagement] setInputDevice:", deviceId);
     
     const previousDeviceId = this.inputDeviceId.value;
+    const selectionId = ++this.inputSelectionId;
     this.inputDeviceId.value = deviceId;
     localStorage.setItem(STORAGE_KEYS.INPUT_DEVICE, deviceId);
     
     // Switch the live microphone, or attach one for a holder still waiting for a device. If the
     // mic was only detached while idle, just remember the device — the next acquire grabs it.
-    const live = this.virtualStreamInitialized && this.currentMicStream;
+    const live = this.currentMicStream || this.micConnectionPromise;
     if (live || this.inputRefCount > 0) {
       try {
         if (live) await this.connectMicrophoneToVirtualStream(deviceId);
@@ -718,14 +740,16 @@ export class AudioManagement implements IAudioManagement {
         logger.info('[AudioManagement] Microphone switched successfully to:', this.inputDeviceId.value);
       } catch (err) {
         logger.error('[AudioManagement] Failed to switch microphone, reverting:', err);
-        this.inputDeviceId.value = previousDeviceId;
-        localStorage.setItem(STORAGE_KEYS.INPUT_DEVICE, previousDeviceId);
+        if (selectionId === this.inputSelectionId) {
+          this.inputDeviceId.value = previousDeviceId;
+          localStorage.setItem(STORAGE_KEYS.INPUT_DEVICE, previousDeviceId);
+        }
         throw err;
       }
     }
 
     // Notify subscribers AFTER successful switch; a missing device may have fallen back to default.
-    this.inputDevice$.next(this.inputDeviceId.value);
+    if (selectionId === this.inputSelectionId) this.inputDevice$.next(this.inputDeviceId.value);
   }
 
   async setOutputDevice(deviceId: DeviceId): Promise<void> {
@@ -875,7 +899,7 @@ export class AudioManagement implements IAudioManagement {
     // in settings re-opens the device while idle, which on macOS lights the system
     // "microphone in use" indicator outside any call — the thing releaseInputWhenIdle
     // exists to avoid. Detached mics pick the new constraints up on the next acquire.
-    if (changed && this.virtualStreamInitialized && this.currentMicStream) {
+    if (changed && (this.currentMicStream || this.micConnectionPromise)) {
       await this.connectMicrophoneToVirtualStream(this.inputDeviceId.value);
     }
   }
@@ -1040,6 +1064,8 @@ export class AudioManagement implements IAudioManagement {
     // Connect the initial microphone
     await this.connectMicrophoneToVirtualStream(this.inputDeviceId.value);
 
+    if (this.disposed) throw new Error("Audio manager is disposed");
+
     this.virtualStreamInitialized = true;
     logger.info('[AudioManagement] Virtual input stream initialized');
 
@@ -1053,6 +1079,7 @@ export class AudioManagement implements IAudioManagement {
 
   /** The gain → processing → destination graph the microphone feeds, with or without one. */
   private ensureInputGraph(): MediaStream {
+    if (this.disposed) throw new Error("Audio manager is disposed");
     const ctx = this.getCurrentAudioContext();
 
     // Built once and reused: a retry after a failed microphone grab must not strand the
@@ -1083,16 +1110,33 @@ export class AudioManagement implements IAudioManagement {
     return !!this.currentMicStream?.getAudioTracks().some(t => t.readyState !== 'ended');
   }
 
-  private async connectMicrophoneToVirtualStream(deviceId: DeviceId): Promise<void> {
-    const ctx = this.getCurrentAudioContext();
-    
-    // Cleanup previous source
+  private connectMicrophoneToVirtualStream(deviceId: DeviceId): Promise<void> {
+    const requestId = ++this.micRequestId;
     this.cleanupCurrentMicSource();
+    this.micAttached.value = false;
+    const attempt: Promise<void> = this.captureMicrophone(deviceId, requestId).then(async () => {
+      // An older caller must not finish initialization before the replacement capture.
+      if (requestId !== this.micRequestId && this.micConnectionPromise && this.micConnectionPromise !== attempt) {
+        await this.micConnectionPromise;
+      }
+    });
+    this.micConnectionPromise = attempt;
+    const clear = () => {
+      if (this.micConnectionPromise === attempt) this.micConnectionPromise = null;
+    };
+    void attempt.then(clear, clear);
+    return attempt;
+  }
+
+  private async captureMicrophone(deviceId: DeviceId, requestId: number): Promise<void> {
+    if (this.disposed) throw new Error("Audio manager is disposed");
+    const ctx = this.getCurrentAudioContext();
+    let stream: MediaStream | null = null;
     
     try {
       // Get new microphone stream with current constraints
       // Note: Don't enforce exact sampleRate to avoid mismatches with AudioContext
-      this.currentMicStream = await navigator.mediaDevices.getUserMedia({
+      stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           channelCount: 2,
           echoCancellation: this.audioConstraints.echoCancellation,
@@ -1102,6 +1146,14 @@ export class AudioManagement implements IAudioManagement {
           sampleRate: { ideal: this.config.sampleRate },
         },
       });
+
+      // getUserMedia cannot be cancelled. A late result still owns live device tracks:
+      // stop them instead of connecting an obsolete capture (or reviving a disposed manager).
+      if (requestId !== this.micRequestId || this.disposed) {
+        stream.getTracks().forEach(track => track.stop());
+        return;
+      }
+      this.currentMicStream = stream;
       
       // Log sample rate info (browser will handle resampling automatically)
       const streamTrack = this.currentMicStream.getAudioTracks()[0];
@@ -1126,15 +1178,20 @@ export class AudioManagement implements IAudioManagement {
       // The first microphone opened is what lets a browser name its devices: tell the pickers.
       if (!this.knownDevices.some(d => d.kind === 'audioinput')) void this.refreshDevices();
     } catch (err: any) {
+      stream?.getTracks().forEach(track => track.stop());
+      if (requestId !== this.micRequestId || this.disposed) return;
+      this.cleanupCurrentMicSource();
       const errorType = this.classifyMediaError(err);
 
       // Another device only helps when this one is missing or busy; a refused permission
       // refuses the default device just the same.
       if ((errorType === 'not-found' || errorType === 'not-readable') && deviceId && deviceId !== 'default') {
         logger.warn(`[AudioManagement] Microphone ${deviceId} failed (${errorType}), falling back to default:`, err);
-        await this.connectMicrophoneToVirtualStream('default');
-        this.inputDeviceId.value = 'default';
-        localStorage.setItem(STORAGE_KEYS.INPUT_DEVICE, 'default');
+        await this.captureMicrophone('default', requestId);
+        if (requestId === this.micRequestId) {
+          this.inputDeviceId.value = 'default';
+          localStorage.setItem(STORAGE_KEYS.INPUT_DEVICE, 'default');
+        }
         return;
       }
 
@@ -1169,21 +1226,29 @@ export class AudioManagement implements IAudioManagement {
   }
 
   async getVirtualInputStream(): Promise<MediaStream> {
+    if (this.disposed) throw new Error("Audio manager is disposed");
     if (!this.virtualStreamInitialized) {
       return this.initVirtualStream();
     }
     // The graph persists but the real mic may have been detached while idle
     // (see releaseInput / releaseInputWhenIdle) — reattach it on demand.
-    if (!this.currentMicStream) {
+    if (this.micConnectionPromise) {
+      await this.micConnectionPromise;
+    } else if (!this.hasLiveMicrophone()) {
       await this.connectMicrophoneToVirtualStream(this.inputDeviceId.value);
     }
+    if (this.disposed) throw new Error("Audio manager is disposed");
     return this.virtualStreamDestination!.stream;
   }
 
   async acquireInput(): Promise<MediaStream> {
-    const stream = await this.getVirtualInputStream(); // ensures the mic is attached
     this.inputRefCount++;
-    return stream;
+    try {
+      return await this.getVirtualInputStream();
+    } catch (err) {
+      this.releaseInput();
+      throw err;
+    }
   }
 
   async holdInput(): Promise<HeldInput> {
@@ -1192,6 +1257,10 @@ export class AudioManagement implements IAudioManagement {
     try {
       return { stream: await this.getVirtualInputStream(), error: null };
     } catch (err: any) {
+      if (this.disposed) {
+        this.releaseInput();
+        throw err;
+      }
       return {
         stream: this.ensureInputGraph(),
         error: {
@@ -1220,6 +1289,9 @@ export class AudioManagement implements IAudioManagement {
    * and goes silent). The mic is reattached lazily by the next getVirtualInputStream().
    */
   detachMicrophone(): void {
+    this.micRequestId++;
+    this.micConnectionPromise = null;
+    if (!this.virtualStreamInitialized) this.virtualStreamInitPromise = null;
     if (!this.currentMicStream && !this.currentMicSource) return;
     this.cleanupCurrentMicSource();
     this.micAttached.value = false;
@@ -1640,7 +1712,9 @@ export class AudioManagement implements IAudioManagement {
     const getVolume = () => currentVolume;
 
     const dispose = () => {
+      if (stopped) return;
       stopped = true;
+      this.remoteAudioGraphDisposers.delete(dispose);
       if (rafId !== null) {
         cancelAnimationFrame(rafId);
         rafId = null;
@@ -1659,6 +1733,8 @@ export class AudioManagement implements IAudioManagement {
         logger.warn('[AudioManagement] Error disposing remote audio graph:', err);
       }
     };
+
+    this.remoteAudioGraphDisposers.add(dispose);
 
     return {
       graphId,

@@ -25,6 +25,7 @@ export interface NoiseSuppressorUrls {
 export class NoiseSuppressor {
   private currentNode: AudioWorkletNode | null = null;
   private currentMode: NoiseSuppressionMode = "off";
+  private activationId = 0;
   private urls: NoiseSuppressorUrls;
 
   // Cache loaded WASM binaries
@@ -32,7 +33,7 @@ export class NoiseSuppressor {
   private speexWasm: ArrayBuffer | null = null;
 
   // Track which worklet modules have been registered
-  private registeredModules = new Set<string>();
+  private registeredModules = new WeakMap<AudioContext, Set<string>>();
 
   constructor(urls: NoiseSuppressorUrls) {
     this.urls = urls;
@@ -56,6 +57,7 @@ export class NoiseSuppressor {
   ): Promise<AudioWorkletNode | null> {
     // Deactivate current node first
     this.deactivate();
+    const activationId = this.activationId;
 
     if (mode === "off") {
       this.currentMode = "off";
@@ -64,11 +66,16 @@ export class NoiseSuppressor {
 
     try {
       const node = await this.createNode(mode, audioCtx);
+      if (activationId !== this.activationId) {
+        this.disposeNode(node);
+        return null;
+      }
       this.currentNode = node;
       this.currentMode = mode;
       logger.info(`[NoiseSuppressor] Activated mode: ${mode}`);
       return node;
     } catch (err) {
+      if (activationId !== this.activationId) return null;
       logger.error(`[NoiseSuppressor] Failed to activate mode ${mode}:`, err);
       this.currentMode = "off";
       throw err;
@@ -79,18 +86,19 @@ export class NoiseSuppressor {
    * Deactivate and disconnect the current suppressor node.
    */
   deactivate(): void {
+    this.activationId++;
     if (this.currentNode) {
-      try {
-        if ("destroy" in this.currentNode && typeof (this.currentNode as any).destroy === "function") {
-          (this.currentNode as any).destroy();
-        }
-        this.currentNode.disconnect();
-      } catch {
-        // Node may already be disconnected
-      }
+      this.disposeNode(this.currentNode);
       this.currentNode = null;
     }
     this.currentMode = "off";
+  }
+
+  private disposeNode(node: AudioWorkletNode): void {
+    try {
+      if ("destroy" in node && typeof node.destroy === "function") node.destroy();
+    } catch { /* The worklet may already be destroyed. */ }
+    try { node.disconnect(); } catch { /* Already disconnected. */ }
   }
 
   private async createNode(
@@ -110,10 +118,15 @@ export class NoiseSuppressor {
   }
 
   private async ensureWorkletModule(audioCtx: AudioContext, moduleUrl: string): Promise<void> {
-    if (this.registeredModules.has(moduleUrl)) return;
+    let modules = this.registeredModules.get(audioCtx);
+    if (!modules) {
+      modules = new Set();
+      this.registeredModules.set(audioCtx, modules);
+    }
+    if (modules.has(moduleUrl)) return;
     logger.info(`[NoiseSuppressor] Loading worklet module: ${moduleUrl}`);
     await audioCtx.audioWorklet.addModule(moduleUrl);
-    this.registeredModules.add(moduleUrl);
+    modules.add(moduleUrl);
     logger.info(`[NoiseSuppressor] Worklet module loaded successfully`);
   }
 
@@ -175,6 +188,6 @@ export class NoiseSuppressor {
     this.deactivate();
     this.rnnoiseWasm = null;
     this.speexWasm = null;
-    this.registeredModules.clear();
+    this.registeredModules = new WeakMap();
   }
 }
