@@ -55,3 +55,11 @@ describe("HostProc.toggleDevTools under vue-native", () => {
     expect(await bridge.invoke("HostProc", "setOverlayBadge", [])).toBeUndefined();
   });
 });
+
+describe("answers callers check against null", () => {
+  // HotKeySettings tests `status !== null && !status.running`; `undefined` crashed the tab.
+  test("hotkeyStatus is null, which means no hotkey host", async () => {
+    const bridge = await freshBridge();
+    expect(await bridge.invoke("HostProc", "hotkeyStatus", [])).toBeNull();
+  });
+});

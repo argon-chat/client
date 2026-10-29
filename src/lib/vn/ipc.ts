@@ -18,6 +18,10 @@ import { isVn } from "./index";
 const ANSWERS: Record<string, unknown> = {
   // configStore.load(): a list of sections. None, because the host has no config of its own.
   "HostProc.getConfig": [],
+  // HotKeySettings tests `status !== null && !status.running`, and `null` is how hotkeys/host.ts
+  // says "no hotkey host". `undefined` passed the null check and crashed the Hotkeys tab (vue-native
+  // research/reports/m26/client-sweep-1.md #7).
+  "HostProc.hotkeyStatus": null,
 };
 
 /**
