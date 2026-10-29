@@ -1,4 +1,5 @@
 import { UploadFileError, type IUploadFileResult } from "@argon/glue";
+import { fetchPut, FetchPutError, noXhr } from "@/lib/vn/fetchPut";
 
 export interface UploadResult {
   blobId: string;
@@ -70,9 +71,38 @@ export async function uploadFile(
     }
   }
 
-  await xhrPut(uploadUrl, blob, headers, options?.onProgress, options?.signal, options?.timeout);
+  // No XMLHttpRequest (vue-native today): fetch, with no upload progress. client-gap.md §4, "uploads".
+  const put = noXhr() ? fetchFilePut : xhrPut;
+  await put(uploadUrl, blob, headers, options?.onProgress, options?.signal, options?.timeout);
 
   return { blobId };
+}
+
+/** xhrPut's contract over fetch (lib/vn/fetchPut.ts): progress is 0, then 1 once it is answered. */
+async function fetchFilePut(
+  url: string,
+  body: Blob,
+  headers: Record<string, string>,
+  onProgress?: (progress: number) => void,
+  signal?: AbortSignal,
+  timeout?: number,
+): Promise<void> {
+  let response: Response;
+  try {
+    response = await fetchPut(url, body, {
+      headers,
+      signal,
+      timeoutMs: timeout,
+      onProgress: onProgress && ((loaded, total) => onProgress(total > 0 ? loaded / total : 1)),
+    });
+  } catch (e) {
+    const reason = e instanceof FetchPutError ? e.reason : "network";
+    throw new Error(reason === "aborted" ? "Upload aborted" : reason === "timeout" ? "Upload timed out" : "Upload network error");
+  }
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    throw new UploadHttpError(response.status, `Upload failed (${response.status}): ${text}`);
+  }
 }
 
 function xhrPut(

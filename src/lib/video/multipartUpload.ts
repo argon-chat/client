@@ -1,5 +1,6 @@
 import { SuccessUploadFile, type UploadedPart, type VideoUploadTicket } from "@argon/glue";
 import { uploadFile } from "@/lib/uploadFile";
+import { fetchPut, FetchPutError, noXhr } from "@/lib/vn/fetchPut";
 import { VideoPartUploadError } from "./errors";
 
 export interface PartPutResult {
@@ -29,7 +30,10 @@ export interface UploadPartsOptions {
   /** Bytes sent so far across the parts; never goes down, not even when a part is retried. */
   onProgress?: (bytesSent: number, total: number) => void;
   signal?: AbortSignal;
-  /** The transport; XMLHttpRequest by default, since fetch reports no upload progress. */
+  /**
+   * The transport; XMLHttpRequest by default, since fetch reports no upload progress. Where there
+   * is no XMLHttpRequest (vue-native today), fetch all the same: fetchPartPut.
+   */
   put?: PartPut;
   /** Wait before retry `attempt` (0-based). */
   backoffMs?: (attempt: number) => number;
@@ -126,6 +130,25 @@ export const xhrPut: PartPut = (url, body, { onProgress, signal, timeoutMs }) =>
   });
 
 /**
+ * PUT through fetch, where there is no XMLHttpRequest (vue-native today; lib/vn/fetchPut.ts). With
+ * no progress to slide a timeout on, a part gets `timeoutMs` plus its bytes at 256 kbit/s, the rule
+ * singlePutTimeoutMs uses for a whole file. client-gap.md §4, "uploads via fetch PUT".
+ */
+export const fetchPartPut: PartPut = async (url, body, { onProgress, signal, timeoutMs }) => {
+  try {
+    const response = await fetchPut(url, body, {
+      signal,
+      timeoutMs: timeoutMs + Math.ceil(body.size / 32_000) * 1000,
+      onProgress: (loaded) => onProgress?.(loaded),
+    });
+    return { status: response.status, etag: response.headers.get("ETag") };
+  } catch (e) {
+    if (e instanceof FetchPutError && e.reason === "aborted") throw new VideoPartUploadError("aborted");
+    throw new VideoPartUploadError("network", e instanceof FetchPutError && e.reason === "timeout" ? "The part upload timed out" : "The part upload failed on the network");
+  }
+};
+
+/**
  * Uploads `blob` to the part URLs of a multipart ticket, `parallel` at a time, each retried with
  * exponential backoff on a 5xx/408/429, a network failure or a timeout, and returns the parts' ETags
  * in order for CompleteVideoUpload. A 403 fails at once with `forbidden`, another 4xx with `http`. A
@@ -133,7 +156,7 @@ export const xhrPut: PartPut = (url, body, { onProgress, signal, timeoutMs }) =>
  * ETag in Access-Control-Expose-Headers.
  */
 export async function uploadVideoParts(blob: Blob, ticket: VideoUploadTicket, options: UploadPartsOptions = {}): Promise<UploadedPart[]> {
-  const { parallel = 4, retries = 3, timeoutMs = PART_TIMEOUT_MS, put = xhrPut, backoffMs = defaultBackoff } = options;
+  const { parallel = 4, retries = 3, timeoutMs = PART_TIMEOUT_MS, put = noXhr() ? fetchPartPut : xhrPut, backoffMs = defaultBackoff } = options;
   const ranges = partRanges(blob.size, Number(ticket.partSize));
   if (ranges.length !== ticket.partUrls.length) {
     throw new VideoPartUploadError("bad-ticket", `The ticket has ${ticket.partUrls.length} part URLs for ${ranges.length} parts`);
