@@ -962,7 +962,11 @@ export class AudioManagement implements IAudioManagement {
     // Like the suppressor above, the node is created even before the input pipeline
     // exists — settings are restored at startup and the pipeline only appears once
     // something acquires the microphone.
-    if (enabled && !this.inputGateNode) {
+    if (enabled && !this.inputGateNode && !this.getCurrentAudioContext().audioWorklet) {
+      // No AudioWorklet (vue-native today): the gate is a worklet, so the input stays ungated, and
+      // the preference is kept. vue-native's client-gap.md §4, "the gate/VU worklets".
+      logger.warn("[AudioManagement] AudioWorklet is not available; the input gate stays open");
+    } else if (enabled && !this.inputGateNode) {
       // Create gate node
       const ctx = this.getCurrentAudioContext();
       this.inputGateNode = new AudioWorkletNode(ctx, "input-gate-processor", {
@@ -1747,12 +1751,27 @@ export class AudioManagement implements IAudioManagement {
 
   // ==================== VU METERS ====================
 
+  /**
+   * A meter that never reports, for an AudioContext with no AudioWorklet (vue-native today), in
+   * place of a TypeError from `ctx.audioWorklet.addModule`. It owns `stream` the way a real meter
+   * does. vue-native's research/reports/m26/client-gap.md §4, "the gate/VU worklets".
+   */
+  private silentMeter(ctx: AudioContext, stream: MediaStream): Disposable<AudioWorkletNode> {
+    logger.warn("[AudioManagement] AudioWorklet is not available; this VU meter stays at 0");
+    const standIn = ctx.createGain();
+    return new Disposable(standIn as unknown as AudioWorkletNode, async () => {
+      standIn.disconnect();
+      if (this.virtualStreamDestination?.stream !== stream) stream.getTracks().forEach(track => track.stop());
+    });
+  }
+
   async createVUMeterLight(
     stream: MediaStream,
     onLevel: (level: number) => void
   ): Promise<Disposable<AudioWorkletNode>> {
     const ctx = this.getCurrentAudioContext();
-    
+    if (!ctx.audioWorklet) return this.silentMeter(ctx, stream);
+
     // Add worklet module if not already added
     if (!this.workletPaths.has('vu-meter-light')) {
       const workletPath = `${this.config.workletBasePath}/vu-meter-light.js`;
@@ -1803,7 +1822,8 @@ export class AudioManagement implements IAudioManagement {
     onLevel: (left: number, right: number) => void
   ): Promise<Disposable<AudioWorkletNode>> {
     const ctx = this.getCurrentAudioContext();
-    
+    if (!ctx.audioWorklet) return this.silentMeter(ctx, stream);
+
     // Add worklet module if not already added
     if (!this.workletPaths.has('vu-meter-processor')) {
       const workletPath = `${this.config.workletBasePath}/vu-meter-processor.js`;

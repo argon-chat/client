@@ -1,11 +1,15 @@
 import { logger } from "@argon/core";
-import {
+import type {
   RnnoiseWorkletNode,
   SpeexWorkletNode,
   NoiseGateWorkletNode,
-  loadRnnoise,
-  loadSpeex,
 } from "@sapphi-red/web-noise-suppressor";
+
+// Loaded on first use, not at import. The package defines `class extends AudioWorkletNode` at module
+// scope, which is a ReferenceError wherever AudioWorkletNode does not exist, and it took the whole
+// bundle down with it. That includes vue-native today, where suppression is native anyway.
+// vue-native's research/reports/m26/client-gap.md §4, "noise suppressor: off".
+const suppressorLib = () => import("@sapphi-red/web-noise-suppressor");
 
 export type NoiseSuppressionMode = "off" | "rnnoise" | "speex" | "noisegate";
 
@@ -135,6 +139,7 @@ export class NoiseSuppressor {
 
     if (!this.rnnoiseWasm) {
       logger.info(`[NoiseSuppressor] Loading RNNoise WASM...`);
+      const { loadRnnoise } = await suppressorLib();
       this.rnnoiseWasm = await loadRnnoise({
         url: this.urls.rnnoiseWasm,
         simdUrl: this.urls.rnnoiseWasmSimd,
@@ -142,6 +147,7 @@ export class NoiseSuppressor {
       logger.info(`[NoiseSuppressor] RNNoise WASM loaded: ${this.rnnoiseWasm.byteLength} bytes`);
     }
 
+    const { RnnoiseWorkletNode } = await suppressorLib();
     const node = new RnnoiseWorkletNode(audioCtx, {
       wasmBinary: this.rnnoiseWasm,
       maxChannels: 2,
@@ -159,12 +165,14 @@ export class NoiseSuppressor {
 
     if (!this.speexWasm) {
       logger.info(`[NoiseSuppressor] Loading Speex WASM...`);
+      const { loadSpeex } = await suppressorLib();
       this.speexWasm = await loadSpeex({
         url: this.urls.speexWasm,
       });
       logger.info(`[NoiseSuppressor] Speex WASM loaded: ${this.speexWasm.byteLength} bytes`);
     }
 
+    const { SpeexWorkletNode } = await suppressorLib();
     const node = new SpeexWorkletNode(audioCtx, {
       wasmBinary: this.speexWasm,
       maxChannels: 2,
@@ -176,6 +184,7 @@ export class NoiseSuppressor {
   private async createNoiseGateNode(audioCtx: AudioContext): Promise<NoiseGateWorkletNode> {
     await this.ensureWorkletModule(audioCtx, this.urls.noiseGateWorklet);
 
+    const { NoiseGateWorkletNode } = await suppressorLib();
     return new NoiseGateWorkletNode(audioCtx, {
       openThreshold: -40,
       closeThreshold: -50,

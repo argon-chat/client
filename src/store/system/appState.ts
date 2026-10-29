@@ -131,6 +131,13 @@ export const useAppState = defineStore("app", () => {
       {
         label: "Initializing audio worklets...",
         run: async () => {
+          // No AudioWorklet (vue-native today): addModule would throw, the step would be retried
+          // until boot failed, and nothing in this step works without it. The input gate and noise
+          // suppression stay off. vue-native's client-gap.md §4, "skip the audio worklets step".
+          if (!audio.getCurrentAudioContext().audioWorklet) {
+            logger.warn("[appState] AudioWorklet is not available; audio worklets, the input gate and noise suppression stay off");
+            return;
+          }
           await worklets.init();
 
           const pref = usePreference();
