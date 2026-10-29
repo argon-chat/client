@@ -70,6 +70,7 @@
         "onnxruntime-web": "^1.30.0",
         "pinia": "^3.0.4",
         "qr-code-styling": "^1.9.2",
+        "qrcode-generator": "^1.5.2",
         "radix-icons": "^1.0.0",
         "reka-ui": "^2.10.1",
         "rxjs": "^7.8.2",

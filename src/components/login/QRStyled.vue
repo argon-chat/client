@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { onMounted, ref, watch, onUnmounted, nextTick, computed } from "vue";
+import { onMounted, ref, watch, onUnmounted, nextTick, computed, shallowRef } from "vue";
 import QRCodeStyling, { Options } from "qr-code-styling";
 import CatIconUrl from "@argon/assets/icons/icon_cat_colored.svg?url";
 import { useTheme } from "@/composables/useTheme";
+import { isVn } from "@/lib/vn";
+import QrSvg from "@/lib/vn/QrSvg.vue";
+import { drawQr, qrMatrix, type QrDrawing } from "@/lib/vn/qrDrawing";
 
 const props = defineProps<{ value: string }>();
 const { currentTheme } = useTheme();
@@ -89,17 +92,53 @@ const config = computed<Options>(() => {
   };
 });
 
+/**
+ * vue-native: qr-code-styling cannot draw there (no createElementNS, XMLSerializer, canvas 2D, nor an
+ * Image from a data: URL), so the same code, from the same options, is drawn as a template <svg>
+ * (lib/vn/qrDrawing.ts). Phase 2 item 8, "QR on sign-in". The two slots stand for the two containers.
+ */
+type VnQr = { drawing: QrDrawing; palette: { from: string; to: string; corners: string } };
+const vnQr = shallowRef<[VnQr | null, VnQr | null]>([null, null]);
+
+function drawVnQr(targetIndex: 0 | 1, data: string) {
+  const c = config.value;
+  const dots = c.dotsOptions?.gradient?.colorStops ?? [];
+  const corners = c.cornersSquareOptions?.gradient?.colorStops ?? [];
+  const next: [VnQr | null, VnQr | null] = [...vnQr.value];
+  next[targetIndex] = {
+    drawing: drawQr(qrMatrix(data, c.qrOptions?.errorCorrectionLevel ?? "M"), {
+      size: c.width ?? 220,
+      margin: c.margin ?? 0,
+      level: c.qrOptions?.errorCorrectionLevel ?? "M",
+      // The modules under the logo are left out, as `hideBackgroundDots` asks.
+      imageSize: c.imageOptions?.imageSize ?? 0,
+      // icon_cat_colored.svg is 128 × 128.
+      imageAspect: 1,
+    }),
+    palette: {
+      from: dots[0]?.color ?? "#3b82f6",
+      to: dots.at(-1)?.color ?? "#3b82f6",
+      corners: corners.at(-1)?.color ?? "#3b82f6",
+    },
+  };
+  vnQr.value = next;
+}
+
 async function renderQr(targetIndex: 0 | 1) {
   const data = makeQrUrl(props.value);
   isRefreshing.value = true;
 
   await nextTick();
-  const el = targetIndex === 0 ? container0.value : container1.value;
-  if (!el) return;
+  if (isVn) {
+    drawVnQr(targetIndex, data);
+  } else {
+    const el = targetIndex === 0 ? container0.value : container1.value;
+    if (!el) return;
 
-  el.innerHTML = "";
-  const qr = new QRCodeStyling({ ...config.value, data });
-  qr.append(el);
+    el.innerHTML = "";
+    const qr = new QRCodeStyling({ ...config.value, data });
+    qr.append(el);
+  }
 
   setTimeout(() => {
     activeIndex.value = targetIndex;
@@ -153,7 +192,23 @@ watch(
 <template>
   <div class="flex flex-col items-center justify-center space-y-3 relative">
     <div class="relative w-[220px] h-[220px] flex items-center justify-center">
+      <!-- vue-native: the code as a template <svg>, the same two slots cross-fading (see drawVnQr). -->
+      <template v-if="isVn">
+        <div
+          v-for="slot in ([0, 1] as const)"
+          :key="slot"
+          class="absolute inset-0 transition-opacity duration-300"
+          :class="{
+            'opacity-100 z-10': activeIndex === slot,
+            'opacity-0 z-0': activeIndex !== slot
+          }"
+        >
+          <QrSvg v-if="vnQr[slot]" v-bind="vnQr[slot]!" :image="CatIconUrl" />
+        </div>
+      </template>
+
       <div
+        v-if="!isVn"
         ref="container0"
         class="absolute inset-0 transition-opacity duration-300"
         :class="{
@@ -163,6 +218,7 @@ watch(
       ></div>
 
       <div
+        v-if="!isVn"
         ref="container1"
         class="absolute inset-0 transition-opacity duration-300"
         :class="{
