@@ -1,0 +1,36 @@
+{
+  "$comment": "Argon on vue-native (research/reports/m26/client-gap.md, Phase 1). Read only by vue-native's builders and `vn build`; Vite never sees it.",
+
+  "name": "argon-vue-native",
+  "productName": "Argon",
+
+  "$comment-define": "What vite.config.ts injects through `define` (client-gap/B-build-ui.md row 8). A string value would be an expression, as in Vite; an object is inlined as JSON. Static placeholders: the version here is not GitVersion's answer, and `branch: vue-native` says which build it is.",
+  "define": {
+    "__ARGON_BUILD__": {
+      "version": "0.0.0.0",
+      "fullVersion": "0.0.0.0-vue-native",
+      "branch": "vue-native",
+      "commit": "00000000",
+      "builtAt": "1970-01-01T00:00:00Z",
+      "dirty": true
+    }
+  },
+
+  "$comment-publicDir": "Vite's public/: served at the root, so `/sounds/x.ogg` is public/sounds/x.ogg.",
+  "publicDir": "public",
+
+  "$comment-window": "The Electron shell's window (desktop main.ts:37-39, 838-884): frameless, 1700x800, at least 1100x680, with a material behind it. AppTitlebar.vue draws the 38 px titlebar and marks it `-webkit-app-region: drag`.",
+  "window": {
+    "title": "Argon",
+    "width": 1700,
+    "height": 800,
+    "minWidth": 1100,
+    "minHeight": 680,
+    "titleBarStyle": "hidden",
+    "titleBarHeight": 38,
+    "backdrop": "mica",
+    "resizable": true,
+    "minimizable": true,
+    "maximizable": true
+  }
+}
