@@ -19,6 +19,9 @@
   "$comment-publicDir": "Vite's public/: served at the root, so `/sounds/x.ogg` is public/sounds/x.ogg.",
   "publicDir": "public",
 
+  "$comment-argonSecure": "TEMPORARY. vue-native sets the ArgonSecure cookie the Electron host's Argon.Security plugin sets (vue-native crates/vn-app/src/temp_argon_secure.rs). Without it Ion refuses the client. It moves into a vue-native host plugin later. VN_ARGON_SECURE=0 turns it off for a run.",
+  "argonSecure": true,
+
   "$comment-window": "The Electron shell's window (desktop main.ts:37-39, 838-884): frameless, 1700x800, at least 1100x680, with a material behind it. AppTitlebar.vue draws the 38 px titlebar and marks it `-webkit-app-region: drag`.",
   "window": {
     "title": "Argon",
