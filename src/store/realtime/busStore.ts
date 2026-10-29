@@ -7,6 +7,8 @@ import { ref } from "vue";
 import { IArgonEvent, UserStatus } from "@argon/glue";
 import { CborReader, IonFormatterStorage, IonRequestException, type Guid } from "@argon-chat/ion.webcore";
 import RealtimeWorker from "@/workers/realtimeWorker?worker";
+import { isVn } from "@/lib/vn";
+import { inThreadWorker } from "@/lib/vn/inThreadWorker";
 import { metrics, errorKind } from "@/lib/telemetry/metrics";
 import { isSessionRejected } from "@/lib/net/authFailure";
 import { forceSignOut, handleSessionRejected } from "@/lib/net/sessionRecovery";
@@ -71,7 +73,11 @@ export const useBus = defineStore("bus", () => {
 
     // Held locally: an answer that arrives after `closeAllSubscribes` replaced the worker must not
     // be posted to its successor.
-    const w: Worker = new RealtimeWorker();
+    // vue-native has no Workers yet: the same core runs on this thread, behind the same messages.
+    // vue-native's client-gap.md §4, "realtime worker in-thread" (A-webapi #10).
+    const w: Worker = isVn
+      ? inThreadWorker(() => import("@/workers/realtimeCore").then((m) => m.createRealtimeCore))
+      : new RealtimeWorker();
     worker = w;
 
     w.onmessage = async (e: MessageEvent) => {
