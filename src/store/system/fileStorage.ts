@@ -5,6 +5,7 @@ import { useConfig } from "@/store/system/remoteConfig";
 import { isWeb } from "@/lib/platform";
 import { clearMediaCache, mediaCacheStats } from "@/lib/webMediaCache";
 import { cdnCacheEnabled } from "@/store/system/cdnCache";
+import { isVn } from "@/lib/vn";
 
 export type GroupReport = {
   name: string;
@@ -20,7 +21,9 @@ export type StorageUsageReport = {
   groups: GroupReport[];
 };
 
-const isNative = typeof window !== "undefined" && "argonIpc" in window;
+// vue-native is not this "native": it has no `app://cdn` (that scheme only existed for Electron's
+// cache) and no Electron IPC, so files go over plain https. client-gap.md §4, "files and avatars".
+const isNative = typeof window !== "undefined" && "argonIpc" in window && !isVn;
 
 /**
  * Every file (avatar / banner / attachment) resolves to a single region-agnostic, by-fileId URL on

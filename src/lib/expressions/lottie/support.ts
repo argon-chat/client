@@ -2,6 +2,8 @@
 // module built from the opcodes it tests for; WebAssembly.validate compiles nothing and runs nothing.
 // Lazy so importing this in a worker or a test does not probe anything.
 
+import { isVn } from "@/lib/vn";
+
 const SIMD_TEST_MODULE = new Uint8Array([
   0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
   0x01, 0x05, 0x01, 0x60, 0x00, 0x01, 0x7b,
@@ -33,6 +35,10 @@ function memo<T>(fn: () => T): () => T {
 }
 
 function isWasmFeatureSupported(module: Uint8Array<ArrayBuffer>): boolean {
+  // WebAssembly is out of scope under vue-native (an owner decision), even where the engine could
+  // validate a module. Stickers go through vue-native's <lottie> element later. vue-native's
+  // client-gap.md §4, "tlottie WASM: off".
+  if (isVn) return false;
   try {
     return typeof WebAssembly !== "undefined" && typeof WebAssembly.validate === "function" && WebAssembly.validate(module);
   } catch {

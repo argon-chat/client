@@ -6,7 +6,10 @@ import { computed, ref, type HTMLAttributes } from "vue";
 // Standalone package (no pinia/config access) used in official contexts (overlay). Mirrors the main
 // app's by-fileId scheme: the API 302s /files/{fileId} to the nearest regional mirror. Native goes
 // through app://cdn (Electron points it at the official API file-redirect).
-const isNative = typeof window !== "undefined" && "argonIpc" in window;
+// …but not under vue-native (`window.isVn`): no app://cdn there, avatars go over plain https.
+// vue-native's research/reports/m26/client-gap.md §4, "files and avatars".
+const isNative =
+  typeof window !== "undefined" && "argonIpc" in window && (window as { isVn?: unknown }).isVn !== true;
 function cdnUrl(fileId: string): string {
   if (isNative) return `app://cdn/${fileId}`;
   return `https://api.argon.gl/files/${fileId}`;
