@@ -42,7 +42,9 @@ const maxWidth = computed(() => {
 function caretRect(): DOMRect {
   const el = props.anchor;
   const box = el?.getBoundingClientRect() ?? new DOMRect();
-  const sel = window.getSelection();
+  // vue-native has no Selection at all (its composer is a <textarea>): the strip sits at the field's
+  // top-left there. vue-native's client-gap.md §4, "<textarea> composer".
+  const sel = window.getSelection?.();
   if (el && sel?.rangeCount) {
     const range = sel.getRangeAt(0);
     if (el.contains(range.startContainer)) {

@@ -10,7 +10,7 @@
  * or while the editor is not focused. A text set from outside (`v-model`) is applied as the
  * smallest edit that turns the old text into the new one, so the emoji outside it stay put.
  */
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import { codepointsToString, type EmojiEntry } from "@argon-chat/emojix";
 import type { ExpressionItem, MessageEntityCustomEmoji } from "@argon/glue";
 import CustomEmojiOverlay from "@/components/expressions/CustomEmojiOverlay.vue";
@@ -43,6 +43,8 @@ import {
   type MessageInputApi,
   type TextRange,
 } from "./messageInput";
+import { isVn } from "@/lib/vn";
+import { useTextComposer } from "@/lib/vn/useTextComposer";
 
 const props = withDefaults(
   defineProps<{
@@ -77,6 +79,11 @@ const emit = defineEmits<{
 }>();
 
 const editor = ref<HTMLDivElement | null>(null);
+// vue-native has no contenteditable, Selection or Range: there this is a <textarea> with the same
+// props, events and API, a custom emoji showing as its `:name:` (lib/vn/useTextComposer.ts).
+// vue-native's client-gap.md §4, "<textarea> composer" (A-webapi #62).
+const field = ref<HTMLTextAreaElement | null>(null);
+const vn = isVn ? reactive(useTextComposer(props, emit, field)) : null;
 const resolver = useExpressionResolver();
 const empty = ref(true);
 
@@ -431,6 +438,7 @@ watch(
 );
 
 onMounted(() => {
+  if (vn) return;
   document.addEventListener("selectionchange", onSelectionChange);
   if (props.modelValue) {
     renderValue({ text: props.modelValue, entities: [] });
@@ -527,12 +535,26 @@ const api: Omit<MessageInputApi, "el"> = {
   },
 };
 
-defineExpose({ ...api, el: editor });
+defineExpose(vn ? { ...vn.api, el: field } : { ...api, el: editor });
 </script>
 
 <template>
   <div class="message-input">
-    <CustomEmojiOverlay tag="div" class="message-input__surface">
+    <textarea
+      v-if="vn"
+      ref="field"
+      v-model="vn.text"
+      class="message-input__field"
+      :rows="vn.rows"
+      :placeholder="placeholder"
+      :disabled="disabled"
+      @keydown="vn.onKeydown"
+      @paste="vn.onPaste"
+      @mousedown="vn.onPointerDown"
+      @focus="vn.onFocus"
+      @blur="vn.onBlur"
+    />
+    <CustomEmojiOverlay v-else tag="div" class="message-input__surface">
       <div
         ref="editor"
         class="message-input__editor"
@@ -552,7 +574,7 @@ defineExpose({ ...api, el: editor });
         @blur="emit('blur')"
       />
     </CustomEmojiOverlay>
-    <div v-if="showPlaceholder" class="message-input__placeholder" @click="focusEditor">{{ placeholder }}</div>
+    <div v-if="!vn && showPlaceholder" class="message-input__placeholder" @click="focusEditor">{{ placeholder }}</div>
   </div>
 </template>
 
@@ -569,6 +591,22 @@ defineExpose({ ...api, el: editor });
   word-break: break-word;
   color: inherit;
   font: inherit;
+}
+
+/* vue-native's <textarea> composer: the editor's look, the field's own placeholder. */
+.message-input__field {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
 }
 
 .message-input__placeholder {
