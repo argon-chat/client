@@ -29,22 +29,26 @@
                 </div>
             </div>
 
-            <!-- Widget Grid -->
-            <div class="flex-1 min-h-0">
+            <!-- Widget Grid: scrolls when the widgets, stacked in fewer columns, are taller than the window -->
+            <div class="flex-1 min-h-0 overflow-y-auto">
                 <grid-layout
-                    v-model:layout="widgetStore.layout"
+                    :key="gridKey"
+                    v-model:layout="shownLayout"
                     :col-num="3"
                     :row-height="60"
-                    :is-draggable="widgetStore.isEditMode"
-                    :is-resizable="widgetStore.isEditMode"
-                    :responsive="false"
+                    :is-draggable="widgetStore.isEditMode && breakpoint === 'lg'"
+                    :is-resizable="widgetStore.isEditMode && breakpoint === 'lg'"
+                    :responsive="true"
+                    :breakpoints="GRID_BREAKPOINTS"
+                    :cols="GRID_COLS"
                     :vertical-compact="true"
                     :use-css-transforms="true"
                     :margin="[12, 12]"
                     class="h-full"
+                    @breakpoint-changed="onBreakpointChanged"
                 >
                     <grid-item
-                        v-for="item in widgetStore.layout"
+                        v-for="item in shownLayout"
                         :key="item.i"
                         :x="item.x"
                         :y="item.y"
@@ -70,7 +74,8 @@
 <script setup lang="ts">
 import { useLocale } from '@/store/system/localeStore';
 import { useMe } from '@/store/auth/meStore';
-import { useWidgetStore } from '@/store/ui/widgetStore';
+import { useWidgetStore, type WidgetLayout } from '@/store/ui/widgetStore';
+import { ref, watch } from 'vue';
 import { GridLayout, GridItem } from 'grid-layout-plus';
 import { IconEdit, IconRefresh } from '@tabler/icons-vue';
 
@@ -83,6 +88,41 @@ import QuickJoinWidget from '@/components/home/widgets/QuickJoinWidget.vue';
 const { t } = useLocale();
 const me = useMe();
 const widgetStore = useWidgetStore();
+
+// Three columns, two, or one, by the grid's own width (grid-layout-plus measures its wrapper):
+// a column stays at least ~200 px, which is what the widest widget row needs. grid-layout-plus
+// wants all five breakpoints; the two below `sm` are one column too.
+const GRID_BREAKPOINTS = { lg: 640, md: 420, sm: 200, xs: 100, xxs: 0 };
+const GRID_COLS = { lg: 3, md: 2, sm: 1, xs: 1, xxs: 1 };
+const breakpoint = ref('lg');
+
+// What the grid shows. The store keeps the three-column layout the user arranged, and at three
+// columns the grid works on the store's own items, so a drag lands there as it always did.
+// grid-layout-plus derives the two- and one-column layouts from copies of it, and those are never
+// written back, so a narrow window cannot overwrite the arrangement. Editing is for the
+// three-column grid only.
+// (Not `gridLayout`: in <script setup> that binding would be what `<grid-layout>` resolves to.)
+const shownLayout = ref<WidgetLayout[]>(widgetStore.layout);
+// Bumped when the store's layout is replaced (Reset): the grid remounts, so the layouts it derived
+// and cached from the old arrangement go with it.
+const gridKey = ref(0);
+
+function onBreakpointChanged(next: string) {
+    breakpoint.value = next;
+}
+
+watch(shownLayout, (next) => {
+    if (breakpoint.value === 'lg') widgetStore.layout = next;
+});
+
+watch(
+    () => widgetStore.layout,
+    (next) => {
+        if (next === shownLayout.value) return;
+        shownLayout.value = next;
+        gridKey.value++;
+    },
+);
 
 defineOptions({ inheritAttrs: false });
 

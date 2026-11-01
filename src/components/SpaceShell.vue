@@ -10,8 +10,10 @@ import { XIcon } from 'lucide-vue-next';
 import { getLastChannel } from '@/lib/recentSpaces';
 import { useLocale } from '@/store/system/localeStore';
 import { splitOpen, secondaryChannelId, secondarySpaceId, closeSplit, splitFeatureEnabled } from '@/composables/useSplitView';
+import { useMemberList } from '@/composables/useMemberList';
 
 const { t } = useLocale();
+const { visible: memberListVisible, overlay: memberListOverlay } = useMemberList();
 const splitActive = computed(() => splitFeatureEnabled.value && splitOpen.value);
 const route = useRoute();
 const router = useRouter();
@@ -65,7 +67,7 @@ watch(
 </script>
 
 <template>
-    <div class="server-workspace flex flex-1 gap-4" v-if="selectedSpace">
+    <div class="server-workspace relative flex flex-1 gap-4" v-if="selectedSpace">
         <SpaceSideShell v-model:selected-channel-id="selectedChannelId" v-model:selected-space="selectedSpace" />
 
         <!-- Primary pane -->
@@ -85,7 +87,13 @@ watch(
             />
         </div>
 
-        <LeftSideUserList v-if="!splitActive" v-model:selected-space="selectedSpace"/>
+        <!-- Beside the chat on a wide window; on a narrow one, over the chat's right edge when
+             the header's toggle opens it (useMemberList). -->
+        <LeftSideUserList
+            v-if="!splitActive && memberListVisible"
+            v-model:selected-space="selectedSpace"
+            :class="{ 'member-list-overlay': memberListOverlay }"
+        />
     </div>
 </template>
 
@@ -96,6 +104,19 @@ watch(
 
 .split-pane {
   border-left: 1px solid hsl(var(--border) / 0.5);
+}
+
+/* The member list over the chat: the chat keeps the whole width, and the list is opaque, since
+   the chat's text would show through the card's translucent background. It starts below the
+   chat's header (h-12), so the header's toggle that opened it stays in reach to close it. */
+.server-workspace > .member-list-overlay {
+  position: absolute;
+  top: 3rem;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  background-color: hsl(var(--card));
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 
 .split-close {
