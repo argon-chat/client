@@ -148,7 +148,7 @@ const totalCount = computed(() =>
   groupedUsers.value.reduce((sum, g) => sum + g.users.length, 0)
 );
 
-const membersLoading = useListLoading(totalCount, model);
+const { skeleton: membersLoading } = useListLoading(totalCount, model);
 
 // Search-filtered groups.
 const groups = computed(() => {

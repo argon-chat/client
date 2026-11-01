@@ -13,8 +13,8 @@
         </div>
       </div>
 
-      <!-- Empty state -->
-      <div v-else-if="channelLists.length === 0" key="empty" class="empty-state">
+      <!-- Empty state (not while the first answer is still due: nothing shows then) -->
+      <div v-else-if="channelLists.length === 0 && !channelsWaiting" key="empty" class="empty-state">
         <EmptyStateArt name="no-channels" :size="132" />
         <p class="text-sm text-muted-foreground/60">{{ t("no_channels") }}</p>
         <button 
@@ -27,7 +27,7 @@
         </button>
       </div>
 
-      <div v-else key="channels">
+      <div v-else-if="channelLists.length > 0" key="channels">
         <!-- Ungrouped channels -->
         <TransitionGroup name="channel-list" tag="div">
           <ChannelItem
@@ -215,9 +215,13 @@ const selectedChannelId = defineModel<string>('selectedChannelId', {
 
 const channelLists = pool.useActiveServerChannels(selectedSpaceId);
 
-const channelsLoading = useListLoading(
+// The channel list answers from the local db within a frame or two of opening a space. A
+// skeleton shown for that long only flashes, and its out-in leave held the real list back by
+// another ~150 ms; so it appears only if the wait is real.
+const { skeleton: channelsLoading, waiting: channelsWaiting } = useListLoading(
   computed(() => channelLists.value.length),
   selectedSpaceId,
+  { delay: 150 },
 );
 
 const voiceChannelUsers = computed(() => {
