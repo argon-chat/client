@@ -153,6 +153,30 @@ describe("CustomEmojiOverlay", () => {
     expect(customEmojiPlayerCount()).toBe(0);
   });
 
+  test("a size the placeholder declares is taken without a style read; an inherited one is read", async () => {
+    const styleReads = vi.spyOn(window, "getComputedStyle");
+    const Host = defineComponent({
+      setup: () => () =>
+        h(CustomEmojiOverlay, { resolveUrl, style: { width: "400px", font: "20px sans-serif" } }, () => [
+          h(CustomEmojiInline, { media: lottie("emoji-e"), size: 40 }),
+          // The composer's markup: no size of its own, `--ce-size` from around it.
+          h("span", { style: { "--ce-size": "60px" } }, [
+            h("span", { class: "ce", "data-ce-file": "emoji-e", "data-ce-format": String(ExpressionFormat.Lottie) }),
+          ]),
+        ]),
+    });
+    const wrapper = mount(Host, { attachTo: document.body });
+    mounted.push(wrapper);
+    const [declared, inherited] = wrapper.element.querySelectorAll<HTMLElement>(".ce");
+    expect(declared.dataset.ceSize).toBe("40");
+    await until(() => declared.hasAttribute("data-ce-ready") && inherited.hasAttribute("data-ce-ready"));
+
+    expect(customEmojiPlayerCount()).toBe(2); // 40 px and 60 px
+    const readOf = (el: Element) => styleReads.mock.calls.filter(([target]) => target === el).length;
+    expect(readOf(declared)).toBe(0);
+    expect(readOf(inherited)).toBeGreaterThan(0);
+  });
+
   test("static emoji get an image in their placeholder, not a draw", async () => {
     const { wrapper } = text(["hi ", { fileId: "png-1", format: ExpressionFormat.Static, width: 1, height: 1 }]);
     await nextTick();

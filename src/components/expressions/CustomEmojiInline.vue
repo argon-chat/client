@@ -16,7 +16,8 @@ const props = defineProps<{
 }>();
 
 const outline = computed(() => (props.media.outline?.length ? decodeOutline(props.media.outline) : null));
-const style = computed(() => (props.size ? { "--ce-size": `${Math.round(props.size)}px` } : undefined));
+const px = computed(() => (props.size ? Math.round(props.size) : undefined));
+const style = computed(() => (px.value ? { "--ce-size": `${px.value}px` } : undefined));
 </script>
 
 <template>
@@ -28,6 +29,7 @@ const style = computed(() => (props.size ? { "--ce-size": `${Math.round(props.si
     :data-ce-format="media.format"
     :data-ce-text-color="media.textColor ? '' : undefined"
     :data-ce-thumb="media.thumbFileId || undefined"
+    :data-ce-size="px"
     :style="style"
   >
     <svg v-if="outline" class="ce-outline" viewBox="0 0 512 512" aria-hidden="true"><path :d="outline" /></svg>

@@ -8,7 +8,10 @@ import { isLottieSupported } from "@/lib/expressions/lottie/support";
 import { customEmojiSize } from "@/lib/expressions/sizes";
 import { cdnCrossOrigin, cdnFetchUrl, cdnUrl } from "@/store/system/fileStorage";
 
-/** A placeholder: `<span class="ce" data-ce-file data-ce-format [data-ce-text-color] [data-ce-thumb]>`. */
+/**
+ * A placeholder: `<span class="ce" data-ce-file data-ce-format [data-ce-text-color] [data-ce-thumb]
+ * [data-ce-size]>`. `data-ce-size` is the `--ce-size` it sets on itself, in px, when it sets one.
+ */
 export const CUSTOM_EMOJI_SELECTOR = ".ce[data-ce-file]";
 
 export interface CustomEmojiOverlayOptions {
@@ -78,7 +81,11 @@ export function useCustomEmojiOverlay(
 
   const textColor = () => color || (container.value ? getComputedStyle(container.value).color : "");
 
+  // The size a placeholder declares needs no style read; only markup that inherits `--ce-size`
+  // (the composer's) asks the computed style, which brings the page's style up to date first.
   function sizeOf(el: HTMLElement): number {
+    const declared = Number(el.dataset.ceSize);
+    if (declared > 0) return declared;
     const fromVar = parseFloat(getComputedStyle(el).getPropertyValue("--ce-size"));
     if (fromVar > 0) return Math.round(fromVar);
     const width = el.getBoundingClientRect().width;
@@ -126,14 +133,14 @@ export function useCustomEmojiOverlay(
     appendImage(p, p.thumbFileId);
   }
 
-  function attach(el: HTMLElement): Placeholder {
+  function attach(el: HTMLElement, size: number): Placeholder {
     const p: Placeholder = {
       el,
       fileId: el.dataset.ceFile ?? "",
       format: Number(el.dataset.ceFormat ?? ExpressionFormat.Static),
       tinted: el.hasAttribute("data-ce-text-color"),
       thumbFileId: el.dataset.ceThumb || null,
-      size: sizeOf(el),
+      size,
       visible: false,
       lottie: null,
       video: null,
@@ -206,10 +213,14 @@ export function useCustomEmojiOverlay(
     const root = container.value;
     if (!root || disposed) return;
     const found = new Set<HTMLElement>(root.querySelectorAll<HTMLElement>(CUSTOM_EMOJI_SELECTOR));
-    for (const p of [...placeholders.values()]) {
-      if (!found.has(p.el) || !sameSource(p, p.el)) detach(p);
-    }
-    for (const el of found) if (!placeholders.has(el)) attach(el);
+    const stale = [...placeholders.values()].filter((p) => !found.has(p.el) || !sameSource(p, p.el));
+    const gone = new Set(stale.map((p) => p.el));
+    const fresh = [...found].filter((el) => !placeholders.has(el) || gone.has(el));
+    // Every size is read before anything is written. Attaching puts an image in its placeholder, and a
+    // size read after that brought the whole page's style up to date again, once per emoji.
+    const sizes = fresh.map(sizeOf);
+    for (const p of stale) detach(p);
+    fresh.forEach((el, i) => attach(el, sizes[i]));
     invalidate(true);
   }
 
