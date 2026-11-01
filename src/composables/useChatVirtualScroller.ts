@@ -415,16 +415,6 @@ export function useChatVirtualScroller<T>(opts: ChatVirtualScrollerOptions<T>) {
     enqueue();
   }
 
-  let settleQueued = false;
-  function queueSettle() {
-    if (settleQueued) return;
-    settleQueued = true;
-    queueMicrotask(() => {
-      settleQueued = false;
-      settleHeights();
-    });
-  }
-
   // ── Scheduling ──
 
   function enqueue() {
@@ -505,25 +495,12 @@ export function useChatVirtualScroller<T>(opts: ChatVirtualScrollerOptions<T>) {
     elToKey.set(el, key);
     tracked.add(el);
 
-    // Measure once up front so the first paint uses the real height instead of
-    // the estimate (bounded: only newly-entering elements, not every render).
-    const m = meta.get(key);
-    if (m) {
-      const h = el.getBoundingClientRect().height;
-      if (h > 0) m.measured = true;
-      const lead = leadOf(el);
-      const leadMoved = Math.abs(lead - (m.lead ?? 0)) > 0.5;
-      const resized = h > 0 && Math.abs(h - m.h) > 0.5;
-      m.lead = lead;
-      if (resized) {
-        m.h = h;
-        if (m.index < firstDirty) firstDirty = m.index;
-      }
-      // Once for every row this patch mounted, still before the paint.
-      if (resized || leadMoved) queueSettle();
-    }
-
-    ro?.observe(el); // the RO delivers later height changes (media load, reactions…)
+    // The first paint still uses the real height, not the estimate: observing reports the row's
+    // first size after the frame's layout and before its paint, for every row this patch mounted
+    // at once, and `onResize` settles the heights in that same frame. Reading the box here
+    // instead was a forced layout in the middle of the patch's post-flush. Later changes (media
+    // loading, reactions…) come the same way.
+    ro?.observe(el);
   }
 
   // ── Public API ──
