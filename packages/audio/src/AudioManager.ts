@@ -4,6 +4,9 @@ import { ref, type Ref } from "vue";
 import { logger, Disposable } from "@argon/core";
 import { NoiseSuppressor, type NoiseSuppressionMode, type NoiseSuppressorUrls } from "./NoiseSuppressor";
 
+/** Running under vue-native, which sets `window.isVn`. */
+const isVn = () => (globalThis as { isVn?: unknown }).isVn === true;
+
 export type DeviceId = string;
 export type WorkletPath = string;
 export type WorkletId = string;
@@ -923,6 +926,18 @@ export class AudioManagement implements IAudioManagement {
     // out here used to drop the user's choice on the floor for the whole session —
     // rebuildInputPipeline() picks up whatever node exists when the pipeline is built.
     this.noiseSuppressor.deactivate();
+
+    // Under vue-native (`window.isVn`) there is no AudioWorklet, so no worklet
+    // suppressor. Noise suppression is the capture's own there: libwebrtc's, behind the
+    // noiseSuppression constraint (on by default), as in Chrome.
+    if (mode !== "off" && isVn()) {
+      logger.info(
+        `[AudioManagement] Noise suppression "${mode}" is native under vue-native: ` +
+          `the microphone's noiseSuppression constraint (${this.audioConstraints.noiseSuppression}) decides`,
+      );
+      this.rebuildInputPipeline();
+      return;
+    }
 
     try {
       if (mode !== "off") {
