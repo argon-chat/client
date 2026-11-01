@@ -65,7 +65,7 @@
     "@internationalized/date": "^3.5.0",
     "class-variance-authority": "^0.7.1",
     "radix-vue": "1.9.17",
-    "reka-ui": "^2.6.0",
+    "reka-ui": "^2.10.1",
     "vaul-vue": "^0.4.1",
     "lucide-vue-next": "^0.548.0"
   },
