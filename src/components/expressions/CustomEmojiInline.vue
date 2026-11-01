@@ -71,7 +71,17 @@ const vnThumb = computed(() => (vnFailed.value && props.media.thumbFileId ? cdnU
         @load="vnReady = true"
         @error="vnFailed = true"
       />
-      <img v-else-if="vnThumb" class="ce-img" :src="vnThumb" alt="" draggable="false" />
+      <!-- As the overlay's fallback does: the thumbnail stands in (tinted too, where the browser's is
+           a CSS mask), and the outline goes once it shows. -->
+      <vn-sticker
+        v-else-if="vnThumb && media.textColor"
+        class="ce-img"
+        :src="vnThumb"
+        kind="image"
+        tint=""
+        @load="vnReady = true"
+      />
+      <img v-else-if="vnThumb" class="ce-img" :src="vnThumb" alt="" draggable="false" @load="vnReady = true" />
     </template>
   </span>
 </template>
