@@ -167,7 +167,7 @@ describe("CustomEmojiOverlay", () => {
     });
     const wrapper = mount(Host, { attachTo: document.body });
     mounted.push(wrapper);
-    const [declared, inherited] = wrapper.element.querySelectorAll<HTMLElement>(".ce");
+    const [declared, inherited] = (wrapper.element as HTMLElement).querySelectorAll<HTMLElement>(".ce");
     expect(declared.dataset.ceSize).toBe("40");
     await until(() => declared.hasAttribute("data-ce-ready") && inherited.hasAttribute("data-ce-ready"));
 
