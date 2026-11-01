@@ -15,6 +15,9 @@ import path from "node:path";
  * Standalone on purpose otherwise — vite.config.ts carries app-only concerns (dev https
  * certs, Sentry upload, devtools) that have no business running in tests.
  */
+// As in vite.config.ts: vue-native's own elements (<vn-sticker>) are not components to resolve.
+const vueOptions = { template: { compilerOptions: { isCustomElement: (tag: string) => tag.startsWith("vn-") } } };
+
 export default defineConfig({
   test: {
     coverage: {
@@ -41,7 +44,7 @@ export default defineConfig({
     },
     projects: [
       {
-        plugins: [vue()],
+        plugins: [vue(vueOptions)],
         resolve: {
           alias: { "@": path.resolve(__dirname, "./src") },
         },
@@ -57,7 +60,7 @@ export default defineConfig({
       // What only a real browser answers honestly: layout, scrolling, ResizeObserver. happy-dom
       // computes none of it, and a faked geometry can hide a bug as easily as invent one.
       {
-        plugins: [vue()],
+        plugins: [vue(vueOptions)],
         resolve: {
           alias: { "@": path.resolve(__dirname, "./src") },
         },

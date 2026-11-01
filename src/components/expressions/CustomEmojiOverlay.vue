@@ -1,11 +1,17 @@
 <script setup lang="ts">
 import "./customEmoji.css";
-import { ref } from "vue";
+import { provide, ref } from "vue";
+import { CUSTOM_EMOJI_GROUP } from "@/lib/expressions/customEmojiRegistry";
+import { isVn } from "@/lib/vn";
 import { useCustomEmojiOverlay } from "./useCustomEmojiOverlay";
+import { useVnStickerPlay, VN_EMOJI_PLAY } from "./useVnStickerPlay";
 
 /**
  * Wraps a block of text holding custom emoji placeholders (`CustomEmojiInline`, or the same markup
  * rendered elsewhere) and draws the animated ones on one canvas laid over it.
+ *
+ * vue-native: each placeholder draws itself with a `<vn-sticker>`; the overlay only gives them the play
+ * mode of its group. There is no canvas, and nothing to rescan or redraw.
  */
 const props = withDefaults(
   defineProps<{
@@ -20,18 +26,32 @@ const props = withDefaults(
 const container = ref<HTMLElement | null>(null);
 const canvas = ref<HTMLCanvasElement | null>(null);
 
-const overlay = useCustomEmojiOverlay(container, canvas, {
-  group: props.group,
-  resolveUrl: props.resolveUrl,
-  resolveFetchUrl: props.resolveFetchUrl,
-});
+const overlay = isVn
+  ? null
+  : useCustomEmojiOverlay(container, canvas, {
+      group: props.group,
+      resolveUrl: props.resolveUrl,
+      resolveFetchUrl: props.resolveFetchUrl,
+    });
+if (isVn) {
+  provide(
+    VN_EMOJI_PLAY,
+    useVnStickerPlay({ group: () => props.group ?? CUSTOM_EMOJI_GROUP, autoplay: () => undefined }).mode,
+  );
+}
 
-defineExpose({ rescan: overlay.rescan, redraw: overlay.redraw, stats: overlay.stats, canvas });
+const none = { placeholders: 0, lottie: 0, video: 0, static: 0, visibleLottie: 0 };
+defineExpose({
+  rescan: overlay ? overlay.rescan : () => {},
+  redraw: overlay ? overlay.redraw : () => {},
+  stats: overlay ? overlay.stats : () => none,
+  canvas,
+});
 </script>
 
 <template>
   <component :is="tag" ref="container" class="ce-container">
     <slot />
-    <canvas ref="canvas" class="ce-overlay" aria-hidden="true" />
+    <canvas v-if="!isVn" ref="canvas" class="ce-overlay" aria-hidden="true" />
   </component>
 </template>

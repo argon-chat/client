@@ -16,8 +16,9 @@ import fixture from "../fixtures/tiny-lottie.json?raw";
 
 const SIZE = 100;
 const workers: Worker[] = [];
+const defaultWasmUrl = await tlottieWasmUrl();
 
-function start(wasmUrl = tlottieWasmUrl()) {
+function start(wasmUrl = defaultWasmUrl) {
   const worker = new LottieWorker();
   workers.push(worker);
   const messages: LottieFromWorker[] = [];

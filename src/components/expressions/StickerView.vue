@@ -10,12 +10,18 @@ import { getAnimationIntersector, type AnimationControl } from "@/lib/expression
 import { prefersReducedMotion } from "@/lib/expressions/settings";
 import { paintFrameTinted } from "@/lib/expressions/tint";
 import { cdnCrossOrigin, cdnFetchUrl, cdnUrl } from "@/store/system/fileStorage";
+import { isVn } from "@/lib/vn";
+import { useVnStickerPlay } from "./useVnStickerPlay";
 
 /**
  * A sticker in a box of `size` css px (aspect-fit). Until something is drawn it shows the outline;
  * a cached first frame replaces the outline at once when there is one. Static files are an <img>,
  * video ones a muted looping <video>, Lottie ones a canvas drawn by the Lottie worker pool. Where the
  * format cannot be shown (no wasm, a video that fails), the thumbnail stands in, else the outline.
+ *
+ * vue-native: Lottie, video and tinted static stickers are one native `<vn-sticker>`, which draws
+ * off the UI thread, shares one clock and one picture between every copy, and plays only what is on
+ * screen (vue-native client-gap.md §4, "stickers"). `play` follows the same AnimationIntersector policy.
  */
 const props = withDefaults(
   defineProps<{
@@ -73,13 +79,20 @@ const kind = computed<"static" | "lottie" | "video" | "unsupported">(() => {
     case ExpressionFormat.Static:
       return "static";
     case ExpressionFormat.Lottie:
-      return isLottieSupported() ? "lottie" : "unsupported";
+      return isVn || isLottieSupported() ? "lottie" : "unsupported";
     case ExpressionFormat.Video:
       return "video";
     default:
       return "unsupported";
   }
 });
+
+/** vue-native: drawn by `<vn-sticker>` rather than a worker canvas, a `<video>` or a CSS mask. */
+const native = computed(
+  () => isVn && (kind.value === "lottie" || kind.value === "video" || (kind.value === "static" && !!media.value.textColor)),
+);
+const vnPlay = isVn ? useVnStickerPlay({ group: () => props.group, autoplay: () => props.autoplay }) : null;
+const vnMode = computed(() => vnPlay?.mode.value ?? "off");
 
 const showOutline = computed(() => !!outlinePath.value && phase.value !== "ready" && !hasPreview.value);
 const thumbFailed = ref(false);
@@ -203,6 +216,8 @@ function start() {
   if (!alive || startedGeneration === generation.value) return;
   startedGeneration = generation.value;
   disposed = false;
+  // `<vn-sticker>` loads, plays and reports by itself (`load` / `error` in the template).
+  if (native.value) return;
   if (kind.value === "lottie") startLottie();
   else if (kind.value === "video") startVideo();
   else if (kind.value === "static") startStatic();
@@ -268,10 +283,12 @@ defineExpose({
   play: () => {
     player?.play();
     videoControl?.play();
+    vnPlay?.play();
   },
   pause: () => {
     player?.pause();
     videoControl?.pause();
+    vnPlay?.pause();
   },
 });
 </script>
@@ -303,7 +320,18 @@ defineExpose({
     />
     <canvas v-show="hasPreview && phase !== 'ready'" ref="previewCanvas" class="sticker-view__layer" aria-hidden="true" />
     <template v-if="phase !== 'fallback'">
-      <template v-if="kind === 'static'">
+      <vn-sticker
+        v-if="native"
+        class="sticker-view__layer"
+        :src="src"
+        :kind="kind === 'static' ? 'image' : kind"
+        :tint="media.textColor ? '' : undefined"
+        :play="vnMode"
+        :once="loop ? undefined : ''"
+        @load="markReady"
+        @error="fail(new Error('sticker cannot be shown'))"
+      />
+      <template v-else-if="kind === 'static'">
         <span v-if="media.textColor" class="sticker-view__layer sticker-view__mask" :style="maskStyle" />
         <img
           v-else

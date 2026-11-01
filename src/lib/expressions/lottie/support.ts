@@ -36,7 +36,8 @@ function memo<T>(fn: () => T): () => T {
 
 function isWasmFeatureSupported(module: Uint8Array<ArrayBuffer>): boolean {
   // WebAssembly is out of scope under vue-native (an owner decision), even where the engine could
-  // validate a module. Stickers go through vue-native's <lottie> element later. vue-native's
+  // validate a module. Stickers and custom emoji are vue-native's <vn-sticker> instead (StickerView,
+  // CustomEmojiInline), and a vue-native build leaves tlottie's .wasm out (tlottieWasm.ts). vue-native's
   // client-gap.md §4, "tlottie WASM: off".
   if (isVn) return false;
   try {
