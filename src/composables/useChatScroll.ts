@@ -337,25 +337,29 @@ export function useChatScroll(
     onScrollCallback = callback;
   };
 
-  const updateChatWidth = () => {
-    if (parentRef.value) {
-      chatWidth.value = parentRef.value.offsetWidth;
-    }
-  };
+  // The column's width, from an observer rather than a read at mount: a read right after mounting
+  // is a forced layout. The observer reports after the frame's layout and before its paint, so the
+  // messages are laid out again at the real width in that same frame (until then the list leaves
+  // `--chat-width` unset, and MessageItem's fallback applies). It also follows the column when
+  // something other than the window resizes it.
+  let widthObserver: ResizeObserver | null = null;
 
   onMounted(() => {
-    if (parentRef.value) {
-      parentRef.value.addEventListener("scroll", handleScrollReport, { passive: true });
-      chatWidth.value = parentRef.value.offsetWidth;
-    }
-    window.addEventListener("resize", updateChatWidth);
+    const el = parentRef.value;
+    if (!el) return;
+    el.addEventListener("scroll", handleScrollReport, { passive: true });
+    widthObserver = new ResizeObserver(() => {
+      chatWidth.value = el.offsetWidth;
+    });
+    widthObserver.observe(el);
   });
 
   onUnmounted(() => {
     if (parentRef.value) {
       parentRef.value.removeEventListener("scroll", handleScrollReport);
     }
-    window.removeEventListener("resize", updateChatWidth);
+    widthObserver?.disconnect();
+    widthObserver = null;
   });
 
   return {

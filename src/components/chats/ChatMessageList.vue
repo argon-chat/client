@@ -1,7 +1,7 @@
 <template>
   <div
     class="relative flex flex-col min-h-0"
-    :style="{ '--chat-width': chatWidth + 'px' }"
+    :style="{ '--chat-width': chatWidth ? chatWidth + 'px' : undefined }"
   >
     <!-- ═══ Virtual scroll area ═══ -->
     <div
