@@ -190,6 +190,10 @@ describe("a member row's card", () => {
     await flushPromises();
 
     expect(h.getStatus).toHaveBeenCalled();
+
+    // The card itself mounts the first time it opens.
+    await setOpen(wrapper, true);
+
     expect(roomOf(wrapper)).toEqual(ROOM);
   });
 });

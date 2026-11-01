@@ -265,3 +265,37 @@ describe("where a custom emoji or sticker comes from", () => {
     });
   });
 });
+
+describe("a message's own overlays", () => {
+  const menu = () => document.querySelector<HTMLElement>("[role=menu]");
+  const rightClick = (el: Element) => {
+    const r = el.getBoundingClientRect();
+    el.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, button: 2, clientX: r.left + 4, clientY: r.top + 4 }));
+  };
+
+  test("the menu mounts the first time it opens, and opens again after a close", async () => {
+    const w = await render(message("hi :wave:", [emoji("wave", 3)]));
+    // Closed and never opened: nothing of the menu's content is mounted, nor the cards' (the
+    // author's, the emoji's).
+    expect(w.findAllComponents({ name: "ContextMenuContent" })).toHaveLength(0);
+    expect(w.findAllComponents({ name: "PopoverContent" })).toHaveLength(0);
+    expect(w.findAllComponents({ name: "TooltipContent" })).toHaveLength(0);
+
+    for (const round of [1, 2]) {
+      rightClick(w.find(".msg-bubble-wrap").element);
+      await until(() => !!menu());
+      const items = [...menu()!.querySelectorAll("[role=menuitem]")].map((i) => i.textContent?.trim());
+      expect(items, `round ${round}`).toContain("copy");
+      await userEvent.keyboard("{Escape}");
+      await until(() => !menu());
+    }
+  });
+
+  test("the author's card mounts when the avatar is clicked", async () => {
+    const w = await render(message("hello", []));
+    await userEvent.click(w.find<HTMLElement>(".w-9 button").element);
+    await until(() => !!document.querySelector(".profile-popover"));
+    await userEvent.keyboard("{Escape}");
+    await until(() => !document.querySelector(".profile-popover"));
+  });
+});

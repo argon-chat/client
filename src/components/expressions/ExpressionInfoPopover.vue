@@ -37,6 +37,13 @@ const props = defineProps<{
 
 const open = defineModel<boolean>("open", { default: false });
 
+// The card mounts the first time it opens and stays after (it closes with its animation). There is
+// one of these on every custom emoji and sticker in the chat, and nearly all of them never open.
+const used = ref(open.value);
+watch(open, (isOpen) => {
+  if (isOpen) used.value = true;
+});
+
 const { t } = useLocale();
 const resolver = useExpressionResolver();
 const contextSpace = inject(EXPRESSION_INFO_SPACE, null);
@@ -101,6 +108,7 @@ function openPack() {
     <PopoverAnchor v-if="manual" as-child><slot /></PopoverAnchor>
     <PopoverTrigger v-else as-child><slot /></PopoverTrigger>
     <PopoverContent
+      v-if="used"
       side="top"
       :side-offset="6"
       class="w-64 p-3 rounded-xl"

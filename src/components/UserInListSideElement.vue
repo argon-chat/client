@@ -3,7 +3,7 @@
   <ContextMenuTrigger as="div" :disabled="!props.enablePopup" class="w-full">
   <Popover v-if="props.enablePopup" v-model:open="isOpened">
     <!-- Not clipped: a worn frame draws deliberately outside the card, and the card rounds itself. -->
-    <PopoverContent style="width: 24rem;" :collision-padding="popoverRoom"
+    <PopoverContent v-if="used.profile" style="width: 24rem;" :collision-padding="popoverRoom"
       class="profile-popover p-0 rounded-2xl shadow-xl border overflow-visible">
       <UserProfilePopover :user-id="user.userId" @close:pressed="isOpened = false" @report="onReportProfile" />
     </PopoverContent>
@@ -59,7 +59,7 @@
   </div>
 
   </ContextMenuTrigger>
-  <ContextMenuContent v-if="props.enablePopup" class="w-64">
+  <ContextMenuContent v-if="props.enablePopup && used.menu" class="w-64">
     <ContextMenuItem @select="isOpened = true">
       <UserRound class="w-4 h-4 mr-2" />{{ t('profile') }}
     </ContextMenuItem>
@@ -86,6 +86,7 @@
   </ContextMenuContent>
   </ContextMenu>
   <ReportDialog
+    v-if="used.report"
     v-model:open="reportDialogOpen"
     :target-kind="ReportTargetKind.PROFILE"
     :target-id="reportUserId"
@@ -105,7 +106,7 @@ import {
 } from "@argon/ui/popover";
 import UserProfilePopover from "./popovers/UserProfilePopover.vue";
 import ReportDialog from "./modals/ReportDialog.vue";
-import { ref, computed } from "vue";
+import { ref, computed, reactive, watch } from "vue";
 import { ActivityPresenceKind, ReportTargetKind, UserStatus, UserFlag } from "@argon/glue";
 import { Gamepad2, Headphones, Monitor, Radio, UserRound, MessageSquare, Ban, Flag, Copy } from "lucide-vue-next";
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuLabel } from '@argon/ui/context-menu';
@@ -127,6 +128,14 @@ import { useWornProfile } from "@/composables/useWornProfile";
 const isOpened = ref(false);
 const reportDialogOpen = ref(false);
 const reportUserId = ref('');
+
+// The row's menu, profile card and report dialog mount the first time they open and stay mounted
+// after (they close with their animation). Closed, each still cost a root, a portal, a presence and
+// a teleport on every member row; nearly all never open. The card also opens from the menu.
+const used = reactive({ menu: false, profile: false, report: false });
+watch(isOpened, (open) => {
+  if (open) used.profile = true;
+});
 const props = withDefaults(
   defineProps<{
     user: RealtimeUser;
@@ -151,6 +160,7 @@ const voiceMember = computed(() => {
 
 function onContextMenuOpen(open: boolean) {
   if (!open) return;
+  used.menu = true;
   isOpened.value = false;
   if (!isSelf.value && !isBot.value) void friends.ensureLoaded();
 }
@@ -279,6 +289,7 @@ const getActivityColor = (activityKind: ActivityPresenceKind) => {
 function onReportProfile(userId: string) {
   isOpened.value = false;
   reportUserId.value = userId;
+  used.report = true;
   setTimeout(() => { reportDialogOpen.value = true; }, 100);
 }
 </script>
