@@ -1,27 +1,13 @@
 <template>
-  <!-- In the page, as ever; under vue-native, a window of its own over the whole monitor (LightboxHost) -->
-  <LightboxHost
-    title="Argon"
-    :visible="vnShown"
-    cover="monitor"
-    :taskbar="false"
-    full-resolution
-    activate
-    :always-on-top="VIEWER_TOPMOST && vnShown"
-    chrome="hidden"
-    :resizable="false"
-    backdrop="transparent"
-    @show="onVnShow"
-    @resize="onVnResize"
-  >
-    <Transition name="lightbox" @after-leave="onAfterLeave">
+  <!-- Teleported into the page; under vue-native, a window of its own (lib/vn/viewerWindow.ts) -->
+  <LightboxHost v-bind="vnBind?.host">
+    <Transition name="lightbox" @after-leave="vn?.afterLeave()">
       <div
         v-if="isOpen"
         class="lightbox-overlay"
-        :class="{ 'lightbox-overlay--vn': vnViewer }"
+        v-bind="vnBind?.overlay"
         @click.self="close"
         @keydown="onKeydown"
-        v-on="vnViewer ? { wheel: onWheel, mousemove: onDragMove, mouseup: onDragEnd } : {}"
         tabindex="0"
         ref="overlayRef"
       >
@@ -36,7 +22,7 @@
         </button>
 
         <!-- Main image or video -->
-        <div class="lightbox-content" :style="vnContentBox" @click.stop>
+        <div class="lightbox-content" v-bind="vnBind?.content" @click.stop>
           <div v-if="currentVideo" class="lightbox-video" :style="videoBox" data-testid="lightbox-video">
             <VideoPlayer
               :key="`${currentIndex}:${currentVideo.fileId}`"
@@ -61,9 +47,8 @@
               :alt="currentItem?.fileName ?? ''"
               class="lightbox-image"
               :class="{ loaded: imageLoaded }"
-              :style="vnImageStyle"
+              v-bind="vnBind?.image"
               @load="imageLoaded = true"
-              v-on="vnViewer ? { mousedown: onDragStart, dblclick: onDblclick } : {}"
               draggable="false"
             />
             <div v-if="!currentSrc" class="lightbox-loading">
@@ -112,7 +97,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch, nextTick, onBeforeUnmount, onMounted, defineComponent, h, Teleport } from "vue";
+import { ref, computed, watch, nextTick, onBeforeUnmount, defineComponent, h, Teleport } from "vue";
 import { XIcon, ChevronLeftIcon, ChevronRightIcon, DownloadIcon, CopyIcon, Loader2Icon } from "lucide-vue-next";
 import type { MessageEntityVideo } from "@argon/glue";
 import VideoPlayer, { type VideoPlayerStoryboard } from "@/components/media/VideoPlayer.vue";
@@ -123,7 +108,8 @@ import { isVideoEntity, type ChatMediaItem } from "@/lib/media/mediaItem";
 import { invalidateMediaUrl, resolveMediaUrl } from "@/lib/media/mediaUrl";
 import { loopsInViewer } from "@/lib/video/playerSettings";
 import { suspendChatVideos } from "@/lib/media/videoAutoplay";
-import { VnWindow, type VnWindowHandle } from "@/lib/vn/vnWindow";
+import { VnWindow } from "@/lib/vn/vnWindow";
+import { useViewerWindow } from "@/lib/vn/viewerWindow";
 
 const { t } = useLocale();
 
@@ -225,15 +211,9 @@ const videoBox = computed(() => {
   const video = currentVideo.value;
   const w = video?.width && video.width > 0 ? video.width : 16;
   const h = video?.height && video.height > 0 ? video.height : 9;
-  // Under vue-native `vw` / `vh` are the main window's, not the viewer's (vue-native A-M05): its own
-  // viewport, in px.
-  const { width: W, height: H } = vnViewport;
   return {
     aspectRatio: `${w} / ${h}`,
-    width:
-      vnViewer && W > 0
-        ? `${Math.min(Math.max(w, MIN_VIDEO_WIDTH), 0.9 * W, 0.85 * H * (w / h))}px`
-        : `min(${Math.max(w, MIN_VIDEO_WIDTH)}px, 90vw, calc(85vh * ${w / h}))`,
+    width: vn?.videoWidth(w, h, MIN_VIDEO_WIDTH) ?? `min(${Math.max(w, MIN_VIDEO_WIDTH)}px, 90vw, calc(85vh * ${w / h}))`,
   };
 });
 
@@ -242,181 +222,14 @@ function onPip(active: boolean) {
   if (active) close();
 }
 
-// ── Under vue-native: a window of its own ───────────────────────────
-//
-// vue-native docs/MULTIWINDOW.md §7.9, the way Telegram Desktop's viewer is: a window with no frame
-// over the whole monitor the main window is on, owned by it (no taskbar button, one Alt-Tab entry),
-// dimmed per pixel over whatever is behind. It is made hidden once the app is idle, and an open SHOWS
-// it: a frame, not a window. It is the same component, state and handlers either way; only the paint
-// moves. In Electron and the browser `VnWindow` is null and the overlay is teleported to the body as
-// it always was, with none of the below.
-
-const vnViewer = VnWindow !== null;
-/**
- * Topmost while it is up. Off: a full-screen window that is the foreground one is already above the
- * taskbar, and this is the fallback should the taskbar be seen over the viewer all the same.
- */
-const VIEWER_TOPMOST = false;
-/** The window exists, hidden until shown. Made at idle, or by the first open if that is sooner. */
-const vnWarm = ref(false);
-/** The window is up: from the open until the leave transition has finished. */
-const vnShown = ref(false);
-const viewer = ref<VnWindowHandle | null>(null);
-/** The viewer's viewport, CSS px: the monitor's. */
-const vnViewport = reactive({ width: 0, height: 0 });
-
-/** The viewer's own window under vue-native, `<Teleport to="body">` everywhere else. */
-const LightboxHost = defineComponent({
-  inheritAttrs: false,
-  setup(_, { slots, attrs }) {
-    return () => {
-      if (!VnWindow) return h(Teleport, { to: "body" }, slots.default?.() ?? []);
-      return vnWarm.value ? h(VnWindow, { ...attrs, ref: viewer }, slots) : null;
-    };
-  },
-});
-
-onMounted(() => {
-  if (!vnViewer) return;
-  const warm = () => (vnWarm.value = true);
-  const idle = (window as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
-  if (idle) idle(warm, { timeout: 3000 });
-  else setTimeout(warm, 1500);
-});
-
-function openViewerWindow() {
-  vnWarm.value = true;
-  // The main window's monitor is the one it covers. The show's own size follows.
-  vnViewport.width = window.screen.width;
-  vnViewport.height = window.screen.height;
-  vnShown.value = true;
-  zoomReset();
-  fromThumb.value = thumbTransform();
-}
-
-function onVnShow(e: { width: number; height: number }) {
-  onVnResize(e);
-  // On screen with the picture over its thumbnail: now it grows into place.
-  if (fromThumb.value) requestAnimationFrame(() => (fromThumb.value = null));
-}
-
-function onVnResize(e: { width: number; height: number }) {
-  // A hidden viewer waits small; only a shown one's size is the monitor's.
-  if (!vnShown.value || e.width <= 0 || e.height <= 0) return;
-  vnViewport.width = e.width;
-  vnViewport.height = e.height;
-}
-
-function onAfterLeave() {
-  vnShown.value = false;
-  fromThumb.value = null;
-}
-
-/** The picture's box: its own size within 90 % × 85 % of the viewer, as `max-width: 90vw` says in a page. */
-function fitted(item: ChatMediaItem | undefined): { width: number; height: number } | null {
-  const w = item?.width ?? 0;
-  const h = item?.height ?? 0;
-  if (!(w > 0 && h > 0) || !vnViewport.width) return null;
-  const k = Math.min(1, (0.9 * vnViewport.width) / w, (0.85 * vnViewport.height) / h);
-  return { width: w * k, height: h * k };
-}
-
-// Zoom and pan: the wheel zooms about the pointer, a drag pans a zoomed picture, a double click goes
-// between the fit and one picture pixel per screen pixel.
-
-const MAX_ZOOM = 8;
-const zoom = ref(1);
-const pan = reactive({ x: 0, y: 0 });
-const dragging = ref(false);
-let drag: { x: number; y: number; px: number; py: number } | null = null;
-/**
- * Where the thumbnail is, as a transform of the fitted picture: the open grows the picture out of it
- * and the close shrinks it back. `null`: in place.
- */
-const fromThumb = ref<string | null>(null);
-
-const vnContentBox = computed(() =>
-  vnViewer && vnViewport.width > 0
-    ? { maxWidth: `${0.9 * vnViewport.width}px`, maxHeight: `${0.9 * vnViewport.height}px` }
-    : undefined,
-);
-
-const vnImageStyle = computed(() => {
-  if (!vnViewer) return undefined;
-  const { width: W, height: H } = vnViewport;
-  return {
-    ...(W > 0 ? { maxWidth: `${0.9 * W}px`, maxHeight: `${0.85 * H}px` } : {}),
-    transform: fromThumb.value ?? `translate(${pan.x}px, ${pan.y}px) scale(${zoom.value})`,
-    transition: dragging.value ? "opacity 0.2s ease" : "opacity 0.2s ease, transform 0.2s ease",
-    cursor: zoom.value > 1 ? (dragging.value ? "grabbing" : "grab") : "auto",
-  };
-});
-
-function zoomReset() {
-  zoom.value = 1;
-  pan.x = 0;
-  pan.y = 0;
-  drag = null;
-  dragging.value = false;
-}
-
-/** Zooms to `z`, keeping the picture's point under (`x`, `y`) where it is. The picture is centred. */
-function zoomAt(z: number, x: number, y: number) {
-  const next = Math.min(MAX_ZOOM, Math.max(1, z));
-  if (next === 1) return zoomReset();
-  const ox = x - vnViewport.width / 2;
-  const oy = y - vnViewport.height / 2;
-  const k = next / zoom.value;
-  pan.x = ox - (ox - pan.x) * k;
-  pan.y = oy - (oy - pan.y) * k;
-  zoom.value = next;
-}
-
-function onWheel(e: WheelEvent) {
-  if (currentVideo.value) return;
-  e.preventDefault();
-  zoomAt(zoom.value * Math.exp(-e.deltaY * 0.0015), e.clientX, e.clientY);
-}
-
-function onDragStart(e: MouseEvent) {
-  if (zoom.value <= 1 || e.button !== 0) return;
-  e.preventDefault();
-  drag = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y };
-  dragging.value = true;
-}
-
-function onDragMove(e: MouseEvent) {
-  if (!drag) return;
-  pan.x = drag.px + e.clientX - drag.x;
-  pan.y = drag.py + e.clientY - drag.y;
-}
-
-function onDragEnd() {
-  drag = null;
-  dragging.value = false;
-}
-
-function onDblclick(e: MouseEvent) {
-  if (zoom.value > 1.01) return zoomReset();
-  const shown = (e.currentTarget as HTMLImageElement).getBoundingClientRect().width;
-  const natural = (e.currentTarget as HTMLImageElement).naturalWidth || currentItem.value?.width || 0;
-  const oneToOne = shown > 0 && natural > 0 ? natural / (shown * window.devicePixelRatio) : 2;
-  zoomAt(oneToOne > 1.01 ? oneToOne : 2, e.clientX, e.clientY);
-}
-
-/** The transform that puts the fitted picture over its thumbnail in the main window, if it is there. */
-function thumbTransform(): string | null {
-  const item = currentItem.value;
-  const fit = fitted(item);
-  if (!item || currentVideo.value || !viewer.value || !fit) return null;
-  const thumb = document.querySelector(`[data-attachment-id="${item.fileId}"]`);
-  const rect = thumb ? viewer.value.mapFromMain(thumb) : null;
-  if (!rect || rect.width <= 0 || rect.height <= 0) return null;
-  const dx = rect.x + rect.width / 2 - vnViewport.width / 2;
-  const dy = rect.y + rect.height / 2 - vnViewport.height / 2;
-  const s = Math.max(rect.width / fit.width, rect.height / fit.height);
-  return `translate(${dx}px, ${dy}px) scale(${s})`;
-}
+// Under vue-native the viewer is a window of its own over the whole monitor (lib/vn/viewerWindow.ts).
+// Vite replaces `import.meta.env.VN` with `undefined`: in Electron and the browser `vn` is null, the
+// overlay is teleported into the page as before, and none of the vue-native code is in the bundle.
+const vn = import.meta.env.VN && VnWindow
+  ? useViewerWindow(VnWindow, { item: () => currentItem.value, video: () => !!currentVideo.value })
+  : null;
+const vnBind = vn?.bind;
+const LightboxHost = vn ? vn.Host : defineComponent((_, { slots }) => () => h(Teleport, { to: "body" }, slots.default?.() ?? []));
 
 function loadCurrent() {
   imageLoaded.value = false;
@@ -440,7 +253,7 @@ watch(() => props.isOpen, async (open) => {
     // A changed index loads through the watcher below; the same one has to be loaded here.
     if (currentIndex.value !== index) currentIndex.value = index;
     else loadCurrent();
-    if (vnViewer) openViewerWindow();
+    vn?.opened();
     await nextTick();
     overlayRef.value?.focus();
   } else {
@@ -450,17 +263,12 @@ watch(() => props.isOpen, async (open) => {
 });
 
 watch(currentIndex, () => {
-  if (vnViewer) zoomReset();
+  vn?.stepped();
   if (props.isOpen) loadCurrent();
 });
 
-async function close() {
-  // Under vue-native the picture shrinks back into its thumbnail as the viewer fades. Set a frame
-  // before the close: a leaving element is no longer patched.
-  if (vnViewer && props.isOpen && !fromThumb.value) {
-    fromThumb.value = thumbTransform();
-    if (fromThumb.value) await nextTick();
-  }
+function close() {
+  if (vn) return void vn.beforeClose().then(() => emit("close"));
   emit("close");
 }
 
@@ -553,11 +361,6 @@ onBeforeUnmount(() => {
   justify-content: center;
   outline: none;
   -webkit-app-region: no-drag;
-}
-
-/* Under vue-native the overlay is the viewer window's whole content: the window's root places it. */
-.lightbox-overlay--vn {
-  position: absolute;
 }
 
 .lightbox-content {
