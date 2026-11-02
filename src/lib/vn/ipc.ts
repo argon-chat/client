@@ -6,18 +6,20 @@
  * `HostProc.getConfig()`, and without an answer the init loop failed on "Loading configurations…"
  * until it gave up. The taskbar jump list, the thumbnail buttons and the theme sync call it as well.
  * An owner decision (vue-native m26, Phase 1) settled this: a minimal no-op, not an emulation.
- * Every call resolves to "nothing", except where the caller iterates the answer and the DevTools
- * toggle, which opens vue-native's inspector. Each other service.method is logged once so the
- * remaining callers stay visible.
+ * Every call resolves to "nothing", with these exceptions:
+ * - calls whose caller iterates the answer;
+ * - the DevTools toggle, which opens vue-native's inspector;
+ * - the host's own config and window material, which hostConfig.ts keeps as the Electron shell does.
+ * Each other service.method is logged once, so the remaining callers stay visible.
  *
  * Installed by main.ts right after identity.ts, before @argon/glue looks for the bridge.
  */
 import { isVn } from "./index";
+import { applyAtLaunch, getConfig, setConfigValue, setWindowMaterial } from "./hostConfig";
+import type { SetRequest } from "@argon/glue/ipc";
 
 /** Answers a caller cannot do without. Everything else resolves to `undefined`. */
 const ANSWERS: Record<string, unknown> = {
-  // configStore.load(): a list of sections. None, because the host has no config of its own.
-  "HostProc.getConfig": [],
   // HotKeySettings tests `status !== null && !status.running`, and `null` is how hotkeys/host.ts
   // says "no hotkey host". `undefined` passed the null check and crashed the Hotkeys tab (vue-native
   // research/reports/m26/client-sweep-1.md #7).
@@ -48,16 +50,23 @@ function openDevtools(): void {
 }
 
 /** Calls this no-op does carry out, on vue-native's own terms. */
-const ACTIONS: Record<string, () => unknown> = {
+const ACTIONS: Record<string, (args: unknown[]) => unknown> = {
   "HostProc.toggleDevTools": openDevtools,
+  // configStore: the sections, and one key's new value (hostConfig.ts).
+  "HostProc.getConfig": () => getConfig(),
+  "HostProc.setConfigValue": (args) => setConfigValue(args[0] as SetRequest),
+  // AppearanceSettings: the live backdrop switch it makes before it saves WindowMaterial.
+  "HostProc.setWindowMaterial": (args) => setWindowMaterial(String(args[0])),
 };
 
 if (isVn && !("argonIpc" in window)) {
+  // The Electron shell applies its saved Theme and WindowMaterial when it creates the window.
+  applyAtLaunch();
   const seen = new Set<string>();
   (window as { argonIpc?: unknown }).argonIpc = {
-    async invoke(service: string, method: string): Promise<unknown> {
+    async invoke(service: string, method: string, args: unknown[] = []): Promise<unknown> {
       const key = `${service}.${method}`;
-      if (key in ACTIONS) return ACTIONS[key]();
+      if (key in ACTIONS) return ACTIONS[key](args);
       if (!seen.has(key)) {
         seen.add(key);
         console.info(`[vue-native] argonIpc ${key}: no Electron host here, answered by the no-op`);

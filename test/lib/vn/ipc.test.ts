@@ -51,8 +51,8 @@ describe("HostProc.toggleDevTools under vue-native", () => {
 
   test("everything else stays a no-op", async () => {
     const bridge = await freshBridge();
-    expect(await bridge.invoke("HostProc", "getConfig", [])).toEqual([]);
     expect(await bridge.invoke("HostProc", "setOverlayBadge", [])).toBeUndefined();
+    expect(await bridge.invoke("HostProc", "getStorageSpace", [])).toBeUndefined();
   });
 });
 
