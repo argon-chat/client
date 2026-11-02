@@ -11,14 +11,15 @@
  * | key                       | type    | default             | what it drives                       |
  * |---------------------------|---------|---------------------|--------------------------------------|
  * | app.DevMode               | Boolean | false               | nothing in the host: the client reads it back (debug panels, dev-only keys) |
- * | appearance.Theme          | String  | "Dark"              | the windows' colour scheme, `appWindow.theme` (Electron's `nativeTheme.themeSource`): Mica's tint and `prefers-color-scheme` |
+ * | appearance.Theme          | String  | "Dark"              | the windows' colour scheme, `appWindow.theme` (Electron's `nativeTheme.themeSource`): the material's tint and `prefers-color-scheme` |
  * | appearance.WindowMaterial | Enum    | the window's own    | the window's backdrop, `appWindow.backdrop`: acrylic, mica, or solid (`none`) |
  *
  * `requiredToRestartApp` and `onlyForDevMode` are false for all three, as in Electron.
  *
  * Two differences, both on purpose:
  * - Electron's WindowMaterial default is `acrylic`. Here the default is the backdrop the window was
- *   opened with (vn.config.json says `mica`), so `getConfig` reports what is on screen.
+ *   opened with, so `getConfig` reports what is on screen. vn.config.json opens it on `acrylic`, DWM's
+ *   own as in Electron, so the two agree unless that file says otherwise.
  * - Electron applies Theme and WindowMaterial when it creates the window. A live change goes through
  *   `HostProc.setWindowMaterial` and the `argonTheme` bridge, and `setConfigValue` only saves. Here
  *   both keys are applied when this module installs, before the app mounts, and again whenever they

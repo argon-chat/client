@@ -40,7 +40,7 @@
     "minHeight": 680,
     "titleBarStyle": "hidden",
     "titleBarHeight": 38,
-    "backdrop": "mica",
+    "backdrop": "acrylic",
     "resizable": true,
     "minimizable": true,
     "maximizable": true
