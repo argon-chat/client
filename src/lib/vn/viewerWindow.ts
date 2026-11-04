@@ -7,9 +7,11 @@
  * - dimmed per pixel over whatever is behind it.
  *
  * The window is made hidden once the app is idle, and an open SHOWS it: a frame, not a window. The
- * picture grows out of its thumbnail and shrinks back into it. The wheel zooms about the pointer, a
- * drag pans a zoomed picture, and a double click goes between the fit and one picture pixel per
- * screen pixel. The pictures keep their full decode while the viewer shows them.
+ * picture grows out of its thumbnail and shrinks back into it. Ctrl+wheel zooms about the pointer (a
+ * plain wheel does nothing, as in Electron), a drag pans a zoomed picture no further than its edges
+ * (Telegram's clamp), and a double click goes between the fit and one picture pixel per screen pixel.
+ * A drag that ends on the dim is not a click on it. The pictures keep their full decode while the
+ * viewer shows them.
  *
  * ImageLightbox asks for this only when `import.meta.env.VN` is true. Vite replaces that with
  * `undefined`, so in Electron and the browser neither the call nor this module is in the bundle, and
@@ -25,6 +27,10 @@ import type { VnWindowHandle } from "./vnWindow";
  */
 const TOPMOST = false;
 const MAX_ZOOM = 8;
+/** Zoom per wheel delta: one notch (120) is ×1.2. */
+const WHEEL_RATE = 0.0015;
+/** A press that moves further than this is a drag, not a click. */
+const DRAG_SLOP = 4;
 
 export interface ViewerSource {
   /** What the viewer shows now. */
@@ -44,10 +50,17 @@ export function useViewerWindow(VnWindow: Component, src: ViewerSource) {
    * pop-out (vue-native A-M05), so the viewer's sizes are worked out from this instead.
    */
   const viewport = reactive({ width: 0, height: 0 });
+  /** The viewer's device px per CSS px: what one picture pixel per screen pixel is measured in. */
+  let scale = 1;
   const zoom = ref(1);
   const pan = reactive({ x: 0, y: 0 });
   const dragging = ref(false);
   let drag: { x: number; y: number; px: number; py: number } | null = null;
+  /** The last press moved the picture: the click it ends in is no click on the dim. */
+  let dragged = false;
+  /** The picture's element, from the `image` binding. */
+  let picture: HTMLElement | null = null;
+  const setPicture = (el: unknown) => (picture = (el as HTMLElement | null) ?? null);
   /**
    * Where the thumbnail is, as a transform of the fitted picture: the open grows the picture out of it
    * and the close shrinks it back. `null`: in place.
@@ -71,17 +84,18 @@ export function useViewerWindow(VnWindow: Component, src: ViewerSource) {
     else setTimeout(make, 1500);
   });
 
-  function onShow(e: { width: number; height: number }) {
+  function onShow(e: { width: number; height: number; scale?: number }) {
     onResize(e);
     // On screen with the picture over its thumbnail: now it grows into place.
     if (fromThumb.value) requestAnimationFrame(() => (fromThumb.value = null));
   }
 
-  function onResize(e: { width: number; height: number }) {
+  function onResize(e: { width: number; height: number; scale?: number }) {
     // A hidden viewer waits small; only a shown one's size is the monitor's.
     if (!shown.value || e.width <= 0 || e.height <= 0) return;
     viewport.width = e.width;
     viewport.height = e.height;
+    if (e.scale && e.scale > 0) scale = e.scale;
   }
 
   /** The picture's box: its own size within 90 % × 85 % of the viewer, as `max-width: 90vw` says in a page. */
@@ -115,25 +129,56 @@ export function useViewerWindow(VnWindow: Component, src: ViewerSource) {
     dragging.value = false;
   }
 
-  /** Zooms to `z`, keeping the picture's point under (`x`, `y`) where it is. The picture is centred. */
+  /**
+   * The picture's box before its transform — its parent's, which is sized to it and centred in the
+   * viewer — in the viewer's CSS px. The zoom and the pan are worked out about its centre, which is
+   * where the transform's origin is.
+   */
+  function frame(): { cx: number; cy: number; w: number; h: number } | null {
+    const box = picture?.parentElement?.getBoundingClientRect();
+    if (!box || !(box.width > 0 && box.height > 0)) return null;
+    return { cx: box.left + box.width / 2, cy: box.top + box.height / 2, w: box.width, h: box.height };
+  }
+
+  /**
+   * Telegram's clamp, per axis: a picture bigger than the viewer pans no further than its edges, so no
+   * dim comes in at a side; one that fits is centred.
+   */
+  function clampPan() {
+    const f = frame();
+    if (!f || !viewport.width) return;
+    const axis = (p: number, size: number, centre: number, view: number) => {
+      const s = size * zoom.value;
+      if (s <= view) return view / 2 - centre;
+      return Math.min(s / 2 - centre, Math.max(view - centre - s / 2, p));
+    };
+    pan.x = axis(pan.x, f.w, f.cx, viewport.width);
+    pan.y = axis(pan.y, f.h, f.cy, viewport.height);
+  }
+
+  /** Zooms to `z`, keeping the picture's point under (`x`, `y`) where it is, then clamps. */
   function zoomAt(z: number, x: number, y: number) {
     const next = Math.min(MAX_ZOOM, Math.max(1, z));
-    if (next === 1) return zoomReset();
-    const ox = x - viewport.width / 2;
-    const oy = y - viewport.height / 2;
+    const f = frame();
+    if (next === 1 || !f) return zoomReset();
+    const ox = x - f.cx;
+    const oy = y - f.cy;
     const k = next / zoom.value;
     pan.x = ox - (ox - pan.x) * k;
     pan.y = oy - (oy - pan.y) * k;
     zoom.value = next;
+    clampPan();
   }
 
+  /** Ctrl+wheel zooms; a plain wheel does what Electron's viewer does with it, nothing. */
   function onWheel(e: WheelEvent) {
-    if (src.video()) return;
+    if (src.video() || !e.ctrlKey) return;
     e.preventDefault();
-    zoomAt(zoom.value * Math.exp(-e.deltaY * 0.0015), e.clientX, e.clientY);
+    zoomAt(zoom.value * Math.exp(-e.deltaY * WHEEL_RATE), e.clientX, e.clientY);
   }
 
   function onDragStart(e: MouseEvent) {
+    dragged = false;
     if (zoom.value <= 1 || e.button !== 0) return;
     e.preventDefault();
     drag = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y };
@@ -142,8 +187,12 @@ export function useViewerWindow(VnWindow: Component, src: ViewerSource) {
 
   function onDragMove(e: MouseEvent) {
     if (!drag) return;
-    pan.x = drag.px + e.clientX - drag.x;
-    pan.y = drag.py + e.clientY - drag.y;
+    const dx = e.clientX - drag.x;
+    const dy = e.clientY - drag.y;
+    if (Math.abs(dx) > DRAG_SLOP || Math.abs(dy) > DRAG_SLOP) dragged = true;
+    pan.x = drag.px + dx;
+    pan.y = drag.py + dy;
+    clampPan();
   }
 
   function onDragEnd() {
@@ -153,10 +202,10 @@ export function useViewerWindow(VnWindow: Component, src: ViewerSource) {
 
   function onDblclick(e: MouseEvent) {
     if (zoom.value > 1.01) return zoomReset();
-    const img = e.currentTarget as HTMLImageElement;
-    const drawn = img.getBoundingClientRect().width;
-    const natural = img.naturalWidth || src.item()?.width || 0;
-    const oneToOne = drawn > 0 && natural > 0 ? natural / (drawn * window.devicePixelRatio) : 2;
+    const drawn = frame()?.w ?? 0;
+    const natural = (e.currentTarget as HTMLImageElement).naturalWidth || src.item()?.width || 0;
+    // One picture pixel per screen pixel: the picture's own width over its drawn width in device px.
+    const oneToOne = drawn > 0 && natural > 0 ? natural / (drawn * scale) : 2;
     zoomAt(oneToOne > 1.01 ? oneToOne : 2, e.clientX, e.clientY);
   }
 
@@ -177,11 +226,20 @@ export function useViewerWindow(VnWindow: Component, src: ViewerSource) {
       onResize,
     })),
     // The overlay is the window's whole content, so the window's root places it.
-    overlay: computed(() => ({ style: { position: "absolute" as const }, onWheel, onMousemove: onDragMove, onMouseup: onDragEnd })),
+    // Every press starts with no drag: one that ended over the picture leaves no
+    // swallowed click behind for the dim.
+    overlay: computed(() => ({
+      style: { position: "absolute" as const },
+      onWheel,
+      onMousedown: () => (dragged = false),
+      onMousemove: onDragMove,
+      onMouseup: onDragEnd,
+    })),
     content: computed(() =>
       viewport.width > 0 ? { style: { maxWidth: `${0.9 * viewport.width}px`, maxHeight: `${0.9 * viewport.height}px` } } : {},
     ),
     image: computed(() => ({
+      ref: setPicture,
       style: {
         ...(viewport.width > 0 ? { maxWidth: `${0.9 * viewport.width}px`, maxHeight: `${0.85 * viewport.height}px` } : {}),
         transform: fromThumb.value ?? `translate(${pan.x}px, ${pan.y}px) scale(${zoom.value})`,
@@ -208,6 +266,12 @@ export function useViewerWindow(VnWindow: Component, src: ViewerSource) {
     },
     /** Another picture: back to the fit. */
     stepped: zoomReset,
+    /** Whether the click about to close the viewer ends a drag — it is not a click on the dim then. Asks once. */
+    consumeDrag(): boolean {
+      const was = dragged;
+      dragged = false;
+      return was;
+    },
     /** Before the close: the picture shrinks back toward its thumbnail as the viewer fades. A frame
      *  first, because a leaving element is no longer patched. */
     async beforeClose() {

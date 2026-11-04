@@ -6,7 +6,7 @@
         v-if="isOpen"
         class="lightbox-overlay"
         v-bind="vnBind?.overlay"
-        @click.self="close"
+        @click.self="onDimClick"
         @keydown="onKeydown"
         tabindex="0"
         ref="overlayRef"
@@ -42,15 +42,34 @@
             />
           </div>
           <template v-else>
-            <img
-              :crossorigin="cdnCrossOrigin(currentSrc)" :src="currentSrc ?? ''"
-              :alt="currentItem?.fileName ?? ''"
-              class="lightbox-image"
-              :class="{ loaded: imageLoaded }"
-              v-bind="vnBind?.image"
-              @load="imageLoaded = true"
-              draggable="false"
-            />
+            <!-- Right click: the picture's menu, over the viewer (its content is above the overlay's 9999) -->
+            <ContextMenu>
+              <ContextMenuTrigger as-child>
+                <img
+                  :crossorigin="cdnCrossOrigin(currentSrc)" :src="currentSrc ?? ''"
+                  :alt="currentItem?.fileName ?? ''"
+                  class="lightbox-image"
+                  :class="{ loaded: imageLoaded }"
+                  v-bind="vnBind?.image"
+                  @load="imageLoaded = true"
+                  draggable="false"
+                />
+              </ContextMenuTrigger>
+              <ContextMenuContent class="z-[10000] w-56" data-testid="lightbox-menu">
+                <ContextMenuItem v-if="messageId != null" data-testid="lightbox-menu-goto" @select="goToMessage">
+                  <CornerDownRightIcon class="w-4 h-4 mr-2" />
+                  {{ t("lightbox_go_to_message") }}
+                </ContextMenuItem>
+                <ContextMenuItem data-testid="lightbox-menu-copy" @select="copy">
+                  <CopyIcon class="w-4 h-4 mr-2" />
+                  {{ t("copy") }}
+                </ContextMenuItem>
+                <ContextMenuItem data-testid="lightbox-menu-save" @select="saveAs">
+                  <DownloadIcon class="w-4 h-4 mr-2" />
+                  {{ t("lightbox_save_as") }}
+                </ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenu>
             <div v-if="!currentSrc" class="lightbox-loading">
               <Loader2Icon class="w-8 h-8 animate-spin lightbox-spinner" />
             </div>
@@ -98,8 +117,10 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onBeforeUnmount, defineComponent, h, Teleport } from "vue";
-import { XIcon, ChevronLeftIcon, ChevronRightIcon, DownloadIcon, CopyIcon, Loader2Icon } from "lucide-vue-next";
+import { XIcon, ChevronLeftIcon, ChevronRightIcon, CornerDownRightIcon, DownloadIcon, CopyIcon, Loader2Icon } from "lucide-vue-next";
 import type { MessageEntityVideo } from "@argon/glue";
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@argon/ui/context-menu";
+import { logger } from "@argon/core";
 import VideoPlayer, { type VideoPlayerStoryboard } from "@/components/media/VideoPlayer.vue";
 import { cdnCrossOrigin, cdnFetchUrl, cdnUrl, resolveAttachmentUrl } from "@/store/system/fileStorage";
 import { copyAttachmentToClipboard } from "@/lib/attachments/clipboard";
@@ -119,10 +140,13 @@ const props = defineProps<{
   initialIndex?: number;
   isOpen: boolean;
   timeSent?: Date | null;
+  /** The message the media came from: the menu's "Go to message" jumps to it. None, no such item. */
+  messageId?: bigint | null;
 }>();
 
 const emit = defineEmits<{
   (e: "close"): void;
+  (e: "go-to-message", messageId: bigint): void;
 }>();
 
 /** A video up to this size downloads through a blob; a bigger one opens in a new window instead. */
@@ -272,6 +296,21 @@ function close() {
   emit("close");
 }
 
+/** A click on the dim closes, unless it ends a drag of a zoomed picture that was let go over the dim. */
+function onDimClick() {
+  if (vn?.consumeDrag()) return;
+  close();
+}
+
+/** The viewer closes and the chat goes to the message the media came from. */
+function goToMessage() {
+  const id = props.messageId;
+  if (id == null) return;
+  // The close first: it shrinks the picture toward its thumbnail where that is now, before the jump moves it.
+  close();
+  emit("go-to-message", id);
+}
+
 function prev() {
   if (currentIndex.value > 0) currentIndex.value--;
   else currentIndex.value = props.images.length - 1;
@@ -340,6 +379,57 @@ async function download() {
     URL.revokeObjectURL(blobUrl);
   } catch {
     /* download failed — leave the call untouched */
+  }
+}
+
+/** A file name with its type's extension, for the save dialog to suggest. */
+function suggestedName(item: ChatMediaItem): string {
+  const ext = extensionOf(item.contentType);
+  const name = item.fileName || "image";
+  return ext && !/\.[A-Za-z0-9]{1,16}$/.test(name) ? `${name}${ext}` : name;
+}
+
+function extensionOf(contentType: string | null | undefined): string | null {
+  const sub = contentType?.toLowerCase().match(/^image\/([a-z0-9.+-]+)/)?.[1];
+  if (!sub) return null;
+  const ext = ({ jpeg: "jpg", "svg+xml": "svg", "x-icon": "ico", "vnd.microsoft.icon": "ico" } as Record<string, string>)[sub] ?? sub;
+  return /^[a-z0-9]{1,16}$/.test(ext) ? `.${ext}` : null;
+}
+
+type SaveFilePicker = (options: {
+  suggestedName?: string;
+  types?: { description?: string; accept: Record<string, string[]> }[];
+}) => Promise<{ createWritable(): Promise<{ write(data: Blob): Promise<void>; close(): Promise<void> }> }>;
+
+/**
+ * Save As: the system's save dialog, then the file's own bytes, as the server has them — not the
+ * decoded picture encoded again. The dialog comes first, while the menu's click still counts as a
+ * user gesture. Where there is no `showSaveFilePicker`, the download does it.
+ */
+async function saveAs() {
+  const item = currentItem.value;
+  if (!item) return;
+  const picker = (window as { showSaveFilePicker?: SaveFilePicker }).showSaveFilePicker;
+  if (!picker) return download();
+  const ext = extensionOf(item.contentType);
+  let handle: Awaited<ReturnType<SaveFilePicker>>;
+  try {
+    handle = await picker({
+      suggestedName: suggestedName(item),
+      types: ext && item.contentType ? [{ accept: { [item.contentType]: [ext] } }] : undefined,
+    });
+  } catch {
+    return; // cancelled
+  }
+  try {
+    const resp = await fetch(cdnFetchUrl(item.fileId));
+    if (!resp.ok) return;
+    const blob = await resp.blob();
+    const out = await handle.createWritable();
+    await out.write(blob);
+    await out.close();
+  } catch (e) {
+    logger.warn("lightbox: save failed", e);
   }
 }
 

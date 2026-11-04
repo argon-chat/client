@@ -227,6 +227,8 @@
   "copy": "Копировать",
   "copy_image": "Копировать изображение",
   "copy_file": "Копировать файл",
+  "lightbox_go_to_message": "Перейти к сообщению",
+  "lightbox_save_as": "Сохранить как…",
   "video_player_play": "Воспроизвести",
   "video_player_pause": "Пауза",
   "video_player_mute": "Выключить звук",

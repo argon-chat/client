@@ -312,6 +312,8 @@
   "copy": "Copy",
   "copy_image": "Copy image",
   "copy_file": "Copy file",
+  "lightbox_go_to_message": "Go to message",
+  "lightbox_save_as": "Save As…",
   "video_player_play": "Play",
   "video_player_pause": "Pause",
   "video_player_mute": "Mute",
