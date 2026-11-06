@@ -51,6 +51,8 @@ export function useScreenShareSources() {
   const windowSources = ref<ScreenSource[]>([]);
 
   let thumbnailRefreshTimer: ReturnType<typeof setInterval> | null = null;
+  let generation = 0;
+  let refreshing = false;
 
   function stopThumbnailRefresh() {
     if (thumbnailRefreshTimer) {
@@ -60,19 +62,23 @@ export function useScreenShareSources() {
   }
 
   async function refreshThumbnails() {
+    if (refreshing || !openShareSettings.value) return;
+    const requestGeneration = generation;
+    refreshing = true;
     try {
       // Only the visible tab, thumbnails only: app icons never change while the picker is open,
       // and the main process rasterises a thumbnail plus an icon for every window per call.
       const types = shareTab.value === "screens" ? ["screen"] : ["window"];
       // @ts-ignore
       const sources: ScreenSource[] = await native.hostProc.getScreenSources(types, { withIcons: false });
+      if (generation !== requestGeneration || !openShareSettings.value) return;
       for (const src of sources) {
         const existing = screenSources.value.find((s) => s.id === src.id);
         if (existing) existing.thumbnailDataUrl = src.thumbnailDataUrl;
         const existingWin = windowSources.value.find((s) => s.id === src.id);
         if (existingWin) existingWin.thumbnailDataUrl = src.thumbnailDataUrl;
       }
-    } catch {}
+    } catch {} finally { refreshing = false; }
   }
 
   function startThumbnailRefresh() {
@@ -80,15 +86,17 @@ export function useScreenShareSources() {
     thumbnailRefreshTimer = setInterval(refreshThumbnails, 5000);
   }
 
-  onBeforeUnmount(stopThumbnailRefresh);
+  onBeforeUnmount(() => { generation++; stopThumbnailRefresh(); });
 
   async function loadSources() {
+    const requestGeneration = ++generation;
     sourcesLoading.value = true;
     selectedSourceId.value = null;
     stopThumbnailRefresh();
     try {
       // @ts-ignore
       const sources: ScreenSource[] = await native.hostProc.getScreenSources(["screen", "window"], { withIcons: true });
+      if (generation !== requestGeneration || !openShareSettings.value) return;
       screenSources.value = sources.filter((s) => s.id.startsWith("screen:"));
       windowSources.value = sources.filter((s) => s.id.startsWith("window:"));
 
@@ -97,12 +105,15 @@ export function useScreenShareSources() {
         selectedSourceId.value = tabSources[0].id;
       }
     } catch (e) {
+      if (generation !== requestGeneration) return;
       console.error("Failed to load screen sources:", e);
       screenSources.value = [];
       windowSources.value = [];
     } finally {
-      sourcesLoading.value = false;
-      startThumbnailRefresh();
+      if (generation === requestGeneration) {
+        sourcesLoading.value = false;
+        if (openShareSettings.value) startThumbnailRefresh();
+      }
     }
   }
 
@@ -110,6 +121,8 @@ export function useScreenShareSources() {
     if (isOpen) {
       loadSources();
     } else {
+      generation++;
+      sourcesLoading.value = false;
       screenSources.value = [];
       windowSources.value = [];
       selectedSourceId.value = null;

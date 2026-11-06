@@ -318,7 +318,9 @@ const pruneDatabases = async (pruneLocalStorage = true) => {
         }
     }
 
-    const allStorages = await navigator.storageBuckets.keys();
+    // Storage Buckets is Chromium-only: vue-native (and Firefox, Safari) have none, and the reset
+    // must still reach the reload below. vue-native's client-gap.md §4, "Storage Buckets".
+    const allStorages = (await navigator.storageBuckets?.keys()) ?? [];
 
     for (const storage of allStorages) {
         try {

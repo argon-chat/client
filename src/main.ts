@@ -1,3 +1,8 @@
+// First: vue-native's host identity, its argonIpc no-op and its window bridge must be in place
+// before @argon/glue and the shell read them (lib/vn/identity.ts, ipc.ts, window.ts).
+import "./lib/vn/identity";
+import "./lib/vn/ipc";
+import "./lib/vn/window";
 import "vfonts/Lato.css";
 import "vfonts/FiraCode.css";
 //@ts-ignore
@@ -26,6 +31,7 @@ import { i18n, ensureLocale } from "./lib/i18n";
 import { createEmojix, initializeEmojix } from "@argon-chat/emojix";
 import { evaluateBootGate, renderBootGate } from "./lib/bootGate";
 import { isWeb } from "./lib/platform";
+import { isVn } from "./lib/vn";
 import { initMediaCache } from "./lib/webMediaCache";
 import { installWebSocketStreamShim } from "./lib/shims/webSocketStream";
 import { installStaleBuildRecovery } from "./lib/staleBuild";
@@ -52,7 +58,12 @@ installStaleBuildRecovery(isWeb);
 
 // Whether this page is allowed to run the app at all — an old browser or a phone gets a screen of
 // its own instead. Decided here, before any of the work below, because none of it would help.
-const bootBlock = evaluateBootGate();
+//
+// Never under vue-native: the gate asks for WebGPU, Workers, a service worker, WASM and AudioWorklet,
+// none of which the app needs there, and then draws its refusal through innerHTML, into a window
+// that has no document. The result is a blank window. vue-native's client-gap.md §4, "skip
+// evaluateBootGate()".
+const bootBlock = isVn ? null : evaluateBootGate();
 
 // The browser build has no OS window behind it to tint, so the "materials" the desktop app asks
 // Windows for are emulated in CSS off this class. Set before first paint so nothing flashes flat.
@@ -92,22 +103,29 @@ Sentry.init({
   app,
   dsn: "https://9d074ba73b580b47cdcc16adf72f523d@sentry.argon.gl/22",
   integrations: [
-    Sentry.browserTracingIntegration({ router }),
-    Sentry.replayIntegration({
-      maskAllText: false,
-      mask: [".privacy-mask"],
-      blockAllMedia: true,
-      maskAllInputs: true
-    }),
+    // Errors and metrics only under vue-native. Replay's rrweb needs a full DOM and CSSOM to
+    // mirror, feedback draws its widget through the DOM, and tracing instruments navigation and
+    // fetch timing the host does not report. vue-native's client-gap.md §4, "Sentry".
+    ...(isVn ? [] : [
+      Sentry.browserTracingIntegration({ router }),
+      Sentry.replayIntegration({
+        maskAllText: false,
+        mask: [".privacy-mask"],
+        blockAllMedia: true,
+        maskAllInputs: true
+      }),
+    ]),
     Sentry.captureConsoleIntegration({
       levels: ['error'],
     }),
     Sentry.contextLinesIntegration(),
     Sentry.httpClientIntegration(),
-    Sentry.feedbackIntegration({
-      colorScheme: "dark",
-      autoInject: false,
-    }),
+    ...(isVn ? [] : [
+      Sentry.feedbackIntegration({
+        colorScheme: "dark",
+        autoInject: false,
+      }),
+    ]),
     Sentry.createSentryPiniaPlugin({
       attachPiniaState: false,
       addBreadcrumbs: false,
@@ -132,9 +150,9 @@ Sentry.init({
   // Sampled, not exhaustive: a full trace per session and a Session Replay of every session kept a
   // live span tree plus an rrweb DOM mirror and mutation buffer in every renderer for as long as it
   // ran. Errors still get a replay every time (replaysOnErrorSampleRate below).
-  tracesSampleRate: import.meta.env.DEV ? 0 : 0.15,
+  tracesSampleRate: import.meta.env.DEV || isVn ? 0 : 0.15,
   tracePropagationTargets: ["localhost", /^https:\/\/.*\.argon\.gl/],
-  replaysSessionSampleRate: import.meta.env.DEV ? 0 : 0.03,
+  replaysSessionSampleRate: import.meta.env.DEV || isVn ? 0 : 0.03,
   // Any on-error rate above zero puts every unsampled session into rrweb's buffer mode: a DOM
   // mirror, a document-wide MutationObserver, a compression worker round-trip per event and a
   // Range per selection change, all session long, so that the last minute can be sent on an error.

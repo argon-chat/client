@@ -1,6 +1,7 @@
 // Re-export from @argon/audio package
 import { AudioManagement as BaseAudioManagement, type IAudioManagement, createDTMFPlayer } from "@argon/audio";
 import { WebRTCProcessor } from "./WebRTCProcessor";
+import { isVn } from "@/lib/vn";
 
 // Noise suppressor assets (resolved by Vite via ?url)
 import rnnoiseWorkletPath from "@sapphi-red/web-noise-suppressor/rnnoiseWorklet.js?url";
@@ -33,7 +34,11 @@ const audio = new AppAudioManagement({
   // macOS: release the mic when no consumer holds it, so the OS "mic in use" indicator
   // doesn't stay on while idle. Windows keeps the mic warm (its prior behavior).
   releaseInputWhenIdle: isMac,
-  noiseSuppressorUrls: {
+  // None under vue-native: the suppressors are WASM in an AudioWorklet, and both are out of scope
+  // there. Voice noise suppression is native (libwebrtc's APM, in the host). Without URLs the
+  // manager reports "off" and ignores a saved mode. vue-native's client-gap.md §4, "noise
+  // suppressor: off".
+  noiseSuppressorUrls: isVn ? undefined : {
     rnnoiseWorklet: rnnoiseWorkletPath,
     rnnoiseWasm: rnnoiseWasmPath,
     rnnoiseWasmSimd: rnnoiseWasmSimdPath,

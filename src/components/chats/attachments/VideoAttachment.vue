@@ -160,11 +160,16 @@ const posterFor = (video: MessageEntityVideo) => (video.posterFileId ? cdnUrl(vi
 const posterSrc = ref<string | null>(posterFor(props.video));
 const posterLoaded = ref(false);
 
+// Compared by value: the server's page replaces every cached message with a fresh object
+// (`revised()` in useChatMessages.ts), and an array built here would differ every time. The
+// `<img>` keeps the same src then, so no second `load` would set `posterLoaded` back: the poster
+// would stay hidden behind an empty placeholder.
 watch(
-  () => [props.video.posterFileId, props.video.posterUrl],
-  () => {
+  () => posterFor(props.video),
+  (src) => {
+    if (src === posterSrc.value) return;
     posterLoaded.value = false;
-    posterSrc.value = posterFor(props.video);
+    posterSrc.value = src;
   },
 );
 
@@ -195,6 +200,11 @@ watch(
     renderThumbHash();
   },
 );
+
+// The placeholder is `v-if`'d: a canvas mounted again (a new poster on its way) starts empty.
+watch(placeholderRef, (canvas) => {
+  if (canvas) renderThumbHash();
+});
 
 // ── Silent autoplay while on screen ─────────────────────────────────
 
@@ -289,7 +299,6 @@ watch(
 
 onMounted(async () => {
   await nextTick();
-  renderThumbHash();
   if (autoplays.value) startAutoplay();
 });
 

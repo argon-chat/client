@@ -1,7 +1,5 @@
 // JS binding for the vendored tlottie renderer (src/vendor/tlottie, MIT). Ported from tweb's
 // src/lib/lottie/tlottieWasm.ts.
-import tlottieSimdUrl from "@/vendor/tlottie/tlottie.wasm?url";
-import tlottieNoSimdUrl from "@/vendor/tlottie/tlottie.nosimd.wasm?url";
 import { isWasmSimdSupported } from "./support";
 
 export type TLottieHandle = number;
@@ -35,11 +33,22 @@ export interface TLottieAnimation {
   frameCount: number;
 }
 
-/** The wasm build for this browser, as a URL the worker can fetch. */
-export function tlottieWasmUrl(): string {
-  const url = isWasmSimdSupported() ? tlottieSimdUrl : tlottieNoSimdUrl;
-  const base = typeof location !== "undefined" ? location.href : undefined;
-  return base ? new URL(url, base).href : url;
+/**
+ * The wasm build for this browser, as a URL the worker can fetch.
+ *
+ * Imported when asked for, and only outside vue-native: there stickers and animated emoji are the
+ * native `<vn-sticker>`, and `import.meta.env.VN` (true in every vue-native build) drops this
+ * branch before the wasm is ever bundled.
+ */
+export async function tlottieWasmUrl(): Promise<string> {
+  if (!import.meta.env.VN) {
+    const { default: url } = isWasmSimdSupported()
+      ? await import("@/vendor/tlottie/tlottie.wasm?url")
+      : await import("@/vendor/tlottie/tlottie.nosimd.wasm?url");
+    const base = typeof location !== "undefined" ? location.href : undefined;
+    return base ? new URL(url, base).href : url;
+  }
+  throw new Error("tlottie is not part of a vue-native build: stickers are <vn-sticker>");
 }
 
 // Upstream collapses proven-static compositions to one render frame; keep the authored duration so

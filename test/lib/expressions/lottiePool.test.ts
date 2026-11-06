@@ -143,6 +143,37 @@ afterEach(() => {
 });
 
 describe("workers", () => {
+  test("waits for the wasm URL before creating a worker", async () => {
+    let resolveUrl!: (url: string) => void;
+    const wasmUrl = new Promise<string>((resolve) => { resolveUrl = resolve; });
+    const createWorker = vi.fn(() => new FakeWorker() as unknown as Worker);
+    const waiting = new LottiePool({ intersector, wasmUrl: () => wasmUrl, createWorker });
+    const promise = waiting.worker(0);
+    expect(waiting.worker(0)).toBe(promise);
+    await flush();
+    expect(createWorker).not.toHaveBeenCalled();
+    resolveUrl("/ready.wasm");
+    await promise;
+    expect(FakeWorker.all[0].posted[0]).toMatchObject({ type: "init", wasmUrl: "/ready.wasm" });
+    waiting.terminate();
+  });
+
+  test.each(["throw", "reject"])("a wasm URL callback that fails via %s rejects without starting a worker and allows retry", async (mode) => {
+    const error = new Error("wasm unavailable");
+    const wasmUrl = vi.fn((): string | Promise<string> => {
+      if (mode === "throw") throw error;
+      return Promise.reject(error);
+    });
+    const createWorker = vi.fn(() => new FakeWorker() as unknown as Worker);
+    const retrying = new LottiePool({ intersector, wasmUrl, createWorker });
+    await expect(retrying.worker(0)).rejects.toBe(error);
+    expect(createWorker).not.toHaveBeenCalled();
+    wasmUrl.mockReturnValue("/retry.wasm");
+    await retrying.worker(0);
+    expect(createWorker).toHaveBeenCalledTimes(1);
+    retrying.terminate();
+  });
+
   test("a worker is started on first use and told where the wasm is", async () => {
     create();
     await flush();

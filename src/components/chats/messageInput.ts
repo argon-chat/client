@@ -28,7 +28,8 @@ export interface MessageInputApi {
   focus(): void;
   blur(): void;
   clear(): void;
-  el: HTMLDivElement | null;
+  /** The editor: a contenteditable `<div>`, or under vue-native the `<textarea>` (lib/vn/useTextComposer.ts). */
+  el: HTMLElement | null;
 }
 
 /** A copy out of the composer carries its custom emoji under this type, for a paste back into one. */

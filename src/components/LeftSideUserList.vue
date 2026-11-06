@@ -148,7 +148,7 @@ const totalCount = computed(() =>
   groupedUsers.value.reduce((sum, g) => sum + g.users.length, 0)
 );
 
-const membersLoading = useListLoading(totalCount, model);
+const { skeleton: membersLoading } = useListLoading(totalCount, model);
 
 // Search-filtered groups.
 const groups = computed(() => {
@@ -219,7 +219,9 @@ function onScroll() {
 onMounted(() => {
   const el = scrollEl.value;
   if (!el) return;
-  viewportH.value = el.clientHeight;
+  // No read here: a read right after mounting is a forced layout. The observer reports the first
+  // height after the frame's layout and before its paint, and the rows it adds or drops are laid
+  // out in that same frame. Until then `visibleRange` draws a screenful.
   resizeObserver = new ResizeObserver(() => { viewportH.value = el.clientHeight; });
   resizeObserver.observe(el);
 });

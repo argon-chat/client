@@ -8,6 +8,7 @@
 
 import { logger } from "@argon/core";
 import { isWeb } from "@/lib/platform";
+import { isVn } from "@/lib/vn";
 import { cdnCacheEnabled } from "@/store/system/cdnCache";
 
 const SW_URL = "/media-sw.js";
@@ -40,7 +41,9 @@ async function removeWorker(): Promise<void> {
  * worker would have served still resolves over the network on its own.
  */
 export async function initMediaCache(): Promise<void> {
-  if (!isWeb || !("serviceWorker" in navigator)) return;
+  // vue-native has no service workers, and its media is never behind one: off there whatever it
+  // reports. vue-native's client-gap.md §4, "initMediaCache() off".
+  if (!isWeb || isVn || !("serviceWorker" in navigator)) return;
 
   // Caching turned off for diagnosis: leave nothing between the page and the CDN, and take away
   // anything a previous session left installed.

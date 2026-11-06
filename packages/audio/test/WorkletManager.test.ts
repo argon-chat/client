@@ -23,7 +23,8 @@ class FakeWorkletNode {
 }
 
 function makeAudio() {
-  const ctx = { currentTime: 0 } as unknown as AudioContext;
+  // A browser's context: it has an AudioWorklet. One without is below ("without AudioWorklet").
+  const ctx = { currentTime: 0, audioWorklet: {} } as unknown as AudioContext;
   const added: { path: string; name: string }[] = [];
   return {
     added,
@@ -159,5 +160,93 @@ describe("setEnabledVUNode", () => {
     expect(() =>
       worklets.setEnabledVUNode(node as unknown as AudioWorkletNode, true),
     ).not.toThrow();
+  });
+});
+
+/**
+ * An AudioContext with no AudioWorklet (vue-native today): no AudioWorkletNode is built at all. The
+ * meter is an AnalyserNode per channel behind a splitter, read 60 times a second through the
+ * worklet's envelope; the stereo-to-mono step is a pass-through.
+ */
+describe("without AudioWorklet", () => {
+  class FakeAnalyser {
+    fftSize = 2048;
+    level = 0;
+    disconnect = vi.fn();
+    getFloatTimeDomainData(out: Float32Array) {
+      out.fill(0);
+      out[7] = -this.level;
+    }
+  }
+
+  function bareAudio() {
+    const analysers: FakeAnalyser[] = [];
+    const splitter = { connect: vi.fn(), disconnect: vi.fn() };
+    const gain = { connect: vi.fn(), disconnect: vi.fn() };
+    const ctx = {
+      currentTime: 0,
+      sampleRate: 48000,
+      createChannelSplitter: vi.fn(() => splitter),
+      createAnalyser: () => {
+        const a = new FakeAnalyser();
+        analysers.push(a);
+        return a;
+      },
+      createGain: () => gain,
+    } as unknown as AudioContext;
+    const manager = { getCurrentAudioContext: () => ctx, volumeToPercent: (v: number) => v * 100 } as any;
+    return { analysers, splitter, gain, ctx, manager };
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.stubGlobal("AudioWorkletNode", class {
+      constructor() {
+        throw new ReferenceError("AudioWorkletNode is not defined");
+      }
+    });
+  });
+
+  test("the meter reads each channel's analyser and settles on its peak", async () => {
+    const bare = bareAudio();
+    const left = ref(0);
+    const right = ref(0);
+    const meter = await new WorkletManager(bare.manager).createVUMeter(left, right);
+
+    expect(meter.Value).toBe(bare.splitter);
+    expect(bare.ctx.createChannelSplitter).toHaveBeenCalledWith(2);
+    expect(bare.splitter.connect.mock.calls).toEqual([[bare.analysers[0], 0], [bare.analysers[1], 1]]);
+    expect(bare.analysers.map((a) => a.fftSize)).toEqual([1024, 1024]);
+
+    bare.analysers[0].level = 0.5;
+    bare.analysers[1].level = 0.25;
+    vi.advanceTimersByTime(1000 / 60);
+    // One tick in, the envelope is on its way up, as the worklet's is.
+    expect(left.value).toBeGreaterThan(0);
+    expect(left.value).toBeLessThan(50);
+
+    vi.advanceTimersByTime(1000);
+    expect(left.value).toBeCloseTo(50, 3);
+    expect(right.value).toBeCloseTo(25, 3);
+
+    await meter.asyncDispose();
+    expect(bare.splitter.disconnect).toHaveBeenCalled();
+    expect(bare.analysers.every((a) => a.disconnect.mock.calls.length === 1)).toBe(true);
+    const settled = left.value;
+    bare.analysers[0].level = 1;
+    vi.advanceTimersByTime(1000);
+    expect(left.value).toBe(settled);
+  });
+
+  test("stereo-to-mono is a pass-through, and toggling it is a no-op", async () => {
+    const bare = bareAudio();
+    const worklets = new WorkletManager(bare.manager);
+    const stm = await worklets.createStereoToMonoProcessor();
+
+    expect(stm.Value).toBe(bare.gain);
+    expect(() => worklets.setEnabledVUNode(stm.Value, true)).not.toThrow();
+
+    await stm.asyncDispose();
+    expect(bare.gain.disconnect).toHaveBeenCalled();
   });
 });

@@ -63,6 +63,19 @@
             </div>
           </PopoverContent>
         </Popover>
+
+        <!-- Member list: shows or hides it (useMemberList); on a narrow window it opens over the chat -->
+        <button
+          v-if="spaceId && memberListAvailable"
+          class="icon-motion icon-motion--pop flex items-center justify-center w-8 h-8 bg-transparent border-none rounded-lg cursor-pointer transition-colors hover:bg-accent hover:text-foreground"
+          :class="memberListVisible ? 'text-foreground' : 'text-muted-foreground'"
+          :title="t('members')"
+          :aria-pressed="memberListVisible"
+          data-testid="toggle-member-list"
+          @click="toggleMemberList()"
+        >
+          <UsersIcon class="w-4 h-4" />
+        </button>
       </div>
 
       <!-- Typing indicator -->
@@ -153,7 +166,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted, nextTick } from "vue";
-import { AntennaIcon, BellIcon, HashIcon, RssIcon } from "lucide-vue-next";
+import { AntennaIcon, BellIcon, HashIcon, RssIcon, UsersIcon } from "lucide-vue-next";
 import { type ArgonMessage, DeleteMessageError, MuteLevelType, MuteTargetKind } from "@argon/glue";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@argon/ui/dialog";
 import { Button } from "@argon/ui/button";
@@ -177,12 +190,14 @@ import { useChatNavigation } from "@/composables/useChatNavigation";
 import { useMessageReactions } from "@/composables/useMessageReactions";
 import { useMessageGrouping } from "@/composables/useMessageGrouping";
 import { useAnnouncementChannel } from "@/composables/useAnnouncementChannel";
+import { useMemberList } from "@/composables/useMemberList";
 import { useMe } from "@/store/auth/meStore";
 
 // ── Stores ──
 
 const { t } = useLocale();
 const ntf = useNotificationStore();
+const { visible: memberListVisible, available: memberListAvailable, toggle: toggleMemberList } = useMemberList();
 
 // ── Props / Emits ──
 

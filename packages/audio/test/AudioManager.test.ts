@@ -193,6 +193,32 @@ describe("processing configured before the pipeline exists still applies", () =>
   });
 });
 
+describe("noise suppression under vue-native", () => {
+  const urls = {
+    rnnoiseWorklet: "rnnoise.js",
+    rnnoiseWasm: "rnnoise.wasm",
+    rnnoiseWasmSimd: "rnnoise-simd.wasm",
+    speexWorklet: "speex.js",
+    speexWasm: "speex.wasm",
+    noiseGateWorklet: "gate.js",
+  };
+
+  test("rnnoise loads no worklet: the capture's own noiseSuppression does it", async () => {
+    vi.stubGlobal("isVn", true);
+    const m = make({ noiseSuppressorUrls: urls });
+    await m.setNoiseSuppressionMode("rnnoise");
+    await m.acquireInput();
+
+    const ctx = (m as any).getCurrentAudioContext();
+    expect(ctx.audioWorklet.addModule).not.toHaveBeenCalled();
+    expect(chainFrom(managerInternals(m as any).gain)).toEqual(["stream-destination"]);
+    const asked = (getUserMedia.mock.calls.at(-1) as any)[0].audio;
+    expect(asked.noiseSuppression).toBe(true);
+    expect(asked.echoCancellation).toBe(true);
+    expect(asked.autoGainControl).toBe(true);
+  });
+});
+
 function deferred<T>() {
   let resolve!: (value: T) => void;
   let reject!: (reason: unknown) => void;

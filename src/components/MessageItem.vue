@@ -39,7 +39,7 @@
           :overrided-size="36"
           class="w-9 h-9 rounded-xl"
         />
-        <Popover v-else-if="user" v-model:open="profileOpen">
+        <Popover v-else-if="user" v-model:open="profileOpen" @update:open="(o: boolean) => o && (used.profile = true)">
           <PopoverTrigger>
             <ArgonAvatar
               :file-id="user.avatarFileId"
@@ -52,6 +52,7 @@
           </PopoverTrigger>
           <!-- Not clipped: a worn frame draws deliberately outside the card, and the card rounds itself. -->
           <PopoverContent
+            v-if="used.profile"
             style="width: 24rem"
             :collision-padding="popoverRoom"
             class="profile-popover p-0 rounded-2xl shadow-xl border border-border bg-popover text-popover-foreground overflow-visible"
@@ -105,12 +106,12 @@
         </template>
 
         <TooltipProvider>
-          <Tooltip>
+          <Tooltip @update:open="(o: boolean) => o && (used.timeTip = true)">
             <!-- as-child: the span is the trigger, so no button line box pads the meta row above the bubble. -->
             <TooltipTrigger as-child>
               <span class="text-[11px] leading-none text-muted-foreground/60 tabular-nums">{{ formattedTime }}</span>
             </TooltipTrigger>
-            <TooltipContent>
+            <TooltipContent v-if="used.timeTip">
               <p>{{ formattedFullTime }}</p>
             </TooltipContent>
           </Tooltip>
@@ -147,7 +148,7 @@
 
       <!-- Normal content -->
       <template v-else>
-        <ContextMenu>
+        <ContextMenu @update:open="(o: boolean) => o && (used.menu = true)">
           <ContextMenuTrigger>
             <!-- Announcements: who has read it sits beside the bubble -->
             <div data-row-body class="flex items-end gap-1.5" :class="isRight ? 'flex-row-reverse' : ''" @contextmenu.capture="rememberContextTarget">
@@ -425,7 +426,7 @@
           />
 
           <!-- ── Right-click context menu ── -->
-          <ContextMenuContent class="min-w-40">
+          <ContextMenuContent v-if="used.menu" class="min-w-40">
             <ContextMenuItem v-if="canReact" @select="openReactionFromMenu">
               <SmilePlusIcon class="w-4 h-4 mr-2 opacity-60" />
               {{ t('add_reaction') }}
@@ -470,6 +471,7 @@
     </div>
 
     <ReportDialog
+      v-if="used.report"
       v-model:open="reportDialogOpen"
       :target-kind="reportTarget.kind"
       :target-id="reportTarget.targetId"
@@ -530,7 +532,7 @@ function tsFormat(): string {
 <!-- ─────────────────────────────── -->
 
 <script setup lang="ts">
-import { ref, computed, nextTick, onBeforeUnmount, provide } from "vue";
+import { ref, reactive, computed, nextTick, onBeforeUnmount, provide } from "vue";
 import { usePoolStore } from "@/store/data/poolStore";
 import { useMe } from "@/store/auth/meStore";
 import { useUserColors } from "@/store/chat/userColors";
@@ -701,6 +703,11 @@ const profileOpen = ref(false);
 const reactionPickerOpen = ref(false);
 const isUnsupported = ref(false);
 const reportDialogOpen = ref(false);
+
+// The row's menu, profile card, time tooltip and report dialog mount the first time they open, and
+// stay mounted after (so they close with their animation). Closed, each still cost a root, a portal,
+// a presence and a teleport that renders twice, on every row the list drew; nearly all never open.
+const used = reactive({ menu: false, profile: false, timeTip: false, report: false });
 const isOwnMessage = computed(() => props.message.sender === me.me?.userId);
 const reportTarget = ref({
   kind: ReportTargetKind.MESSAGE as ReportTargetKind,
@@ -1085,6 +1092,7 @@ function onReportMessage() {
         channelId: props.message.channelId,
         messageId: props.message.messageId,
       };
+  used.report = true;
   setTimeout(() => { reportDialogOpen.value = true; }, 100);
 }
 
@@ -1096,6 +1104,7 @@ function onReportProfile(userId: string) {
     channelId: null,
     messageId: null,
   };
+  used.report = true;
   setTimeout(() => { reportDialogOpen.value = true; }, 100);
 }
 

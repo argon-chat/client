@@ -1,5 +1,7 @@
 import { logger } from "@argon/core";
 import { useWindow } from "@/store/ui/windowStore";
+import { isVn } from "@/lib/vn";
+import { forwardLaunchLinks } from "@/lib/vn/launch";
 
 /**
  * Routes an `argon://` deep link to an in-app action.
@@ -62,6 +64,8 @@ let initialized = false;
  *    no listener, and every link opened from the web lands in an app that does nothing.
  *  - `window.argonHandleDeepLink(url)` — a direct call, for hosts with no IPC of their own.
  *  - an `argon:deeplink` CustomEvent — the same, for anything that can only dispatch events.
+ *
+ * Under vue-native, which has no preload, `launchQueue` takes the bridge's place (lib/vn/launch.ts).
  */
 export function initDeepLinks() {
   if (initialized) return;
@@ -73,6 +77,10 @@ export function initDeepLinks() {
     const detail = (e as CustomEvent<string>).detail;
     if (typeof detail === "string") handleDeepLink(detail);
   });
+
+  // vue-native has no preload bridge: its links come through `launchQueue` (lib/vn/launch.ts).
+  // vue-native's client-gap.md §4, "launchQueue URLs → handleDeepLink" (A-webapi #94).
+  if (isVn) forwardLaunchLinks(handleDeepLink);
 
   const bridge = (window as any).argonDeepLink;
   if (typeof bridge?.onOpen === "function") {

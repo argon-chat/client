@@ -33,6 +33,14 @@ function normalizeUrls(urls: string | string[]) {
   return Array.isArray(urls) ? urls : [urls];
 }
 
+/**
+ * Under vue-native (`window.isVn`) the TURN servers are not probed. The probe is two raw
+ * RTCPeerConnections, and vue-native has none: its LiveKit is native (libwebrtc in Rust) and does
+ * its own ICE, so a probe could only fail and leave the call with no relay. They are handed on as
+ * they are. vue-native's research/reports/m26/client-gap.md §4, "skip the TURN probe" (A-webapi #38).
+ */
+const probesTurn = () => (globalThis as { isVn?: unknown }).isVn !== true;
+
 export async function connectRoom(room: Room, rts: RtcEndpoint, token: string, opts: ConnectRoomOptions = {}) {
   const tag = opts.tag ?? "[CALL]";
   const stunServers: RTCIceServer[] = rts.ices.flatMap((x) =>
@@ -45,7 +53,14 @@ export async function connectRoom(room: Room, rts: RtcEndpoint, token: string, o
   const turnServers: RTCIceServer[] = [];
   const turnConfigs = rts.ices.filter((x) => normalizeUrls(x.endpoint).some(isTurn));
 
-  if (turnConfigs.length > 0) {
+  if (turnConfigs.length > 0 && !probesTurn()) {
+    for (const turnConfig of turnConfigs) {
+      for (const turnUrl of normalizeUrls(turnConfig.endpoint).filter(isTurn)) {
+        turnServers.push({ urls: turnUrl, username: turnConfig.username, credential: turnConfig.password });
+      }
+    }
+    logger.info(`${tag} TURN servers not probed under vue-native: ${turnServers.length} handed on as they are`);
+  } else if (turnConfigs.length > 0) {
     logger.info(`${tag} Testing ${turnConfigs.length} TURN servers...`);
 
     const probePromises = turnConfigs.flatMap((turnConfig) => {

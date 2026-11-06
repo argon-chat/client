@@ -14,7 +14,6 @@ import { isWeb } from '@/lib/platform';
 import { batteryPercent, powerSaveReason } from '@/lib/powerSaver';
 import LinuxUpdateModal from './modals/LinuxUpdateModal.vue';
 import { Signal } from 'lucide-vue-next';
-import { NBadge } from 'naive-ui';
 import Counter from './motionCounter/Counter.vue';
 import { computedAsync } from '@vueuse/core';
 import { native } from '@argon/glue/native';

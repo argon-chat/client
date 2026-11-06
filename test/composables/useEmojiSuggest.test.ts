@@ -27,15 +27,18 @@ vi.mock("@/store/data/expressionsStore", () => ({
 }));
 
 import type { MessageInputApi } from "@/components/chats/messageInput";
-import { useEmojiSuggest, type EmojiSuggest } from "@/composables/useEmojiSuggest";
+import { useEmojiSuggest, WORD_DELAY_MS, type EmojiSuggest } from "@/composables/useEmojiSuggest";
 import { emojiSuggestionsEnabled } from "@/lib/chat/emojiSuggest/settings";
+import { ensureSuggestIndices, releaseSuggestIndices } from "@/lib/chat/emojiSuggest/indices";
 
 let text = "";
 let wrapper: VueWrapper | null = null;
+let editorEl: HTMLElement | null = null;
 
-function fakeEditor() {
-  const el = document.createElement("div");
+function fakeEditor(native: boolean) {
+  const el = document.createElement(native ? "textarea" : "div");
   document.body.append(el);
+  editorEl = el;
   return {
     el,
     getCursorOffset: () => text.length,
@@ -48,9 +51,10 @@ function fakeEditor() {
   };
 }
 
-function setup() {
-  const editor = fakeEditor();
+function setup(native = false) {
+  const editor = fakeEditor(native);
   let suggest!: EmojiSuggest;
+  editor.el.addEventListener("keydown", (event) => suggest.onKeydown(event as KeyboardEvent));
   wrapper = mount(
     defineComponent({
       setup() {
@@ -84,6 +88,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   localStorage.clear();
+  releaseSuggestIndices();
   text = "";
   h.load.mockReset();
   h.load.mockImplementation(async (locale: string) => ({ locale, longestKey: 10, matchPrefix: () => [], matchExact: () => [] }));
@@ -91,7 +96,10 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   wrapper?.unmount();
+  editorEl?.remove();
+  editorEl = null;
   wrapper = null;
   emojiSuggestionsEnabled.value = true;
 });
@@ -159,6 +167,48 @@ describe("with suggestions off", () => {
 });
 
 describe("with suggestions on", () => {
+  test("a native field press hides suggestions and prevents a stale pick", () => {
+    const { editor, suggest } = setup(true);
+    text = ":thu";
+    suggest.update();
+    expect(suggest.visible.value).toBe(true);
+    editor.el.dispatchEvent(new MouseEvent("mousedown"));
+    expect(suggest.visible.value).toBe(false);
+    suggest.pick(0);
+    expect(editor.insertEmoji).not.toHaveBeenCalled();
+  });
+
+  test.each(["ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"])("an unconsumed native %s hides suggestions", (key) => {
+    const { editor, suggest } = setup(true);
+    text = ":thu";
+    suggest.update();
+    editor.el.dispatchEvent(new KeyboardEvent("keydown", { key, cancelable: true }));
+    expect(suggest.visible.value).toBe(false);
+  });
+
+  test("native arrows consumed by the strip keep it open", () => {
+    const { editor, suggest } = setup(true);
+    text = ":thu";
+    suggest.update();
+    editor.el.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", cancelable: true }));
+    expect(suggest.visible.value).toBe(true);
+    expect(suggest.state.index).toBe(1);
+  });
+
+  test.each(["mousedown", "keydown"])("native caret movement via %s cancels delayed word suggestions", async (event) => {
+    vi.useFakeTimers();
+    const { editor, suggest } = setup(true);
+    editor.el.focus();
+    await ensureSuggestIndices("en");
+    text = "happy";
+    suggest.update();
+    expect(vi.getTimerCount()).toBe(1);
+    editor.el.dispatchEvent(event === "mousedown" ? new MouseEvent(event) : new KeyboardEvent(event, { key: "ArrowLeft", cancelable: true }));
+    expect(vi.getTimerCount()).toBe(0);
+    await vi.advanceTimersByTimeAsync(WORD_DELAY_MS);
+    expect(suggest.visible.value).toBe(false);
+  });
+
   test("focus loads the keyword data; `:)` is replaced by 🙂 and a space", () => {
     const { editor, suggest } = setup();
     suggest.onFocus();

@@ -51,3 +51,5 @@ public/games/*/bundle.js.map
 .vitest-attachments/
 
 __screenshots__/
+
+dist-capture/

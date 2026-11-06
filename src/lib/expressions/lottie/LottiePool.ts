@@ -73,7 +73,7 @@ export interface LottiePlayerHandle {
 export interface LottiePoolOptions {
   workerCount?: number;
   createWorker?: () => Worker | Promise<Worker>;
-  wasmUrl?: string | (() => string);
+  wasmUrl?: string | (() => string | Promise<string>);
   cacheBudgetBytes?: number;
   /** Override the OffscreenCanvas probe. */
   offscreenCanvas?: boolean;
@@ -430,13 +430,16 @@ export class LottiePool {
   worker(index: number): Promise<Worker> {
     let promise = this.workers[index];
     if (!promise) {
-      promise = Promise.resolve((this.options.createWorker ?? defaultCreateWorker)()).then((worker) => {
+      promise = Promise.resolve().then(() => {
+        const option = this.options.wasmUrl;
+        return typeof option === "function" ? option() : (option ?? tlottieWasmUrl());
+      }).then(async (url) => {
+        const worker = await (this.options.createWorker ?? defaultCreateWorker)();
         worker.addEventListener("message", (event: MessageEvent<LottieFromWorker>) => this.onMessage(event.data));
         worker.addEventListener("error", (event) => this.onWorkerError(index, event));
-        const wasmUrl = this.options.wasmUrl;
         worker.postMessage({
           type: "init",
-          wasmUrl: typeof wasmUrl === "function" ? wasmUrl() : (wasmUrl ?? tlottieWasmUrl()),
+          wasmUrl: url,
           cacheBudgetBytes: this.options.cacheBudgetBytes,
         } satisfies LottieToWorker);
         return worker;

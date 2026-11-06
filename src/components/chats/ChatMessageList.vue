@@ -1,7 +1,7 @@
 <template>
   <div
     class="relative flex flex-col min-h-0"
-    :style="{ '--chat-width': chatWidth + 'px' }"
+    :style="{ '--chat-width': chatWidth ? chatWidth + 'px' : undefined }"
   >
     <!-- ═══ Virtual scroll area ═══ -->
     <div
@@ -81,7 +81,7 @@
             @delete="(msg, skip) => emit('delete-message', msg, skip)"
             @publish="(msg) => emit('publish', msg)"
             @retry="(msg) => emit('retry', msg)"
-            @open-lightbox="onOpenLightbox"
+            @open-lightbox="(images, index, time) => onOpenLightbox(images, index, time, messages[item.index]?.messageId ?? null)"
             @scroll-to-message="onJumpRequest"
           />
         </div>
@@ -116,7 +116,9 @@
       :initial-index="lbIndex"
       :is-open="lbOpen"
       :time-sent="lbTime"
+      :message-id="lbMessageId"
       @close="lbOpen = false"
+      @go-to-message="onJumpRequest"
     />
 
     <!-- ═══ Away in older history (opened by a jump): the way back to the present ═══ -->
@@ -269,11 +271,14 @@ const lbOpen = ref(false);
 const lbImages = shallowRef<ChatMediaItem[]>([]);
 const lbIndex = ref(0);
 const lbTime = ref<Date | null>(null);
+/** The message the open media came from: the viewer's "Go to message" jumps to it. */
+const lbMessageId = shallowRef<bigint | null>(null);
 
-function onOpenLightbox(images: ChatMediaItem[], index: number, timeSent: Date | null) {
+function onOpenLightbox(images: ChatMediaItem[], index: number, timeSent: Date | null, messageId: bigint | null = null) {
   lbImages.value = images;
   lbIndex.value = index;
   lbTime.value = timeSent;
+  lbMessageId.value = messageId;
   lbOpen.value = true;
 }
 

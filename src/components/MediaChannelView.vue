@@ -1,5 +1,6 @@
 <template>
-    <div ref="mediaChannelContainer" class="media-channel flex flex-col h-full min-h-0 overflow-hidden transition-all duration-300 relative">
+    <div ref="mediaChannelContainer" class="media-channel flex flex-col h-full min-h-0 overflow-hidden transition-all duration-300 relative"
+        :class="{ 'media-channel--activity': playframeActive && activity.isActive && !activity.isPopout && memberListAvailable }">
         <!-- Top Info Overlay (hidden while a game occupies the channel in-place,
              to avoid overlapping the PlayFrame panel header) -->
         <div v-show="!activity.isActive || activity.isPopout" class="media-info-bar">
@@ -22,6 +23,19 @@
                 />
             </div>
         </div>
+
+        <button
+            v-if="memberListAvailable"
+            class="media-member-toggle info-pill info-pill--clickable icon-motion icon-motion--pop hover:bg-accent"
+            :class="memberListVisible ? 'text-foreground' : 'text-muted-foreground'"
+            :title="t('members')"
+            :aria-label="t('members')"
+            :aria-pressed="memberListVisible"
+            data-testid="toggle-member-list"
+            @click="toggleMemberList()"
+        >
+            <Users2 class="w-4 h-4" />
+        </button>
 
         <!-- Who is on the radio in this room (broadcast channels forwarded here). -->
         <RadioBanner v-if="viewingConnectedChannel" class="media-radio-banner" />
@@ -105,6 +119,7 @@ import { useFeatureFlags } from "@/store/features/featureFlagsStore";
 import { usePlayFrameActivity } from "@/store/features/playframeStore";
 import { useLocale } from "@/store/system/localeStore";
 import { useMediaLayout } from "@/composables/useMediaLayout";
+import { useMemberList } from "@/composables/useMemberList";
 import PlayFramePanel from "./playframe/PlayFramePanel.vue";
 import PingDetailsPopup from "./PingDetailsPopup.vue";
 import MediaControls from "./MediaControls.vue";
@@ -121,6 +136,7 @@ const pool = usePoolStore();
 const { playframeActive } = useFeatureFlags();
 const activity = usePlayFrameActivity();
 const { t } = useLocale();
+const { visible: memberListVisible, available: memberListAvailable, toggle: toggleMemberList } = useMemberList();
 
 const selectedChannelId = defineModel<string | null>("selectedChannelId", { type: String, required: true });
 
@@ -180,6 +196,24 @@ async function endActiveCall() {
 </script>
 
 <style scoped>
+.media-member-toggle {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    z-index: 10;
+    width: 2rem;
+    height: 2rem;
+    justify-content: center;
+}
+
+.media-member-toggle[aria-pressed="true"] {
+    color: hsl(var(--foreground));
+}
+
+.media-channel--activity .media-content {
+    padding-top: 3rem;
+}
+
 .media-channel {
     border: 1px solid hsl(var(--border) / 0.5);
     border-radius: var(--radius);

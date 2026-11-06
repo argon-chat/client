@@ -379,7 +379,8 @@ export function useEmojiSuggest(opts: EmojiSuggestOptions) {
     swallowSpaceAt = null;
     const ed = opts.editor();
     if (!held || !ed || e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return false;
-    if (window.getSelection()?.isCollapsed === false) return false;
+    // No Selection under vue-native (a <textarea> composer): the caret check below is what is left.
+    if (window.getSelection?.()?.isCollapsed === false) return false;
     const target = revertTarget(held, opts.text(), ed.getCursorOffset());
     if (!target) return false;
     e.preventDefault();
@@ -465,11 +466,24 @@ export function useEmojiSuggest(opts: EmojiSuggestOptions) {
   }
 
   let boundEl: HTMLElement | null = null;
+
+  function onCaretKeydown(e: KeyboardEvent) {
+    if (!e.defaultPrevented && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"].includes(e.key)) hide();
+  }
+
   function bind(el: HTMLElement | null | undefined) {
     if (el === boundEl) return;
     boundEl?.removeEventListener("beforeinput", onBeforeInput as EventListener);
+    boundEl?.removeEventListener("mousedown", hide);
+    boundEl?.removeEventListener("keydown", onCaretKeydown);
     boundEl = el ?? null;
     boundEl?.addEventListener("beforeinput", onBeforeInput as EventListener);
+    // A native textarea cannot report its selection. Invalidate the anchor after keys the
+    // composer/strip did not consume, or before a press can move the caret unseen.
+    if (boundEl?.tagName === "TEXTAREA") {
+      boundEl.addEventListener("mousedown", hide);
+      boundEl.addEventListener("keydown", onCaretKeydown);
+    }
   }
 
   // Watchers and listeners exist only while suggestions are on: off, typing costs the text table only.

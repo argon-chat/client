@@ -1,7 +1,16 @@
 <template>
-  <Teleport to="body">
-    <Transition name="lightbox">
-      <div v-if="isOpen" class="lightbox-overlay" @click.self="close" @keydown="onKeydown" tabindex="0" ref="overlayRef">
+  <!-- Teleported into the page; under vue-native, a window of its own (lib/vn/viewerWindow.ts) -->
+  <LightboxHost v-bind="vnBind?.host">
+    <Transition name="lightbox" @after-leave="vn?.afterLeave()">
+      <div
+        v-if="isOpen"
+        class="lightbox-overlay"
+        v-bind="vnBind?.overlay"
+        @click.self="onDimClick"
+        @keydown="onKeydown"
+        tabindex="0"
+        ref="overlayRef"
+      >
         <!-- Close button -->
         <button class="lightbox-btn lightbox-close icon-motion icon-motion--pop" @click="close">
           <XIcon class="w-5 h-5" />
@@ -13,7 +22,7 @@
         </button>
 
         <!-- Main image or video -->
-        <div class="lightbox-content" @click.stop>
+        <div class="lightbox-content" v-bind="vnBind?.content" @click.stop>
           <div v-if="currentVideo" class="lightbox-video" :style="videoBox" data-testid="lightbox-video">
             <VideoPlayer
               :key="`${currentIndex}:${currentVideo.fileId}`"
@@ -33,14 +42,35 @@
             />
           </div>
           <template v-else>
-            <img
-              :crossorigin="cdnCrossOrigin(currentSrc)" :src="currentSrc ?? ''"
-              :alt="currentItem?.fileName ?? ''"
-              class="lightbox-image"
-              :class="{ loaded: imageLoaded }"
-              @load="imageLoaded = true"
-              draggable="false"
-            />
+            <!-- Right click: the picture's menu, over the viewer (its content is above the overlay's 9999) -->
+            <ContextMenu @update:open="prepareSave">
+              <ContextMenuTrigger as-child>
+                <img
+                  :crossorigin="cdnCrossOrigin(currentSrc)" :src="currentSrc ?? ''"
+                  :alt="currentItem?.fileName ?? ''"
+                  class="lightbox-image"
+                  :class="{ loaded: imageLoaded }"
+                  v-bind="vnBind?.image"
+                  @load="imageLoaded = true"
+                  draggable="false"
+                />
+              </ContextMenuTrigger>
+              <ContextMenuContent class="z-[10000] w-56" data-testid="lightbox-menu">
+                <ContextMenuItem v-if="messageId != null" data-testid="lightbox-menu-goto" @select="goToMessage">
+                  <CornerDownRightIcon class="w-4 h-4 mr-2" />
+                  {{ t("lightbox_go_to_message") }}
+                </ContextMenuItem>
+                <ContextMenuItem data-testid="lightbox-menu-copy" @select="copy">
+                  <CopyIcon class="w-4 h-4 mr-2" />
+                  {{ t("copy") }}
+                </ContextMenuItem>
+                <ContextMenuItem data-testid="lightbox-menu-save" :disabled="!saveBlob" @select="saveAs">
+                  <Loader2Icon v-if="savePreparing" class="w-4 h-4 mr-2 animate-spin" />
+                  <DownloadIcon v-else class="w-4 h-4 mr-2" />
+                  {{ t("lightbox_save_as") }}
+                </ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenu>
             <div v-if="!currentSrc" class="lightbox-loading">
               <Loader2Icon class="w-8 h-8 animate-spin lightbox-spinner" />
             </div>
@@ -83,13 +113,16 @@
         </button>
       </div>
     </Transition>
-  </Teleport>
+  </LightboxHost>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onBeforeUnmount } from "vue";
-import { XIcon, ChevronLeftIcon, ChevronRightIcon, DownloadIcon, CopyIcon, Loader2Icon } from "lucide-vue-next";
+import { ref, shallowRef, computed, watch, nextTick, onBeforeUnmount, defineComponent, h, Teleport } from "vue";
+import { XIcon, ChevronLeftIcon, ChevronRightIcon, CornerDownRightIcon, DownloadIcon, CopyIcon, Loader2Icon } from "lucide-vue-next";
 import type { MessageEntityVideo } from "@argon/glue";
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@argon/ui/context-menu";
+import { logger } from "@argon/core";
+import { useToast } from "@argon/ui/toast";
 import VideoPlayer, { type VideoPlayerStoryboard } from "@/components/media/VideoPlayer.vue";
 import { cdnCrossOrigin, cdnFetchUrl, cdnUrl, resolveAttachmentUrl } from "@/store/system/fileStorage";
 import { copyAttachmentToClipboard } from "@/lib/attachments/clipboard";
@@ -98,8 +131,11 @@ import { isVideoEntity, type ChatMediaItem } from "@/lib/media/mediaItem";
 import { invalidateMediaUrl, resolveMediaUrl } from "@/lib/media/mediaUrl";
 import { loopsInViewer } from "@/lib/video/playerSettings";
 import { suspendChatVideos } from "@/lib/media/videoAutoplay";
+import { VnWindow } from "@/lib/vn/vnWindow";
+import { useViewerWindow } from "@/lib/vn/viewerWindow";
 
 const { t } = useLocale();
+const { toast } = useToast();
 
 const props = defineProps<{
   /** Pictures and videos; the name stayed from when it showed pictures only. */
@@ -107,10 +143,13 @@ const props = defineProps<{
   initialIndex?: number;
   isOpen: boolean;
   timeSent?: Date | null;
+  /** The message the media came from: the menu's "Go to message" jumps to it. None, no such item. */
+  messageId?: bigint | null;
 }>();
 
 const emit = defineEmits<{
   (e: "close"): void;
+  (e: "go-to-message", messageId: bigint): void;
 }>();
 
 /** A video up to this size downloads through a blob; a bigger one opens in a new window instead. */
@@ -201,7 +240,7 @@ const videoBox = computed(() => {
   const h = video?.height && video.height > 0 ? video.height : 9;
   return {
     aspectRatio: `${w} / ${h}`,
-    width: `min(${Math.max(w, MIN_VIDEO_WIDTH)}px, 90vw, calc(85vh * ${w / h}))`,
+    width: vn?.videoWidth(w, h, MIN_VIDEO_WIDTH) ?? `min(${Math.max(w, MIN_VIDEO_WIDTH)}px, 90vw, calc(85vh * ${w / h}))`,
   };
 });
 
@@ -210,7 +249,17 @@ function onPip(active: boolean) {
   if (active) close();
 }
 
+// Under vue-native the viewer is a window of its own over the whole monitor (lib/vn/viewerWindow.ts).
+// Vite replaces `import.meta.env.VN` with `undefined`: in Electron and the browser `vn` is null, the
+// overlay is teleported into the page as before, and none of the vue-native code is in the bundle.
+const vn = import.meta.env.VN && VnWindow
+  ? useViewerWindow(VnWindow, { item: () => currentItem.value, video: () => !!currentVideo.value })
+  : null;
+const vnBind = vn?.bind;
+const LightboxHost = vn ? vn.Host : defineComponent((_, { slots }) => () => h(Teleport, { to: "body" }, slots.default?.() ?? []));
+
 function loadCurrent() {
+  clearSaveBlob();
   imageLoaded.value = false;
   const item = currentItem.value;
   if (!item) return;
@@ -232,20 +281,39 @@ watch(() => props.isOpen, async (open) => {
     // A changed index loads through the watcher below; the same one has to be loaded here.
     if (currentIndex.value !== index) currentIndex.value = index;
     else loadCurrent();
+    vn?.opened();
     await nextTick();
     overlayRef.value?.focus();
   } else {
+    clearSaveBlob();
     videoToken++;
     videoSrc.value = null;
   }
 });
 
 watch(currentIndex, () => {
+  vn?.stepped();
   if (props.isOpen) loadCurrent();
 });
 
 function close() {
+  if (vn) return void vn.beforeClose().then(() => emit("close"));
   emit("close");
+}
+
+/** A click on the dim closes, unless it ends a drag of a zoomed picture that was let go over the dim. */
+function onDimClick() {
+  if (vn?.consumeDrag()) return;
+  close();
+}
+
+/** The viewer closes and the chat goes to the message the media came from. */
+function goToMessage() {
+  const id = props.messageId;
+  if (id == null) return;
+  // The close first: it shrinks the picture toward its thumbnail where that is now, before the jump moves it.
+  close();
+  emit("go-to-message", id);
 }
 
 function prev() {
@@ -304,22 +372,126 @@ async function download() {
   }
   try {
     const resp = await fetch(cdnFetchUrl(item.fileId));
-    if (!resp.ok) return;
+    if (!resp.ok) throw new Error(`Download failed: HTTP ${resp.status}`);
     const blob = await resp.blob();
+    downloadBlob(item, blob);
+  } catch (e) {
+    reportSaveFailure(e);
+  }
+}
+
+function downloadBlob(item: ChatMediaItem, blob: Blob) {
+  try {
     const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = blobUrl;
-    a.download = item.fileName || (isVideoEntity(item) ? "video" : "image");
+    a.download = suggestedName(item);
     document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(blobUrl);
-  } catch {
-    /* download failed — leave the call untouched */
+    try {
+      a.click();
+    } finally {
+      a.remove();
+      URL.revokeObjectURL(blobUrl);
+    }
+  } catch (e) {
+    reportSaveFailure(e);
+  }
+}
+
+function reportSaveFailure(error: unknown) {
+  logger.warn("lightbox: save failed", error);
+  toast({ title: t("lightbox_save_failed"), variant: "destructive" });
+}
+
+const saveBlob = shallowRef<Blob | null>(null);
+const savePreparing = ref(false);
+let saveController: AbortController | null = null;
+
+function clearSaveBlob() {
+  saveController?.abort();
+  saveController = null;
+  savePreparing.value = false;
+  saveBlob.value = null;
+}
+
+/** Prepare before selection: the picker needs a fresh gesture, and can clear the destination. */
+async function prepareSave(open: boolean) {
+  const item = currentItem.value;
+  if (!open || !item || saveBlob.value || saveController) return;
+  const controller = new AbortController();
+  saveController = controller;
+  savePreparing.value = true;
+  try {
+    const resp = await fetch(cdnFetchUrl(item.fileId), { signal: controller.signal });
+    if (!resp.ok) throw new Error(`Download failed: HTTP ${resp.status}`);
+    const blob = await resp.blob();
+    if (!controller.signal.aborted) saveBlob.value = blob;
+  } catch (e) {
+    if (!controller.signal.aborted) reportSaveFailure(e);
+  } finally {
+    if (saveController === controller) {
+      saveController = null;
+      savePreparing.value = false;
+    }
+  }
+}
+
+/** A file name with its type's extension, for the save dialog to suggest. */
+function suggestedName(item: ChatMediaItem): string {
+  const ext = extensionOf(item.contentType);
+  const name = item.fileName || (isVideoEntity(item) ? "video" : "image");
+  return ext && !/\.[A-Za-z0-9]{1,16}$/.test(name) ? `${name}${ext}` : name;
+}
+
+function extensionOf(contentType: string | null | undefined): string | null {
+  const sub = contentType?.toLowerCase().match(/^image\/([a-z0-9.+-]+)/)?.[1];
+  if (!sub) return null;
+  const ext = ({ jpeg: "jpg", "svg+xml": "svg", "x-icon": "ico", "vnd.microsoft.icon": "ico" } as Record<string, string>)[sub] ?? sub;
+  return /^[a-z0-9]{1,16}$/.test(ext) ? `.${ext}` : null;
+}
+
+type SaveFilePicker = (options: {
+  suggestedName?: string;
+  types?: { description?: string; accept: Record<string, string[]> }[];
+}) => Promise<{ createWritable(): Promise<{ write(data: Blob): Promise<void>; close(): Promise<void>; abort(): Promise<void> }> }>;
+
+/**
+ * Save As: bytes are ready before this click opens the dialog, so a failed fetch cannot clear
+ * the destination. No awaits before the picker: the menu's click must still count as a gesture.
+ * Where there is no `showSaveFilePicker`, download the prepared bytes.
+ */
+async function saveAs() {
+  const item = currentItem.value;
+  const blob = saveBlob.value;
+  if (!item || !blob) return;
+  const picker = (window as { showSaveFilePicker?: SaveFilePicker }).showSaveFilePicker;
+  if (!picker) return downloadBlob(item, blob);
+  const ext = extensionOf(item.contentType);
+  const mime = item.contentType?.split(";", 1)[0].trim().toLowerCase();
+  let handle: Awaited<ReturnType<SaveFilePicker>>;
+  try {
+    handle = await picker.call(window, {
+      suggestedName: suggestedName(item),
+      types: ext && mime ? [{ accept: { [mime]: [ext] } }] : undefined,
+    });
+  } catch (e) {
+    if (e instanceof DOMException && e.name === "AbortError") return;
+    logger.warn("lightbox: save picker failed", e);
+    return downloadBlob(item, blob);
+  }
+  let out: Awaited<ReturnType<typeof handle.createWritable>> | undefined;
+  try {
+    out = await handle.createWritable();
+    await out.write(blob);
+    await out.close();
+  } catch (e) {
+    try { await out?.abort(); } catch { /* the stream may already be closed */ }
+    reportSaveFailure(e);
   }
 }
 
 onBeforeUnmount(() => {
+  clearSaveBlob();
   srcCache.clear();
   videoToken++;
   if (props.isOpen) suspendChatVideos(false);
