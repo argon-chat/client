@@ -430,9 +430,11 @@ export class LottiePool {
   worker(index: number): Promise<Worker> {
     let promise = this.workers[index];
     if (!promise) {
-      const option = this.options.wasmUrl;
-      const wasmUrl = typeof option === "function" ? option() : (option ?? tlottieWasmUrl());
-      promise = Promise.all([(this.options.createWorker ?? defaultCreateWorker)(), wasmUrl]).then(([worker, url]) => {
+      promise = Promise.resolve().then(() => {
+        const option = this.options.wasmUrl;
+        return typeof option === "function" ? option() : (option ?? tlottieWasmUrl());
+      }).then(async (url) => {
+        const worker = await (this.options.createWorker ?? defaultCreateWorker)();
         worker.addEventListener("message", (event: MessageEvent<LottieFromWorker>) => this.onMessage(event.data));
         worker.addEventListener("error", (event) => this.onWorkerError(index, event));
         worker.postMessage({

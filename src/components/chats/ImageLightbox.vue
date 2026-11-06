@@ -43,7 +43,7 @@
           </div>
           <template v-else>
             <!-- Right click: the picture's menu, over the viewer (its content is above the overlay's 9999) -->
-            <ContextMenu>
+            <ContextMenu @update:open="prepareSave">
               <ContextMenuTrigger as-child>
                 <img
                   :crossorigin="cdnCrossOrigin(currentSrc)" :src="currentSrc ?? ''"
@@ -64,8 +64,9 @@
                   <CopyIcon class="w-4 h-4 mr-2" />
                   {{ t("copy") }}
                 </ContextMenuItem>
-                <ContextMenuItem data-testid="lightbox-menu-save" @select="saveAs">
-                  <DownloadIcon class="w-4 h-4 mr-2" />
+                <ContextMenuItem data-testid="lightbox-menu-save" :disabled="!saveBlob" @select="saveAs">
+                  <Loader2Icon v-if="savePreparing" class="w-4 h-4 mr-2 animate-spin" />
+                  <DownloadIcon v-else class="w-4 h-4 mr-2" />
                   {{ t("lightbox_save_as") }}
                 </ContextMenuItem>
               </ContextMenuContent>
@@ -116,11 +117,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onBeforeUnmount, defineComponent, h, Teleport } from "vue";
+import { ref, shallowRef, computed, watch, nextTick, onBeforeUnmount, defineComponent, h, Teleport } from "vue";
 import { XIcon, ChevronLeftIcon, ChevronRightIcon, CornerDownRightIcon, DownloadIcon, CopyIcon, Loader2Icon } from "lucide-vue-next";
 import type { MessageEntityVideo } from "@argon/glue";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@argon/ui/context-menu";
 import { logger } from "@argon/core";
+import { useToast } from "@argon/ui/toast";
 import VideoPlayer, { type VideoPlayerStoryboard } from "@/components/media/VideoPlayer.vue";
 import { cdnCrossOrigin, cdnFetchUrl, cdnUrl, resolveAttachmentUrl } from "@/store/system/fileStorage";
 import { copyAttachmentToClipboard } from "@/lib/attachments/clipboard";
@@ -133,6 +135,7 @@ import { VnWindow } from "@/lib/vn/vnWindow";
 import { useViewerWindow } from "@/lib/vn/viewerWindow";
 
 const { t } = useLocale();
+const { toast } = useToast();
 
 const props = defineProps<{
   /** Pictures and videos; the name stayed from when it showed pictures only. */
@@ -256,6 +259,7 @@ const vnBind = vn?.bind;
 const LightboxHost = vn ? vn.Host : defineComponent((_, { slots }) => () => h(Teleport, { to: "body" }, slots.default?.() ?? []));
 
 function loadCurrent() {
+  clearSaveBlob();
   imageLoaded.value = false;
   const item = currentItem.value;
   if (!item) return;
@@ -281,6 +285,7 @@ watch(() => props.isOpen, async (open) => {
     await nextTick();
     overlayRef.value?.focus();
   } else {
+    clearSaveBlob();
     videoToken++;
     videoSrc.value = null;
   }
@@ -367,25 +372,74 @@ async function download() {
   }
   try {
     const resp = await fetch(cdnFetchUrl(item.fileId));
-    if (!resp.ok) return;
+    if (!resp.ok) throw new Error(`Download failed: HTTP ${resp.status}`);
     const blob = await resp.blob();
+    downloadBlob(item, blob);
+  } catch (e) {
+    reportSaveFailure(e);
+  }
+}
+
+function downloadBlob(item: ChatMediaItem, blob: Blob) {
+  try {
     const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = blobUrl;
-    a.download = item.fileName || (isVideoEntity(item) ? "video" : "image");
+    a.download = suggestedName(item);
     document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(blobUrl);
-  } catch {
-    /* download failed — leave the call untouched */
+    try {
+      a.click();
+    } finally {
+      a.remove();
+      URL.revokeObjectURL(blobUrl);
+    }
+  } catch (e) {
+    reportSaveFailure(e);
+  }
+}
+
+function reportSaveFailure(error: unknown) {
+  logger.warn("lightbox: save failed", error);
+  toast({ title: t("lightbox_save_failed"), variant: "destructive" });
+}
+
+const saveBlob = shallowRef<Blob | null>(null);
+const savePreparing = ref(false);
+let saveController: AbortController | null = null;
+
+function clearSaveBlob() {
+  saveController?.abort();
+  saveController = null;
+  savePreparing.value = false;
+  saveBlob.value = null;
+}
+
+/** Prepare before selection: the picker needs a fresh gesture, and can clear the destination. */
+async function prepareSave(open: boolean) {
+  const item = currentItem.value;
+  if (!open || !item || saveBlob.value || saveController) return;
+  const controller = new AbortController();
+  saveController = controller;
+  savePreparing.value = true;
+  try {
+    const resp = await fetch(cdnFetchUrl(item.fileId), { signal: controller.signal });
+    if (!resp.ok) throw new Error(`Download failed: HTTP ${resp.status}`);
+    const blob = await resp.blob();
+    if (!controller.signal.aborted) saveBlob.value = blob;
+  } catch (e) {
+    if (!controller.signal.aborted) reportSaveFailure(e);
+  } finally {
+    if (saveController === controller) {
+      saveController = null;
+      savePreparing.value = false;
+    }
   }
 }
 
 /** A file name with its type's extension, for the save dialog to suggest. */
 function suggestedName(item: ChatMediaItem): string {
   const ext = extensionOf(item.contentType);
-  const name = item.fileName || "image";
+  const name = item.fileName || (isVideoEntity(item) ? "video" : "image");
   return ext && !/\.[A-Za-z0-9]{1,16}$/.test(name) ? `${name}${ext}` : name;
 }
 
@@ -399,41 +453,45 @@ function extensionOf(contentType: string | null | undefined): string | null {
 type SaveFilePicker = (options: {
   suggestedName?: string;
   types?: { description?: string; accept: Record<string, string[]> }[];
-}) => Promise<{ createWritable(): Promise<{ write(data: Blob): Promise<void>; close(): Promise<void> }> }>;
+}) => Promise<{ createWritable(): Promise<{ write(data: Blob): Promise<void>; close(): Promise<void>; abort(): Promise<void> }> }>;
 
 /**
- * Save As: the system's save dialog, then the file's own bytes, as the server has them — not the
- * decoded picture encoded again. The dialog comes first, while the menu's click still counts as a
- * user gesture. Where there is no `showSaveFilePicker`, the download does it.
+ * Save As: bytes are ready before this click opens the dialog, so a failed fetch cannot clear
+ * the destination. No awaits before the picker: the menu's click must still count as a gesture.
+ * Where there is no `showSaveFilePicker`, download the prepared bytes.
  */
 async function saveAs() {
   const item = currentItem.value;
-  if (!item) return;
+  const blob = saveBlob.value;
+  if (!item || !blob) return;
   const picker = (window as { showSaveFilePicker?: SaveFilePicker }).showSaveFilePicker;
-  if (!picker) return download();
+  if (!picker) return downloadBlob(item, blob);
   const ext = extensionOf(item.contentType);
+  const mime = item.contentType?.split(";", 1)[0].trim().toLowerCase();
   let handle: Awaited<ReturnType<SaveFilePicker>>;
   try {
-    handle = await picker({
+    handle = await picker.call(window, {
       suggestedName: suggestedName(item),
-      types: ext && item.contentType ? [{ accept: { [item.contentType]: [ext] } }] : undefined,
+      types: ext && mime ? [{ accept: { [mime]: [ext] } }] : undefined,
     });
-  } catch {
-    return; // cancelled
+  } catch (e) {
+    if (e instanceof DOMException && e.name === "AbortError") return;
+    logger.warn("lightbox: save picker failed", e);
+    return downloadBlob(item, blob);
   }
+  let out: Awaited<ReturnType<typeof handle.createWritable>> | undefined;
   try {
-    const resp = await fetch(cdnFetchUrl(item.fileId));
-    if (!resp.ok) return;
-    const blob = await resp.blob();
-    const out = await handle.createWritable();
+    out = await handle.createWritable();
     await out.write(blob);
     await out.close();
   } catch (e) {
-    logger.warn("lightbox: save failed", e);
+    try { await out?.abort(); } catch { /* the stream may already be closed */ }
+    reportSaveFailure(e);
   }
 }
 
 onBeforeUnmount(() => {
+  clearSaveBlob();
   srcCache.clear();
   videoToken++;
   if (props.isOpen) suspendChatVideos(false);

@@ -2052,7 +2052,11 @@ export function createCallManager(config: CallManagerConfig) {
 
     try {
       return await navigator.mediaDevices.getDisplayMedia({
-        video: true,
+        video: {
+          width: opts.width,
+          height: opts.height,
+          frameRate: opts.frameRate ?? 30,
+        },
         // restrictOwnAudio keeps this page's own output out of the desktop capture, so the
         // other participants' voices coming from our speakers aren't echoed back into the
         // room. Unknown constraint names are dropped where unsupported, and Electron's

@@ -46,6 +46,7 @@
                     :margin="[12, 12]"
                     class="h-full"
                     @breakpoint-changed="onBreakpointChanged"
+                    @layout-updated="onLayoutUpdated"
                 >
                     <grid-item
                         v-for="item in shownLayout"
@@ -109,6 +110,10 @@ const gridKey = ref(0);
 
 function onBreakpointChanged(next: string) {
     breakpoint.value = next;
+}
+
+function onLayoutUpdated(next: WidgetLayout[]) {
+    if (breakpoint.value === 'lg' && widgetStore.isEditMode) widgetStore.updateLayout(next);
 }
 
 watch(shownLayout, (next) => {

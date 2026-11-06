@@ -229,6 +229,7 @@
   "copy_file": "Копировать файл",
   "lightbox_go_to_message": "Перейти к сообщению",
   "lightbox_save_as": "Сохранить как…",
+  "lightbox_save_failed": "Не удалось сохранить файл. Попробуйте ещё раз.",
   "video_player_play": "Воспроизвести",
   "video_player_pause": "Пауза",
   "video_player_mute": "Выключить звук",

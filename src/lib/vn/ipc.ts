@@ -51,6 +51,8 @@ function openDevtools(): void {
 
 /** Calls this no-op does carry out, on vue-native's own terms. */
 const ACTIONS: Record<string, (args: unknown[]) => unknown> = {
+  "HostProc.getScreenSources": (args) => captureApi().getSources(args[0] as string[], args[1] as Record<string, unknown> | undefined),
+  "HostProc.setPendingScreenSource": (args) => captureApi().setPendingSource(String(args[0]), !!args[1]),
   "HostProc.toggleDevTools": openDevtools,
   // configStore: the sections, and one key's new value (hostConfig.ts).
   "HostProc.getConfig": () => getConfig(),
@@ -58,6 +60,15 @@ const ACTIONS: Record<string, (args: unknown[]) => unknown> = {
   // AppearanceSettings: the live backdrop switch it makes before it saves WindowMaterial.
   "HostProc.setWindowMaterial": (args) => setWindowMaterial(String(args[0])),
 };
+
+function captureApi() {
+  const api = (globalThis as { __VN_CAPTURE__?: {
+    getSources(types: string[], options?: Record<string, unknown>): Promise<unknown[]>;
+    setPendingSource(sourceId: string, includeAudio: boolean): boolean;
+  } }).__VN_CAPTURE__;
+  if (!api) throw new Error("This vue-native host does not support desktop capture; rebuild the host and vendor bundle.");
+  return api;
+}
 
 if (isVn && !("argonIpc" in window)) {
   // The Electron shell applies its saved Theme and WindowMaterial when it creates the window.

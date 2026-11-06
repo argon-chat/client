@@ -314,6 +314,7 @@
   "copy_file": "Copy file",
   "lightbox_go_to_message": "Go to message",
   "lightbox_save_as": "Save As…",
+  "lightbox_save_failed": "Could not save the file. Try again.",
   "video_player_play": "Play",
   "video_player_pause": "Pause",
   "video_player_mute": "Mute",

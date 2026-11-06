@@ -82,6 +82,31 @@ async function open(images: (MessageEntityAttachment | MessageEntityVideo)[], in
 }
 
 describe("the viewer with videos", () => {
+  test("the picture menu prepares bytes, then Save As opens from a fresh user gesture", async () => {
+    const bytes = new Blob(["original picture"], { type: "image/png" });
+    const write = vi.fn(async (_blob: Blob) => {});
+    const close = vi.fn(async () => {});
+    let activated = false;
+    const picker = vi.fn(async () => {
+      activated = navigator.userActivation.isActive;
+      return { createWritable: async () => ({ write, close, abort: async () => {} }) };
+    });
+    const fetchFile = vi.fn(async () => ({ ok: true, blob: async () => bytes }));
+    await open([picture("p1")]);
+    vi.stubGlobal("showSaveFilePicker", picker);
+    vi.stubGlobal("fetch", fetchFile);
+    await userEvent.click(document.querySelector(".lightbox-image")!, { button: "right" });
+    const save = () => document.querySelector<HTMLElement>('[data-testid="lightbox-menu-save"]');
+    await until(() => !!save() && !save()!.hasAttribute("data-disabled"), 2_000, "the prepared save action");
+    expect(fetchFile).toHaveBeenCalledOnce();
+    expect(picker).not.toHaveBeenCalled();
+    await userEvent.click(save()!);
+    await until(() => close.mock.calls.length === 1, 2_000, "the saved file");
+    expect(activated).toBe(true);
+    expect(write).toHaveBeenCalledWith(bytes);
+    expect(fetchFile).toHaveBeenCalledOnce();
+  });
+
   test("a video slide plays the direct url in the full player, looping a short clip", async () => {
     const { player } = await open([video("v1")]);
     await until(() => !!player() && !player()!.paused, 10_000, "the video playing");

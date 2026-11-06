@@ -299,7 +299,6 @@ watch(
 
 onMounted(async () => {
   await nextTick();
-  renderThumbHash();
   if (autoplays.value) startAutoplay();
 });
 
