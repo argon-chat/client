@@ -319,6 +319,7 @@
 </template>
 
 <script setup lang="ts">
+import type { AudioProcessorNode } from "@argon/audio";
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { audio, playDTMF, playBusyTone } from '@/lib/audio/AudioManager'
 import { logger } from '@argon/core'
@@ -398,7 +399,7 @@ const muteTestResult = ref<string>('')
 const streamInfo = ref<string>('')
 
 // Stereo VU meter
-let stereoVuMeterDisposable: Disposable<AudioWorkletNode> | null = null
+let stereoVuMeterDisposable: Disposable<AudioProcessorNode> | null = null
 let debugInputAcquired = false
 
 // Event log

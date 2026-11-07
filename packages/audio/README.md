@@ -53,23 +53,41 @@ const unsub = audio.onInputDeviceChanged((deviceId) => {
 
 ### Worklet Manager
 
-For advanced audio processing with AudioWorklet:
+The manager uses browser AudioWorklet modules in web builds and compiled Rust
+processors in vue-native (`globalThis.isVn === true`). Native registration checks
+`AudioContext.loadNativeAudioWorklet` and performs no JS module fetch.
 
 ```typescript
-import { WorkletManager } from '@argon/audio'
+import { AudioManagement, WorkletManager } from '@argon/audio'
 
-const worklets = WorkletManager({
-  audioContext: audio.getCurrentAudioContext(),
-})
-
-// Register worklets
-await worklets.register('noise-gate', '/audio/noise-gate-processor.js')
-await worklets.register('compressor', '/audio/compressor-processor.js')
-
-// Create worklet node
-const noiseGate = worklets.createNode('noise-gate')
-source.connect(noiseGate).connect(ctx.destination)
+const audio = new AudioManagement({ autoInitialize: false })
+const worklets = new WorkletManager(audio)
+await worklets.init()
+const mono = await worklets.createStereoToMonoProcessor()
+worklets.setEnabledVUNode(mono.Value, true)
+source.connect(mono.Value).connect(destination)
+// At the end of the owning graph's lifetime:
+await mono.asyncDispose()
 ```
+
+`AudioProcessorNode` describes the shared AudioNode, parameter map and receiving
+port surface. The application maps its four existing processor ids to SDK names:
+
+| Browser processor id | Native processor |
+|---|---|
+| `vu-meter-processor` | `peak-meter-stereo` |
+| `vu-meter-light` | `peak-meter-mono` |
+| `vu-stereo-to-mono-processor` | `stereo-to-mono` |
+| `input-gate-processor` | `input-gate` |
+
+The native path fails explicitly if a host lacks the API or a processor has no
+native mapping. Ordinary browsers without AudioWorklet retain the existing
+analyser/pass-through fallbacks. Native mono conversion preserves the existing
+processor's left-channel-to-both behavior; it is not an average of two channels.
+
+RNNoise and Speex use third-party WASM worklets. They are not native builtins;
+native microphone capture uses libwebrtc APM through the `noiseSuppression`
+constraint instead. Those algorithms are not advertised as interchangeable.
 
 ### DTMF Tones
 

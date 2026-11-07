@@ -92,6 +92,7 @@
 </template>
 
 <script setup lang="ts">
+import type { AudioProcessorNode } from "@argon/audio";
 import { useLocale } from '@/store/system/localeStore';
 import { IconMicrophone, IconMicrophoneOff, IconHeadphones, IconHeadphonesOff, IconShieldLock } from '@tabler/icons-vue';
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
@@ -109,7 +110,7 @@ const isMuted = ref(false);
 const isDeafened = ref(false);
 const voiceLevel = ref(0);
 
-let vuMeterDisposable: Disposable<AudioWorkletNode> | null = null;
+let vuMeterDisposable: Disposable<AudioProcessorNode> | null = null;
 
 // Sync with system store
 watch(() => sys.microphoneMuted, (val) => {

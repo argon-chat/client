@@ -3,9 +3,7 @@ import { v4 } from "uuid";
 import { ref, type Ref } from "vue";
 import { logger, Disposable } from "@argon/core";
 import { NoiseSuppressor, type NoiseSuppressionMode, type NoiseSuppressorUrls } from "./NoiseSuppressor";
-
-/** Running under vue-native, which sets `window.isVn`. */
-const isVn = () => (globalThis as { isVn?: unknown }).isVn === true;
+import { createAudioProcessor, isNativeAudioRuntime, nativeProcessorName, type AudioProcessorNode } from "./AudioProcessors";
 
 export type DeviceId = string;
 export type WorkletPath = string;
@@ -169,10 +167,10 @@ export interface IAudioManagement {
   createRemoteAudioGraph(options: RemoteAudioGraphOptions): RemoteAudioGraph;
   
   // VU Meters
-  createVUMeterLight(stream: MediaStream, onLevel: (level: number) => void): Promise<Disposable<AudioWorkletNode>>;
-  createVirtualVUMeter(onLevel: (level: number) => void): Promise<Disposable<AudioWorkletNode>>;
-  createVUMeterStereo(stream: MediaStream, onLevel: (left: number, right: number) => void): Promise<Disposable<AudioWorkletNode>>;
-  createVirtualVUMeterStereo(onLevel: (left: number, right: number) => void): Promise<Disposable<AudioWorkletNode>>;
+  createVUMeterLight(stream: MediaStream, onLevel: (level: number) => void): Promise<Disposable<AudioProcessorNode>>;
+  createVirtualVUMeter(onLevel: (level: number) => void): Promise<Disposable<AudioProcessorNode>>;
+  createVUMeterStereo(stream: MediaStream, onLevel: (left: number, right: number) => void): Promise<Disposable<AudioProcessorNode>>;
+  createVirtualVUMeterStereo(onLevel: (left: number, right: number) => void): Promise<Disposable<AudioProcessorNode>>;
   
   // Events
   onInputDeviceChanged(on: (devId: DeviceId) => void): Subscription;
@@ -213,9 +211,9 @@ export interface IAudioManagement {
   
   // Worklets
   addWorkletModule(workletPath: WorkletPath, name: WorkletId): Promise<void>;
-  getOrCreateWorkletModule(name: WorkletId, options: AudioWorkletNodeOptions): Promise<Disposable<AudioWorkletNode>>;
-  workletBranchByOrderConnect(worklets: AudioWorkletNode[]): void;
-  getActiveWorklets(): Map<string, AudioWorkletNode>;
+  getOrCreateWorkletModule(name: WorkletId, options: AudioWorkletNodeOptions): Promise<Disposable<AudioProcessorNode>>;
+  workletBranchByOrderConnect(worklets: AudioProcessorNode[]): void;
+  getActiveWorklets(): Map<string, AudioProcessorNode>;
   
   // Audio graph inspection
   getRemoteAudioGraphs(): Map<string, RemoteAudioGraphInfo>;
@@ -252,7 +250,7 @@ export interface AudioManagerConfig {
 
 export class AudioManagement implements IAudioManagement {
   private audioCtx: AudioContext;
-  private worklets = new Map<string, AudioWorkletNode>();
+  private worklets = new Map<string, AudioProcessorNode>();
   private workletPaths = new Map<WorkletId, WorkletPath>();
   private mediaElements = new Set<HTMLMediaElement>();
 
@@ -320,7 +318,7 @@ export class AudioManagement implements IAudioManagement {
   private outputLevelListeners = 0;
   
   // Input level monitoring
-  private inputLevelMonitorDisposable: Disposable<AudioWorkletNode> | null = null;
+  private inputLevelMonitorDisposable: Disposable<AudioProcessorNode> | null = null;
   
   // Device change listener
   private deviceChangeHandler: (() => void) | null = null;
@@ -341,7 +339,7 @@ export class AudioManagement implements IAudioManagement {
   private noiseSuppressor: NoiseSuppressor | null;
 
   // Input gate
-  private inputGateNode: AudioWorkletNode | null = null;
+  private inputGateNode: AudioProcessorNode | null = null;
   private inputGateEnabled = false;
   private inputGateThresholdDb = -40;
   private inputGateStateCallbacks = new Set<(isOpen: boolean) => void>();
@@ -466,6 +464,7 @@ export class AudioManagement implements IAudioManagement {
     this.virtualOutputInitialized = false;
     
     for (const worklet of this.worklets.values()) {
+      worklet.port.close();
       worklet.disconnect();
     }
     this.worklets.clear();
@@ -927,13 +926,13 @@ export class AudioManagement implements IAudioManagement {
     // rebuildInputPipeline() picks up whatever node exists when the pipeline is built.
     this.noiseSuppressor.deactivate();
 
-    // Under vue-native (`window.isVn`) there is no AudioWorklet, so no worklet
-    // suppressor. Noise suppression is the capture's own there: libwebrtc's, behind the
-    // noiseSuppression constraint (on by default), as in Chrome.
-    if (mode !== "off" && isVn()) {
+    // RNNoise and Speex depend on third-party WASM worklets, not the compiled native
+    // meter/gate processors. Native capture uses libwebrtc noise suppression through
+    // the noiseSuppression constraint; it does not promise identical RNNoise/Speex output.
+    if (mode !== "off" && isNativeAudioRuntime()) {
       logger.info(
-        `[AudioManagement] Noise suppression "${mode}" is native under vue-native: ` +
-          `the microphone's noiseSuppression constraint (${this.audioConstraints.noiseSuppression}) decides`,
+        `[AudioManagement] The "${mode}" worklet is unavailable under vue-native; ` +
+          `capture uses its noiseSuppression constraint (${this.audioConstraints.noiseSuppression})`,
       );
       this.rebuildInputPipeline();
       return;
@@ -972,19 +971,15 @@ export class AudioManagement implements IAudioManagement {
 
   async setInputGateEnabled(enabled: boolean): Promise<void> {
     logger.info("[AudioManagement] setInputGateEnabled:", enabled);
-    this.inputGateEnabled = enabled;
-
     // Like the suppressor above, the node is created even before the input pipeline
     // exists — settings are restored at startup and the pipeline only appears once
     // something acquires the microphone.
-    if (enabled && !this.inputGateNode && !this.getCurrentAudioContext().audioWorklet) {
-      // No AudioWorklet (vue-native today): the gate is a worklet, so the input stays ungated, and
-      // the preference is kept. vue-native's client-gap.md §4, "the gate/VU worklets".
+    if (enabled && !this.inputGateNode && !isNativeAudioRuntime() && !this.getCurrentAudioContext().audioWorklet) {
       logger.warn("[AudioManagement] AudioWorklet is not available; the input gate stays open");
     } else if (enabled && !this.inputGateNode) {
       // Create gate node
       const ctx = this.getCurrentAudioContext();
-      this.inputGateNode = new AudioWorkletNode(ctx, "input-gate-processor", {
+      this.inputGateNode = createAudioProcessor(ctx, "input-gate-processor", {
         numberOfInputs: 1,
         numberOfOutputs: 1,
         outputChannelCount: [2],
@@ -1008,6 +1003,7 @@ export class AudioManagement implements IAudioManagement {
       this.inputGateNode = null;
     }
 
+    this.inputGateEnabled = enabled;
     this.rebuildInputPipeline();
   }
 
@@ -1767,14 +1763,13 @@ export class AudioManagement implements IAudioManagement {
   // ==================== VU METERS ====================
 
   /**
-   * A meter that never reports, for an AudioContext with no AudioWorklet (vue-native today), in
-   * place of a TypeError from `ctx.audioWorklet.addModule`. It owns `stream` the way a real meter
-   * does. vue-native's research/reports/m26/client-gap.md §4, "the gate/VU worklets".
+   * Browser fallback when AudioWorklet is unavailable. Owns the stream just like a real meter.
+   * Native runtimes must provide their compiled processor API instead of silently falling back.
    */
-  private silentMeter(ctx: AudioContext, stream: MediaStream): Disposable<AudioWorkletNode> {
+  private silentMeter(ctx: AudioContext, stream: MediaStream): Disposable<AudioProcessorNode> {
     logger.warn("[AudioManagement] AudioWorklet is not available; this VU meter stays at 0");
     const standIn = ctx.createGain();
-    return new Disposable(standIn as unknown as AudioWorkletNode, async () => {
+    return new Disposable(standIn as unknown as AudioProcessorNode, async () => {
       standIn.disconnect();
       if (this.virtualStreamDestination?.stream !== stream) stream.getTracks().forEach(track => track.stop());
     });
@@ -1783,19 +1778,18 @@ export class AudioManagement implements IAudioManagement {
   async createVUMeterLight(
     stream: MediaStream,
     onLevel: (level: number) => void
-  ): Promise<Disposable<AudioWorkletNode>> {
+  ): Promise<Disposable<AudioProcessorNode>> {
     const ctx = this.getCurrentAudioContext();
-    if (!ctx.audioWorklet) return this.silentMeter(ctx, stream);
+    if (!isNativeAudioRuntime() && !ctx.audioWorklet) return this.silentMeter(ctx, stream);
 
     // Add worklet module if not already added
     if (!this.workletPaths.has('vu-meter-light')) {
       const workletPath = `${this.config.workletBasePath}/vu-meter-light.js`;
-      await ctx.audioWorklet.addModule(workletPath);
-      this.workletPaths.set('vu-meter-light', workletPath);
+      await this.addWorkletModule(workletPath, 'vu-meter-light');
     }
     
+    const vuMeter = createAudioProcessor(ctx, 'vu-meter-light');
     const sourceNode = ctx.createMediaStreamSource(stream);
-    const vuMeter = new AudioWorkletNode(ctx, 'vu-meter-light');
     
     vuMeter.port.onmessage = (event) => {
       const level = Math.min(100, event.data * 150);
@@ -1804,7 +1798,7 @@ export class AudioManagement implements IAudioManagement {
     
     sourceNode.connect(vuMeter);
     
-    const dispose = async (node: AudioWorkletNode) => {
+    const dispose = async (node: AudioProcessorNode) => {
       logger.debug('[AudioManagement] Disposing VU meter light');
       node.port.close();
       node.disconnect();
@@ -1821,7 +1815,7 @@ export class AudioManagement implements IAudioManagement {
 
   async createVirtualVUMeter(
     onLevel: (level: number) => void
-  ): Promise<Disposable<AudioWorkletNode>> {
+  ): Promise<Disposable<AudioProcessorNode>> {
     // A held input still waiting for a microphone has its graph already: meter that (silence
     // until a device attaches) instead of failing on the capture.
     const virtualStream = this.virtualStreamDestination?.stream ?? await this.getVirtualInputStream();
@@ -1835,19 +1829,26 @@ export class AudioManagement implements IAudioManagement {
   async createVUMeterStereo(
     stream: MediaStream,
     onLevel: (left: number, right: number) => void
-  ): Promise<Disposable<AudioWorkletNode>> {
+  ): Promise<Disposable<AudioProcessorNode>> {
     const ctx = this.getCurrentAudioContext();
-    if (!ctx.audioWorklet) return this.silentMeter(ctx, stream);
+    if (!isNativeAudioRuntime() && !ctx.audioWorklet) return this.silentMeter(ctx, stream);
 
     // Add worklet module if not already added
     if (!this.workletPaths.has('vu-meter-processor')) {
       const workletPath = `${this.config.workletBasePath}/vu-meter-processor.js`;
-      await ctx.audioWorklet.addModule(workletPath);
-      this.workletPaths.set('vu-meter-processor', workletPath);
+      await this.addWorkletModule(workletPath, 'vu-meter-processor');
     }
-    
+
+    // Keep a mono source's absent right channel silent, as the browser worklet does.
+    const vuMeter = createAudioProcessor(ctx, 'vu-meter-processor', isNativeAudioRuntime() ? {
+      numberOfInputs: 1,
+      numberOfOutputs: 1,
+      outputChannelCount: [2],
+      channelCount: 2,
+      channelCountMode: "explicit",
+      channelInterpretation: "discrete",
+    } : undefined);
     const sourceNode = ctx.createMediaStreamSource(stream);
-    const vuMeter = new AudioWorkletNode(ctx, 'vu-meter-processor');
     
     vuMeter.port.onmessage = (event) => {
       const data = event.data as Float32Array;
@@ -1859,7 +1860,7 @@ export class AudioManagement implements IAudioManagement {
     
     sourceNode.connect(vuMeter);
     
-    const dispose = async (node: AudioWorkletNode) => {
+    const dispose = async (node: AudioProcessorNode) => {
       logger.debug('[AudioManagement] Disposing stereo VU meter');
       node.port.close();
       node.disconnect();
@@ -1879,7 +1880,7 @@ export class AudioManagement implements IAudioManagement {
    */
   async createVirtualVUMeterStereo(
     onLevel: (left: number, right: number) => void
-  ): Promise<Disposable<AudioWorkletNode>> {
+  ): Promise<Disposable<AudioProcessorNode>> {
     const virtualStream = await this.getVirtualInputStream();
     return this.createVUMeterStereo(virtualStream, onLevel);
   }
@@ -2087,47 +2088,49 @@ export class AudioManagement implements IAudioManagement {
     workletPath: WorkletPath,
     name: WorkletId,
   ): Promise<void> {
-    this.workletPaths.set(name, workletPath);
-    const path = this.workletPaths.get(name);
-    if (path) {
-      await this.audioCtx.audioWorklet.addModule(path);
+    if (isNativeAudioRuntime()) {
+      nativeProcessorName(this.audioCtx, name);
+    } else {
+      await this.audioCtx.audioWorklet.addModule(workletPath);
     }
+    this.workletPaths.set(name, workletPath);
   }
 
   async getOrCreateWorkletModule(
     name: WorkletId,
     options: AudioWorkletNodeOptions,
-  ): Promise<Disposable<AudioWorkletNode>> {
+  ): Promise<Disposable<AudioProcessorNode>> {
     const ctx = this.audioCtx;
 
     if (!this.workletPaths.has(name)) {
       throw new Error(`[AudioManagement] Worklet path not found: ${name}`);
     }
 
-    if (!ctx.audioWorklet) {
+    if (!isNativeAudioRuntime() && !ctx.audioWorklet) {
       throw new Error(
         "[AudioManagement] AudioContext does not support AudioWorklet",
       );
     }
 
-    const node = new AudioWorkletNode(ctx, name, options);
+    const node = createAudioProcessor(ctx, name, options);
     const uniqueId = `${name}-${v4()}`;
     this.worklets.set(uniqueId, node);
 
-    const disposable = new Disposable<AudioWorkletNode>(node, async (node) => {
+    const disposable = new Disposable<AudioProcessorNode>(node, async (node) => {
+      node.port.close();
       node.disconnect();
       this.worklets.delete(uniqueId);
     });
     return disposable;
   }
 
-  workletBranchByOrderConnect(worklets: AudioWorkletNode[]): void {
+  workletBranchByOrderConnect(worklets: AudioProcessorNode[]): void {
     for (let i = 0; i < worklets.length - 1; i++) {
       worklets[i].connect(worklets[i + 1]);
     }
   }
 
-  getActiveWorklets(): Map<string, AudioWorkletNode> {
+  getActiveWorklets(): Map<string, AudioProcessorNode> {
     return new Map(this.worklets);
   }
 

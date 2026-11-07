@@ -5,7 +5,8 @@ import {
   ref,
   type Ref,
 } from "vue";
-import { Disposable, logger } from "@argon/core";
+import { Disposable } from "@argon/core";
+import { createAudioProcessor, isNativeAudioRuntime, type AudioProcessorNode } from "./AudioProcessors";
 import type { BehaviorSubject } from "rxjs";
 import type { IAudioManagement } from "./AudioManager";
 
@@ -54,11 +55,11 @@ export class WorkletManager {
   async createVUMeter(
     leftRef: Ref<number>,
     rightRef: Ref<number>
-  ): Promise<Disposable<AudioWorkletNode>> {
+  ): Promise<Disposable<AudioProcessorNode>> {
     const ctx = this.#audio.getCurrentAudioContext();
-    if (!ctx.audioWorklet) return this.#analyserVUMeter(ctx, leftRef, rightRef);
+    if (!isNativeAudioRuntime() && !ctx.audioWorklet) return this.#analyserVUMeter(ctx, leftRef, rightRef);
 
-    const vuNode = new AudioWorkletNode(
+    const vuNode = createAudioProcessor(
       ctx,
       "vu-meter-processor",
       {
@@ -78,7 +79,7 @@ export class WorkletManager {
       rightRef.value = this.#audio.volumeToPercent(data[1]);
     };
 
-    const disposable = new Disposable<AudioWorkletNode>(
+    const disposable = new Disposable<AudioProcessorNode>(
       vuNode,
       async (node) => {
         node.port.close();
@@ -90,12 +91,11 @@ export class WorkletManager {
   }
 
   /**
-   * The VU meter of an AudioContext with no AudioWorklet (vue-native today): an AnalyserNode per
+   * The VU meter of a browser AudioContext with no AudioWorklet: an AnalyserNode per
    * channel, read 60 times a second, through the worklet's own peak envelope (vu-meter-processor.js:
    * attack 0.15 and release 0.85 per 128-frame block, here per tick). The node returned is the input.
-   * vue-native's research/reports/m26/client-gap.md §4, "the gate/VU worklets".
    */
-  #analyserVUMeter(ctx: AudioContext, leftRef: Ref<number>, rightRef: Ref<number>): Disposable<AudioWorkletNode> {
+  #analyserVUMeter(ctx: AudioContext, leftRef: Ref<number>, rightRef: Ref<number>): Disposable<AudioProcessorNode> {
     const TICKS_PER_SECOND = 60;
     // The worklet's release per block, compounded over the blocks one tick spans.
     const release = 0.85 ** (ctx.sampleRate / 128 / TICKS_PER_SECOND);
@@ -120,23 +120,22 @@ export class WorkletManager {
       rightRef.value = this.#audio.volumeToPercent(envelope[1]);
     }, 1000 / TICKS_PER_SECOND);
 
-    return new Disposable<AudioWorkletNode>(splitter as unknown as AudioWorkletNode, async () => {
+    return new Disposable<AudioProcessorNode>(splitter as unknown as AudioProcessorNode, async () => {
       clearInterval(timer);
       splitter.disconnect();
       for (const analyser of analysers) analyser.disconnect();
     });
   }
 
-  async createStereoToMonoProcessor(): Promise<Disposable<AudioWorkletNode>> {
+  async createStereoToMonoProcessor(): Promise<Disposable<AudioProcessorNode>> {
     const ctx = this.#audio.getCurrentAudioContext();
-    if (!ctx.audioWorklet) {
-      // No AudioWorklet (vue-native today): a pass-through, so the meter and the monitor still hear
-      // the input. Force-to-mono is not previewed here. client-gap.md §4, "the gate/VU worklets".
+    if (!isNativeAudioRuntime() && !ctx.audioWorklet) {
+      // Browser fallback: the meter and monitor still hear the input; force-to-mono is unavailable.
       const through = ctx.createGain();
-      return new Disposable<AudioWorkletNode>(through as unknown as AudioWorkletNode, async (node) => node.disconnect());
+      return new Disposable<AudioProcessorNode>(through as unknown as AudioProcessorNode, async (node) => node.disconnect());
     }
 
-    const stmNode = new AudioWorkletNode(
+    const stmNode = createAudioProcessor(
       ctx,
       "vu-stereo-to-mono-processor",
       {
@@ -149,7 +148,7 @@ export class WorkletManager {
       }
     );
 
-    const disposable = new Disposable<AudioWorkletNode>(
+    const disposable = new Disposable<AudioProcessorNode>(
       stmNode,
       async (node) => {
         node.port.close();
@@ -160,8 +159,8 @@ export class WorkletManager {
     return disposable;
   }
 
-  setEnabledVUNode(node: AudioWorkletNode, isEnabled: boolean) {
-    // The pass-through createStereoToMonoProcessor gives without AudioWorklet has no parameters.
+  setEnabledVUNode(node: AudioProcessorNode, isEnabled: boolean) {
+    // The browser fallback without AudioWorklet has no parameters.
     node.parameters
       ?.get("enabled")
       ?.setValueAtTime(

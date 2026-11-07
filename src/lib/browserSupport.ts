@@ -68,7 +68,9 @@ export const REQUIRED_CAPABILITIES: CapabilityCheck[] = [
     // every browser that has it.
     id: "audio_worklet",
     label: "Audio Worklets",
-    present: () => has(() => typeof (window as any).AudioWorkletNode === "function"),
+    present: () => has(() => (window as any).isVn === true
+      ? typeof (window as any).AudioContext?.prototype?.loadNativeAudioWorklet === "function"
+      : typeof (window as any).AudioWorkletNode === "function"),
   },
   { id: "webrtc", label: "WebRTC", present: () => has(() => window.RTCPeerConnection) },
   {

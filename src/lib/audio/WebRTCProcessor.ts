@@ -1,3 +1,4 @@
+import type { AudioProcessorNode } from "@argon/audio";
 import { usePreference } from "@/store/ui/preferenceStore";
 import type {
   AudioProcessorOptions,
@@ -13,7 +14,7 @@ export class WebRTCProcessor
   implements TrackProcessor<Track.Kind.Audio, AudioProcessorOptions>
 {
   private bag: DisposableBag = new DisposableBag();
-  private workletNodes: AudioWorkletNode[] = [];
+  private workletNodes: AudioProcessorNode[] = [];
   private audio: IAudioManagement;
   private sourceNode?: MediaStreamAudioSourceNode;
   private destinationNode?: MediaStreamAudioDestinationNode;

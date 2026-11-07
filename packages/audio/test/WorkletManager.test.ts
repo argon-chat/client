@@ -6,7 +6,7 @@
  * fails at runtime with "processor not registered", never at build time.
  */
 
-import { describe, test, expect, vi, beforeEach } from "vitest";
+import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
 import { ref } from "vue";
 import { WorkletManager } from "../src/WorkletManager";
 
@@ -41,9 +41,12 @@ function makeAudio() {
 let audio: ReturnType<typeof makeAudio>;
 
 beforeEach(() => {
+  vi.unstubAllGlobals();
   audio = makeAudio();
   vi.stubGlobal("AudioWorkletNode", FakeWorkletNode);
 });
+
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 describe("init", () => {
   test("registers every processor the app relies on, under the expected names", async () => {
@@ -164,7 +167,7 @@ describe("setEnabledVUNode", () => {
 });
 
 /**
- * An AudioContext with no AudioWorklet (vue-native today): no AudioWorkletNode is built at all. The
+ * A browser AudioContext with no AudioWorklet: no AudioWorkletNode is built at all. The
  * meter is an AnalyserNode per channel behind a splitter, read 60 times a second through the
  * worklet's envelope; the stereo-to-mono step is a pass-through.
  */
@@ -248,5 +251,46 @@ describe("without AudioWorklet", () => {
 
     await stm.asyncDispose();
     expect(bare.gain.disconnect).toHaveBeenCalled();
+  });
+});
+
+
+describe("native WorkletManager", () => {
+  function nativeAudio() {
+    vi.stubGlobal("isVn", true);
+    (audio.ctx as any).audioWorklet = undefined;
+    const load = vi.fn((name: string, options: AudioWorkletNodeOptions) => new FakeWorkletNode(audio.ctx, name, options));
+    (audio.ctx as any).loadNativeAudioWorklet = load;
+    vi.stubGlobal("AudioWorkletNode", class { constructor() { throw new Error("JS worklet constructor is unavailable"); } });
+    return load;
+  }
+  test("uses native stereo meter without an AudioWorklet module loader", async () => {
+    const load = nativeAudio();
+    const left = ref(0), right = ref(0);
+    const meter = await new WorkletManager(audio.manager).createVUMeter(left, right);
+    expect(load).toHaveBeenCalledWith("peak-meter-stereo", expect.objectContaining({ channelInterpretation: "discrete" }));
+    const node = meter.Value as unknown as FakeWorkletNode;
+    node.port.onmessage!({ data: new Float32Array([0.5, 0.25]) } as MessageEvent);
+    expect([left.value, right.value]).toEqual([50, 25]);
+    await meter.asyncDispose();
+    expect(node.port.close).toHaveBeenCalledOnce();
+  });
+  test("uses the real native mono parameter and releases its port", async () => {
+    const load = nativeAudio();
+    const worklets = new WorkletManager(audio.manager);
+    const mono = await worklets.createStereoToMonoProcessor();
+    expect(load).toHaveBeenCalledWith("stereo-to-mono", expect.objectContaining({ outputChannelCount: [2] }));
+    worklets.setEnabledVUNode(mono.Value, false);
+    expect(mono.Value.parameters.get("enabled")!.value).toBe(0);
+    const node = mono.Value as unknown as FakeWorkletNode;
+    await mono.asyncDispose();
+    expect(node.port.close).toHaveBeenCalledOnce();
+  });
+  test("an old native host does not silently return a passthrough or analyser", async () => {
+    vi.stubGlobal("isVn", true);
+    (audio.ctx as any).audioWorklet = undefined;
+    const worklets = new WorkletManager(audio.manager);
+    await expect(worklets.createStereoToMonoProcessor()).rejects.toThrow("does not support loadNativeAudioWorklet");
+    await expect(worklets.createVUMeter(ref(0), ref(0))).rejects.toThrow("does not support loadNativeAudioWorklet");
   });
 });

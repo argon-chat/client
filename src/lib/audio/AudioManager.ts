@@ -34,10 +34,9 @@ const audio = new AppAudioManagement({
   // macOS: release the mic when no consumer holds it, so the OS "mic in use" indicator
   // doesn't stay on while idle. Windows keeps the mic warm (its prior behavior).
   releaseInputWhenIdle: isMac,
-  // None under vue-native: the suppressors are WASM in an AudioWorklet, and both are out of scope
-  // there. Voice noise suppression is native (libwebrtc's APM, in the host). Without URLs the
-  // manager reports "off" and ignores a saved mode. vue-native's client-gap.md §4, "noise
-  // suppressor: off".
+  // RNNoise/Speex are third-party WASM processors, separate from the native meter/mono/input gate.
+  // Native capture uses libwebrtc APM through audio constraints; RNNoise/Speex modes are not
+  // advertised as equivalent native algorithms. Without their URLs the mode remains "off".
   noiseSuppressorUrls: isVn ? undefined : {
     rnnoiseWorklet: rnnoiseWorkletPath,
     rnnoiseWasm: rnnoiseWasmPath,

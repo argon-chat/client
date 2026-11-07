@@ -20,3 +20,5 @@ export { NoiseSuppressor, type NoiseSuppressionMode, type NoiseSuppressorUrls } 
 export { WorkletManager } from "./WorkletManager";
 
 export { createDTMFPlayer, type DTMFPlayer } from "./DTMF";
+
+export type { AudioProcessorNode, NativeAudioProcessorName } from "./AudioProcessors";

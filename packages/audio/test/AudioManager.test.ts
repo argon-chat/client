@@ -738,3 +738,95 @@ describe("the voice bus", () => {
     expect(bus.gain.value).toBe(0);
   });
 });
+
+
+describe("compiled native audio processors", () => {
+  function nativeManager() {
+    vi.stubGlobal("isVn", true);
+    const manager = make();
+    const ctx = manager.getCurrentAudioContext() as AudioContext & { loadNativeAudioWorklet: ReturnType<typeof vi.fn> };
+    const browserAdd = ctx.audioWorklet.addModule;
+    (ctx as any).audioWorklet = undefined;
+    const nodes: FakeWorkletNode[] = [];
+    ctx.loadNativeAudioWorklet = vi.fn((name: string, options?: AudioWorkletNodeOptions) => {
+      const node = new FakeWorkletNode(ctx, name);
+      for (const [key, value] of Object.entries(options?.parameterData ?? {})) node.parameters.get(key)!.value = value;
+      nodes.push(node);
+      return node;
+    });
+    vi.stubGlobal("AudioWorkletNode", class { constructor() { throw new Error("JS worklets must not be constructed"); } });
+    return { manager, ctx, browserAdd, nodes };
+  }
+  test("the native gate is wired, receives saved parameters and emits state", async () => {
+    const { manager, ctx, nodes, browserAdd } = nativeManager();
+    manager.setInputGateThreshold(-26);
+    const seen: boolean[] = [];
+    manager.onInputGateStateChanged(open => seen.push(open));
+    await manager.setInputGateEnabled(true);
+    await manager.acquireInput();
+    expect(ctx.loadNativeAudioWorklet).toHaveBeenCalledWith("input-gate", expect.objectContaining({ parameterData: { threshold: -26, enabled: 1 } }));
+    expect(chainFrom(managerInternals(manager).gain)).toEqual(["worklet:input-gate", "stream-destination"]);
+    (nodes[0].port.onmessage as (event: MessageEvent) => void)({ data: { isOpen: false } } as MessageEvent);
+    expect(seen).toEqual([false]);
+    manager.setInputGateThreshold(-32);
+    expect(nodes[0].parameters.get("threshold")!.value).toBe(-32);
+    expect(browserAdd).not.toHaveBeenCalled();
+    await manager.setInputGateEnabled(false);
+    expect(nodes[0].port.close).toHaveBeenCalledOnce();
+    expect(chainFrom(managerInternals(manager).gain)).toEqual(["stream-destination"]);
+    manager.dispose();
+  });
+  test("both native meters report and own only their non-shared streams", async () => {
+    const { manager, ctx, nodes, browserAdd } = nativeManager();
+    const monoStream = fakeStream(), stereoStream = await manager.getVirtualInputStream();
+    const monoLevel = vi.fn(), stereoLevel = vi.fn();
+    const mono = await manager.createVUMeterLight(monoStream, monoLevel);
+    const stereo = await manager.createVUMeterStereo(stereoStream, stereoLevel);
+    expect(ctx.loadNativeAudioWorklet.mock.calls.map(([name]) => name)).toEqual(["peak-meter-mono", "peak-meter-stereo"]);
+    expect(ctx.loadNativeAudioWorklet).toHaveBeenNthCalledWith(2, "peak-meter-stereo", {
+      numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2],
+      channelCount: 2, channelCountMode: "explicit", channelInterpretation: "discrete",
+    });
+    (nodes[0].port.onmessage as (event: MessageEvent) => void)({ data: 0.4 } as MessageEvent);
+    (nodes[1].port.onmessage as (event: MessageEvent) => void)({ data: new Float32Array([0.2, 0.6]) } as MessageEvent);
+    expect(monoLevel).toHaveBeenCalledWith(60);
+    expect(stereoLevel).toHaveBeenCalledWith(30, 90);
+    await mono.asyncDispose();
+    await stereo.asyncDispose();
+    expect(nodes.every(node => node.port.close.mock.calls.length === 1)).toBe(true);
+    expect(monoStream.getTracks()[0].stop).toHaveBeenCalledOnce();
+    expect(stereoStream.getTracks()[0].stop).not.toHaveBeenCalled();
+    expect(browserAdd).not.toHaveBeenCalled();
+    manager.dispose();
+  });
+  test("registration maps known ids without fetching and closes cached ports", async () => {
+    const { manager, ctx, nodes, browserAdd } = nativeManager();
+    await manager.addWorkletModule("/audio/vu-stm.js", "vu-stereo-to-mono-processor");
+    const node = await manager.getOrCreateWorkletModule("vu-stereo-to-mono-processor", { parameterData: { enabled: 0 } });
+    expect(ctx.loadNativeAudioWorklet).toHaveBeenCalledWith("stereo-to-mono", { parameterData: { enabled: 0 } });
+    expect(manager.getActiveWorklets().size).toBe(1);
+    await node.asyncDispose();
+    expect(nodes[0].port.close).toHaveBeenCalledOnce();
+    expect(manager.getActiveWorklets().size).toBe(0);
+    expect(browserAdd).not.toHaveBeenCalled();
+    manager.dispose();
+  });
+  test("unknown ids and an old native runtime fail explicitly", async () => {
+    const { manager, ctx } = nativeManager();
+    await expect(manager.addWorkletModule("/unknown.js", "unknown-processor")).rejects.toThrow("No native audio processor");
+    expect(ctx.loadNativeAudioWorklet).not.toHaveBeenCalled();
+    delete (ctx as any).loadNativeAudioWorklet;
+    await expect(manager.createVUMeterLight(fakeStream(), vi.fn())).rejects.toThrow("does not support loadNativeAudioWorklet");
+    await expect(manager.setInputGateEnabled(true)).rejects.toThrow("does not support loadNativeAudioWorklet");
+    expect(manager.getInputGateEnabled()).toBe(false);
+    manager.dispose();
+  });
+  test("disposing the manager closes registered native processor ports", async () => {
+    const { manager, nodes } = nativeManager();
+    await manager.addWorkletModule("/audio/vu-stm.js", "vu-stereo-to-mono-processor");
+    await manager.getOrCreateWorkletModule("vu-stereo-to-mono-processor", {});
+    manager.dispose();
+    expect(nodes[0].port.close).toHaveBeenCalledOnce();
+    expect(nodes[0].outputs.size).toBe(0);
+  });
+});

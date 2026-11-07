@@ -186,6 +186,7 @@
 </template>
 
 <script setup lang="ts">
+import type { AudioProcessorNode } from "@argon/audio";
 import { Button } from "@argon/ui/button";
 import {
   Select,
@@ -439,7 +440,7 @@ watch([leftVolume, rightVolume], ([left, right]) => {
 let source: MediaStreamAudioSourceNode | null = null;
 let mediaStream: MediaStream | null = null;
 let monitoringAudio: HTMLAudioElement | null = null;
-const stmNode = ref(null as AudioWorkletNode | null);
+const stmNode = ref(null as AudioProcessorNode | null);
 
 async function onChangeForceToMono(x: boolean) {
   preferenceStore.forceToMono = x;

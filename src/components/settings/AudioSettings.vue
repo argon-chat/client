@@ -367,6 +367,7 @@
 </template>
 
 <script setup lang="ts">
+import type { AudioProcessorNode } from "@argon/audio";
 import { Button } from "@argon/ui/button";
 import WarningBanner from "@/components/shared/WarningBanner.vue";
 import { Slider } from "@argon/ui/slider";
@@ -527,7 +528,7 @@ const outputRightDb = ref(-Infinity);
 let inputSource: MediaStreamAudioSourceNode | null = null;
 let inputMediaStream: MediaStream | null = null;
 let monitoringAudio: HTMLAudioElement | null = null;
-const stmNode = ref<AudioWorkletNode | null>(null);
+const stmNode = ref<AudioProcessorNode | null>(null);
 const inputDisposables = new DisposableBag();
 
 // Device subscriptions
