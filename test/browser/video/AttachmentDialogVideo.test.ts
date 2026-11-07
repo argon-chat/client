@@ -165,15 +165,18 @@ async function openMenu() {
   await vi.waitFor(() => expect($("attach-add-files")).not.toBeNull());
 }
 
-/** The tooltip a hover over the element shows. */
-async function tooltipOf(id: string): Promise<string> {
-  await userEvent.hover($(id)!);
-  let text = "";
+/** Hover once, then wait for this trigger's tooltip without timing the browser action itself. */
+async function expectTooltip(id: string, expected: string | RegExp): Promise<void> {
+  const trigger = $(id)!;
+  // A remounted dialog can put a new trigger under the pointer's previous position.
+  await userEvent.unhover(trigger);
+  await userEvent.hover(trigger);
   await vi.waitFor(() => {
-    text = document.querySelector('[role="tooltip"]')?.textContent ?? "";
-    expect(text).not.toBe("");
-  });
-  return text;
+    const tooltipId = trigger.getAttribute("aria-describedby");
+    const text = tooltipId ? document.getElementById(tooltipId)?.textContent : undefined;
+    if (typeof expected === "string") expect(text).toBe(expected);
+    else expect(text).toMatch(expected);
+  }, { timeout: 3_000 });
 }
 
 beforeEach(() => {
@@ -248,7 +251,7 @@ describe("a video in the attach window", () => {
     // Its size is the file's own, nothing is compressed; the chip names the problem, the tooltip the rest.
     expect($("video-size")?.textContent).toBe('attach_size_file:{"size":"1.0 KB"}');
     expect($("video-reason")?.textContent).toContain("video_send_short_no_encoder");
-    expect(await tooltipOf("video-reason")).toMatch(/^video_send_reason_no_encoder/);
+    await expectTooltip("video-reason", /^video_send_reason_no_encoder/);
     // Nothing on the stage offers what cannot apply to a file.
     expect($("video-quality")).toBeNull();
     expect($("video-mute")).toBeNull();
@@ -328,7 +331,7 @@ describe("a video in the attach window", () => {
   test("edit is off, with the reason, without WebGPU or over 100 MB; on otherwise", async () => {
     await open([videoEntry()]);
     await vi.waitFor(() => expect($("video-edit")?.getAttribute("aria-disabled")).toBe("true"));
-    await vi.waitFor(async () => expect(await tooltipOf("video-edit")).toBe("video_send_edit_no_gpu"));
+    await expectTooltip("video-edit", "video_send_edit_no_gpu");
     // Still focusable and hoverable for its reason; a click does nothing.
     $("video-edit")!.click();
     expect(wrapper!.emitted("open-editor")).toBeUndefined();
@@ -339,7 +342,7 @@ describe("a video in the attach window", () => {
     big.video!.source = new File([new Uint8Array(1)], "big.mp4", { type: "video/mp4" });
     Object.defineProperty(big.video!.source, "size", { value: 120 * 1024 * 1024 });
     await open([big]);
-    await vi.waitFor(async () => expect(await tooltipOf("video-edit")).toBe("video_send_edit_too_large"));
+    await expectTooltip("video-edit", "video_send_edit_too_large");
     close();
 
     const w = await open([videoEntry()]);
