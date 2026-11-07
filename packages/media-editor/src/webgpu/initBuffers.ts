@@ -50,10 +50,14 @@ export function createVertexBuffer(device: GPUDevice, width: number, height: num
     mappedAtCreation: true
   });
 
-  new Float32Array(buffer.getMappedRange()).set(vertices);
-  buffer.unmap();
-
-  return buffer;
+  try {
+    new Float32Array(buffer.getMappedRange()).set(vertices);
+    buffer.unmap();
+    return buffer;
+  } catch (error) {
+    try { buffer.destroy(); } catch { /* Preserve the map/write failure. */ }
+    throw error;
+  }
 }
 
 export function createUniformBuffer(device: GPUDevice): GPUBuffer {

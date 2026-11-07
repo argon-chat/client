@@ -181,10 +181,10 @@ export async function createFinalResult(args: CreateFinalResultArgs): Promise<Me
   const release = (): void => {
     if (released) return;
     released = true;
-    cleanupWebGPU(gpuPayload);
-    gpuContext.unconfigure();
-    releaseCanvas(resultCanvas);
-    releaseCanvas(brushResultCanvas);
+    try { cleanupWebGPU(gpuPayload); } finally {
+      releaseCanvas(resultCanvas);
+      releaseCanvas(brushResultCanvas);
+    }
   };
 
   try {
@@ -622,10 +622,10 @@ async function createExpressionResult(args: CreateFinalResultArgs, mode: Express
       editingMediaState: structuredClone(toRaw(mediaState))
     };
   } finally {
-    cleanupWebGPU(payload);
-    context.unconfigure();
-    releaseCanvas(resultCanvas);
-    releaseCanvas(brushCanvas);
-    releaseCanvas(outCanvas);
+    try { cleanupWebGPU(payload); } finally {
+      releaseCanvas(resultCanvas);
+      releaseCanvas(brushCanvas);
+      releaseCanvas(outCanvas);
+    }
   }
 }

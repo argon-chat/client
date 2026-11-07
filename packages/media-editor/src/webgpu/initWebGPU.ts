@@ -1,8 +1,9 @@
+import { markRaw } from 'vue';
 import type { MediaType, Vec2 } from '../types';
-import { initDevice, getPreferredFormat } from './initDevice';
+import { acquireDevice, getPreferredFormat } from './initDevice';
 import { initPipeline } from './initPipeline';
 import { createVertexBuffer, createUniformBuffer } from './initBuffers';
-import { loadTexture, type LoadTextureMedia } from './loadTexture';
+import { loadTexture, releaseMedia, type LoadTextureMedia } from './loadTexture';
 import { createStickerCompositor, type StickerCompositor } from './stickerCompositor';
 
 export type RenderingPayload = {
@@ -34,44 +35,54 @@ type InitWebGPUArgs = {
   waitToSeek?: boolean;
   /** Premultiplied canvas cleared to transparent, with the outline compositor. */
   transparent?: boolean;
+  signal?: AbortSignal;
 };
 
-export async function initWebGPU({ canvas, mediaSrc, mediaType, videoTime, videoPosition, waitToSeek, transparent }: InitWebGPUArgs): Promise<{ payload: RenderingPayload; context: GPUCanvasContext }> {
-  const device = await initDevice();
-  const format = getPreferredFormat();
+const ownership = new WeakMap<RenderingPayload, { context: GPUCanvasContext; release(): void }>();
+const disposedPayloads = new WeakSet<RenderingPayload>();
 
-  const context = canvas.getContext('webgpu') as GPUCanvasContext;
-  context.configure({
-    device,
-    format,
-    alphaMode: transparent ? 'premultiplied' : 'opaque'
-  });
-
-  const { pipeline, bindGroupLayout } = initPipeline(device, format);
-  const { texture, sampler, media } = await loadTexture({ device, mediaSrc, mediaType, videoTime, videoPosition, waitToSeek });
-
-  const vertexBuffer = createVertexBuffer(device, media.width, media.height);
-  const uniformBuffer = createUniformBuffer(device);
-  const maskTexture = createMaskTexture(device, [1, 1]);
-  const colourTexture = createColourTexture(device, [1, 1]);
-
-  const payload: RenderingPayload = {
-    device,
-    pipeline,
-    bindGroupLayout,
-    vertexBuffer,
-    uniformBuffer,
-    texture,
-    maskTexture,
-    colourTexture,
-    sampler,
-    bindGroup: undefined as unknown as GPUBindGroup,
-    media,
-    compositor: transparent ? createStickerCompositor(device, format) : undefined
-  };
-  payload.bindGroup = recreateBindGroup(device, payload, bindGroupLayout);
-
-  return { payload, context };
+export async function initWebGPU({ canvas, mediaSrc, mediaType, videoTime, videoPosition, waitToSeek, transparent, signal }: InitWebGPUArgs): Promise<{ payload: RenderingPayload; context: GPUCanvasContext }> {
+  signal?.throwIfAborted();
+  const lease = await acquireDevice();
+  const { device } = lease;
+  const rollback: (() => void)[] = [lease.release];
+  try {
+    signal?.throwIfAborted();
+    const format = getPreferredFormat();
+    const context = canvas.getContext('webgpu') as GPUCanvasContext | null;
+    if (!context) throw new Error('WebGPU canvas context is unavailable');
+    rollback.push(() => context.unconfigure());
+    context.configure({ device, format, alphaMode: transparent ? 'premultiplied' : 'opaque' });
+    const { pipeline, bindGroupLayout } = initPipeline(device, format);
+    const { texture, sampler, media } = await loadTexture({ device, mediaSrc, mediaType, videoTime, videoPosition, waitToSeek, signal });
+    rollback.push(() => releaseMedia(media));
+    rollback.push(() => texture.destroy());
+    signal?.throwIfAborted();
+    const own = <T extends { destroy(): void }>(resource: T): T => {
+      rollback.push(() => resource.destroy());
+      return resource;
+    };
+    const vertexBuffer = own(createVertexBuffer(device, media.width, media.height));
+    const uniformBuffer = own(createUniformBuffer(device));
+    const maskTexture = own(createMaskTexture(device, [1, 1]));
+    const colourTexture = own(createColourTexture(device, [1, 1]));
+    const compositor = transparent ? own(createStickerCompositor(device, format)) : undefined;
+    const payload: RenderingPayload = markRaw({
+      device, pipeline, bindGroupLayout, vertexBuffer, uniformBuffer,
+      texture, maskTexture, colourTexture, sampler, media, compositor,
+      bindGroup: undefined as unknown as GPUBindGroup,
+    });
+    payload.bindGroup = recreateBindGroup(device, payload, bindGroupLayout);
+    ownership.set(payload, { context, release: lease.release });
+    return { payload, context };
+  } catch (error) {
+    // A failed initialization has no payload for callers to dispose. Roll back
+    // every successfully created resource, then release the shared-device lease.
+    for (const release of rollback.reverse()) {
+      try { release(); } catch { /* Preserve the original initialization failure. */ }
+    }
+    throw error;
+  }
 }
 
 export function recreateBindGroup(device: GPUDevice, payload: RenderingPayload, bindGroupLayout: GPUBindGroupLayout): GPUBindGroup {
@@ -93,11 +104,16 @@ function createFilledTexture(device: GPUDevice, [width, height]: Vec2, value: nu
     format: 'rgba8unorm',
     usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT
   });
-  const encoder = device.createCommandEncoder();
-  encoder.beginRenderPass({
-    colorAttachments: [{ view: texture.createView(), clearValue: { r: value, g: value, b: value, a: value }, loadOp: 'clear', storeOp: 'store' }]
-  }).end();
-  device.queue.submit([encoder.finish()]);
+  try {
+    const encoder = device.createCommandEncoder();
+    encoder.beginRenderPass({
+      colorAttachments: [{ view: texture.createView(), clearValue: { r: value, g: value, b: value, a: value }, loadOp: 'clear', storeOp: 'store' }]
+    }).end();
+    device.queue.submit([encoder.finish()]);
+  } catch (error) {
+    texture.destroy();
+    throw error;
+  }
   return texture;
 }
 
@@ -173,23 +189,22 @@ export function clearMask(payload: RenderingPayload): void {
 }
 
 export function cleanupWebGPU(payload: RenderingPayload): void {
-  payload.vertexBuffer.destroy();
-  payload.uniformBuffer.destroy();
-  payload.texture.destroy();
-  payload.maskTexture.destroy();
-  payload.colourTexture.destroy();
-  payload.compositor?.destroy();
-  payload.compositor = undefined;
-
-  // The decoded source would otherwise outlive the GPU resources: a detached <video> keeps its
-  // decoder and buffered data until the source is dropped, and the payload pins both elements.
-  const { video } = payload.media;
-  if (video) {
-    video.pause();
-    video.removeAttribute('src');
-    video.srcObject = null;
-    video.load();
+  if (disposedPayloads.has(payload)) return;
+  disposedPayloads.add(payload);
+  const session = ownership.get(payload);
+  ownership.delete(payload);
+  // Independent releases ensure one decoder/backend error cannot pin all GPU
+  // resources or destroy another preview/export's still-active shared device.
+  let failure: unknown;
+  for (const release of [
+    () => payload.vertexBuffer.destroy(), () => payload.uniformBuffer.destroy(),
+    () => payload.texture.destroy(), () => payload.maskTexture.destroy(),
+    () => payload.colourTexture.destroy(), () => payload.compositor?.destroy(),
+    () => releaseMedia(payload.media), () => session?.context.unconfigure(),
+    () => session?.release(),
+  ]) {
+    try { release(); } catch (error) { failure ??= error; }
   }
-  payload.media.video = undefined;
-  payload.media.image = undefined;
+  payload.compositor = undefined;
+  if (failure) throw failure;
 }

@@ -5,7 +5,13 @@ export type PipelinePayload = {
   bindGroupLayout: GPUBindGroupLayout;
 };
 
+// Reuse immutable pipelines across preview/export on the same leased device.
+// Weak keys allow all device-owned pipeline state to disappear after final release.
+const pipelines = new WeakMap<GPUDevice, Map<GPUTextureFormat, PipelinePayload>>();
+
 export function initPipeline(device: GPUDevice, format: GPUTextureFormat): PipelinePayload {
+  const cached = pipelines.get(device)?.get(format);
+  if (cached) return cached;
   const vertexModule = device.createShaderModule({ code: vertexShaderSource });
   const fragmentModule = device.createShaderModule({ code: fragmentShaderSource });
 
@@ -81,5 +87,9 @@ export function initPipeline(device: GPUDevice, format: GPUTextureFormat): Pipel
     }
   });
 
-  return { pipeline, bindGroupLayout };
+  const payload = { pipeline, bindGroupLayout };
+  let formats = pipelines.get(device);
+  if (!formats) { formats = new Map(); pipelines.set(device, formats); }
+  formats.set(format, payload);
+  return payload;
 }

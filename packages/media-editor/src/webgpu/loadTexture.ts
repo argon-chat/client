@@ -22,57 +22,79 @@ type LoadTextureArgs = {
   /** 0..1 of the duration; takes precedence over `videoTime`. */
   videoPosition?: number;
   waitToSeek?: boolean;
+  signal?: AbortSignal;
 };
 
-export async function loadTexture({ device, mediaSrc, mediaType, videoTime, videoPosition, waitToSeek }: LoadTextureArgs): Promise<LoadTextureResult> {
-  let media: LoadTextureMedia;
-
-  if (mediaType === 'image') {
-    const image = new Image();
-    image.crossOrigin = 'anonymous';
-    image.src = mediaSrc;
-    await new Promise<void>((resolve, reject) => {
-      image.addEventListener('load', () => resolve(), { once: true });
-      image.addEventListener('error', () => reject(new Error('The image could not be decoded')), { once: true });
-    });
-
-    media = {
-      image,
-      width: image.naturalWidth,
-      height: image.naturalHeight
-    };
-  } else {
-    const video = await createVideoForDrawing(mediaSrc, videoTime, videoPosition, waitToSeek);
-    media = {
-      video,
-      width: video.videoWidth,
-      height: video.videoHeight
-    };
+/** Release decoded media even when initialization failed before a GPU payload existed. */
+export function releaseMedia(media: LoadTextureMedia): void {
+  const { video, image } = media;
+  media.video = undefined;
+  media.image = undefined;
+  if (video) {
+    video.pause();
+    video.removeAttribute('src');
+    video.srcObject = null;
+    video.load();
   }
+  image?.removeAttribute('src');
+}
 
-  const texture = device.createTexture({
-    size: [media.width, media.height],
-    format: 'rgba8unorm',
-    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT
+function waitForMedia(target: EventTarget, type: string, begin: () => void, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const cleanup = () => {
+      target.removeEventListener(type, success);
+      target.removeEventListener('error', error);
+      signal?.removeEventListener('abort', abort);
+    };
+    const success = () => { cleanup(); resolve(); };
+    const error = () => { cleanup(); reject(new Error('The media could not be decoded')); };
+    const abort = () => { cleanup(); reject(signal?.reason ?? new DOMException('Media load aborted', 'AbortError')); };
+    if (signal?.aborted) { abort(); return; }
+    target.addEventListener(type, success, { once: true });
+    target.addEventListener('error', error, { once: true });
+    signal?.addEventListener('abort', abort, { once: true });
+    try { begin(); } catch (e) { cleanup(); reject(e); }
   });
+}
 
-  // Premultiplied, so linear filtering at a transparent edge does not blend in the (usually black)
-  // colour of the transparent texels; the fragment shader un-premultiplies for its colour maths.
-  const source = media.video ?? media.image!;
-  device.queue.copyExternalImageToTexture(
-    { source, flipY: false },
-    { texture, premultipliedAlpha: true },
-    [media.width, media.height]
-  );
-
-  const sampler = device.createSampler({
-    magFilter: 'linear',
-    minFilter: 'linear',
-    addressModeU: 'clamp-to-edge',
-    addressModeV: 'clamp-to-edge'
-  });
-
-  return { texture, sampler, media };
+export async function loadTexture({ device, mediaSrc, mediaType, videoTime, videoPosition, waitToSeek, signal }: LoadTextureArgs): Promise<LoadTextureResult> {
+  const media: LoadTextureMedia = { width: 0, height: 0 };
+  let texture: GPUTexture | undefined;
+  try {
+    signal?.throwIfAborted();
+    if (mediaType === 'image') {
+      const image = new Image();
+      media.image = image;
+      image.crossOrigin = 'anonymous';
+      await waitForMedia(image, 'load', () => { image.src = mediaSrc; }, signal);
+      media.width = image.naturalWidth;
+      media.height = image.naturalHeight;
+    } else {
+      const video = document.createElement('video');
+      media.video = video;
+      await prepareVideo(video, mediaSrc, videoTime, videoPosition, waitToSeek, signal);
+      media.width = video.videoWidth;
+      media.height = video.videoHeight;
+    }
+    signal?.throwIfAborted();
+    texture = device.createTexture({
+      size: [media.width, media.height], format: 'rgba8unorm',
+      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
+    });
+    // Premultiplied filtering avoids dark fringes at transparent image edges.
+    device.queue.copyExternalImageToTexture(
+      { source: media.video ?? media.image!, flipY: false },
+      { texture, premultipliedAlpha: true }, [media.width, media.height],
+    );
+    const sampler = device.createSampler({
+      magFilter: 'linear', minFilter: 'linear', addressModeU: 'clamp-to-edge', addressModeV: 'clamp-to-edge',
+    });
+    return { texture, sampler, media };
+  } catch (error) {
+    try { texture?.destroy(); } catch { /* Preserve the upload/decode error. */ }
+    try { releaseMedia(media); } catch { /* Every ownership edge is already cleared. */ }
+    throw error;
+  }
 }
 
 export function updateVideoTexture(device: GPUDevice, texture: GPUTexture, video: HTMLVideoElement): void {
@@ -92,25 +114,16 @@ export function updateFrameTexture(device: GPUDevice, texture: GPUTexture, frame
   );
 }
 
-async function createVideoForDrawing(src: string, time: number, position: number | undefined, waitToSeek?: boolean): Promise<HTMLVideoElement> {
-  const video = document.createElement('video');
+async function prepareVideo(video: HTMLVideoElement, src: string, time: number, position: number | undefined, waitToSeek?: boolean, signal?: AbortSignal): Promise<void> {
   video.muted = true;
   video.playsInline = true;
   video.preload = 'auto';
-  video.src = src;
-
-  await new Promise<void>((resolve) => {
-    video.addEventListener('loadeddata', () => resolve(), { once: true });
-  });
-
+  await waitForMedia(video, 'loadeddata', () => { video.src = src; }, signal);
   const duration = Number.isFinite(video.duration) ? video.duration : 0;
   const currentTime = position !== undefined ? Math.min(duration, Math.max(0, position) * duration) : time;
-  if (currentTime > 0 || waitToSeek) {
-    video.currentTime = currentTime;
-    await new Promise<void>((resolve) => {
-      video.addEventListener('seeked', () => resolve(), { once: true });
-    });
+  // loadeddata already supplies the current frame. Seeking to the unchanged
+  // position need not fire seeked, including the initial cover at zero.
+  if ((currentTime > 0 || waitToSeek) && (video.currentTime !== currentTime || video.seeking)) {
+    await waitForMedia(video, 'seeked', () => { video.currentTime = currentTime; }, signal);
   }
-
-  return video;
 }

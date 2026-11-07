@@ -32,23 +32,30 @@ let payload: RenderingPayload | null = null;
 let animFrameId: number | null = null;
 let videoPlaybackId: number | null = null;
 let disposed = false;
+const initAbort = new AbortController();
 
 onMounted(async () => {
-  if (!canvasEl.value) return;
+  const ownedCanvas = canvasEl.value;
+  if (!ownedCanvas) return;
 
   updateCanvasSizeIfNeeded();
 
   const result = await initWebGPU({
-    canvas: canvasEl.value,
+    canvas: ownedCanvas,
     mediaSrc: store.mediaSrc,
     mediaType: store.mediaType,
     videoTime: 0,
     videoPosition: store.mediaState.videoCropStart,
     waitToSeek: true,
-    transparent: expression
+    transparent: expression,
+    signal: initAbort.signal,
+  }).catch(error => {
+    if (disposed) return null;
+    throw error;
   });
+  if (!result) return;
   if (disposed) {
-    cleanupWebGPU(result.payload);
+    try { cleanupWebGPU(result.payload); } finally { ownedCanvas.width = ownedCanvas.height = 0; }
     return;
   }
 
@@ -59,7 +66,7 @@ onMounted(async () => {
   store.uiState.renderingPayload = payload;
   store.uiState.mediaSize = [payload.media.width, payload.media.height];
   store.uiState.mediaRatio = payload.media.width / payload.media.height;
-  store.uiState.imageCanvas = canvasEl.value;
+  store.uiState.imageCanvas = ownedCanvas;
 
   // Set default video quality if not set
   if (!store.mediaState.videoQuality && store.mediaType === 'video') {
@@ -87,6 +94,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   disposed = true;
+  initAbort.abort();
   if (animFrameId !== null) cancelAnimationFrame(animFrameId);
   if (videoPlaybackId !== null) cancelAnimationFrame(videoPlaybackId);
   stopVideoPlayback();
@@ -94,7 +102,20 @@ onBeforeUnmount(() => {
   if (maskPainterSlot.current === maskPainter) maskPainterSlot.current = null;
   maskRaster?.dispose();
   maskRaster = null;
-  if (payload) cleanupWebGPU(payload);
+  const ownedCanvas = canvasEl.value;
+  try {
+    if (payload) cleanupWebGPU(payload);
+  } finally {
+    if (store.uiState.renderingPayload === payload) {
+      store.uiState.renderingPayload = undefined;
+      store.uiState.isReady = false;
+    }
+    if (store.uiState.imageCanvas === ownedCanvas) store.uiState.imageCanvas = undefined;
+    if (ownedCanvas) ownedCanvas.width = ownedCanvas.height = 0;
+    payload = null;
+    context = null;
+    device = null;
+  }
 });
 
 // --- Mask (sticker modes) ---

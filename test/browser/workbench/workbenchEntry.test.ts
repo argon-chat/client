@@ -47,7 +47,7 @@ vi.mock("@/store/data/expressionsStore", async () => {
 import ExpressionsSettings from "@/components/settings/spaces/ExpressionsSettings.vue";
 import * as storeModule from "@/store/data/expressionsStore";
 import { useMediaEditorStore } from "@argon/media-editor";
-import { initDevice } from "../../../packages/media-editor/src/webgpu/initDevice";
+import { acquireDevice, type DeviceLease } from "../../../packages/media-editor/src/webgpu/initDevice";
 
 const adapter = navigator.gpu ? await navigator.gpu.requestAdapter().catch(() => null) : null;
 
@@ -57,6 +57,7 @@ const { __state: state, __uploads: uploads } = storeModule as unknown as {
 };
 
 const mounted: VueWrapper[] = [];
+const deviceLeases: DeviceLease[] = [];
 
 async function until(check: () => boolean, timeout = 15_000) {
   const deadline = performance.now() + timeout;
@@ -85,12 +86,15 @@ beforeEach(() => {
 
 afterEach(() => {
   for (const w of mounted.splice(0)) w.unmount();
+  for (const lease of deviceLeases.splice(0)) lease.release();
 });
 
 describe.skipIf(!adapter)(`sticker workbench entry${adapter ? "" : " — skipped: no WebGPU adapter (set ARGON_TEST_GPU=1)"}`, () => {
   test("Edit → emoji mode → Done: a 100×100 WEBP takes the refused PNG's place and is uploaded", async () => {
     const gpuErrors: string[] = [];
-    (await initDevice()).addEventListener("uncapturederror", (e) => gpuErrors.push((e as GPUUncapturedErrorEvent).error.message));
+    const deviceLease = await acquireDevice();
+    deviceLeases.push(deviceLease);
+    deviceLease.device.addEventListener("uncapturederror", (e) => gpuErrors.push((e as GPUUncapturedErrorEvent).error.message));
     const pinia = createPinia();
     const i18n = createI18n({ legacy: false, locale: "en", missingWarn: false, fallbackWarn: false, messages: { en: {} } });
     const wrapper = mount(ExpressionsSettings, {
