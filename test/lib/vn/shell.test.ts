@@ -1,6 +1,22 @@
-import { describe, test, expect, vi, afterEach } from "vitest";
+import { describe, test, expect, vi, beforeAll, afterEach } from "vitest";
 
 vi.mock("@/lib/vn", () => ({ isVn: true }));
+
+// Cold transforms of the generated server contracts can exceed the behavior test's
+// budget under CI load. Reset evaluation afterwards so bootstrap still binds fresh stubs.
+beforeAll(async () => {
+  vi.stubGlobal("isVn", true);
+  vi.stubGlobal("argon", {});
+  vi.stubGlobal("__VN_WINDOW__", { appWindow: { backdrop: "mica", theme: "system" } });
+  try {
+    await import("@/lib/vn/bootstrap");
+    await import("@argon/glue");
+  } finally {
+    vi.unstubAllGlobals();
+    vi.resetModules();
+    localStorage.clear();
+  }
+}, 60_000);
 
 afterEach(() => { vi.unstubAllGlobals(); vi.resetModules(); localStorage.clear(); });
 describe("native desktop services", () => {
