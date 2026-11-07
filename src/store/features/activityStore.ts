@@ -1,12 +1,14 @@
 import { defineStore } from "pinia";
 import { useApi } from "@/store/system/apiStore";
 import { onSessionReset } from "@/store/system/sessionLifecycle";
-import { ref, watch } from "vue";
+import { ref, watch, onScopeDispose } from "vue";
 import { logger } from "@argon/core";
 import { ActivityPresenceKind } from "@argon/glue";
 import { useFeatureFlags } from "@/store/features/featureFlagsStore";
 import { useGameOverlaySettings } from "@/store/features/gameOverlaySettingsStore";
 import { setGameRunning } from "@/lib/powerSaver";
+import { isVn } from "@/lib/vn";
+import { shell } from "@/lib/shell/host";
 
 type Presence = {
   kind: ActivityPresenceKind;
@@ -61,6 +63,8 @@ export const useActivity = defineStore("activity", () => {
   // those used to add another listener and another settings watcher: nothing was published twice
   // (the dedupe below is shared) but every host message was handled — and logged — N times over.
   let bound = false;
+  let stopNativePresence: (() => void) | undefined;
+  onScopeDispose(() => stopNativePresence?.());
 
   // When the current presence last went on the wire; 0 means "never, or the last attempt failed",
   // which is what lets a repeat from the host tell "nothing has changed" apart from "nothing has
@@ -214,10 +218,10 @@ export const useActivity = defineStore("activity", () => {
   }
 
   async function init() {
-    if (!argon.isArgonHost || bound) return;
+    if (!isVn || bound) return;
     bound = true;
 
-    window.argonIpc?.onPresenceUpdate((data: any) => {
+    stopNativePresence = shell.presence.onChanged((data) => {
       const presence = data as Presence;
       // The host repeats the current presence every half minute, so that a window which reloaded
       // and lost its copy picks it back up. A repeat is not news — it is logged as debug and stops

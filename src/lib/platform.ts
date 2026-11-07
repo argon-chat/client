@@ -1,23 +1,14 @@
-/**
- * Which Argon this build is running as, and what that build is allowed to do.
- *
- * The same sources build two products: the Electron desktop app, which owns the machine (global
- * hotkeys, the in-game overlay, rich presence, autostart, native window materials), and the browser
- * app, which owns a tab. Every place that used to ask `argon.isArgonHost` and then guess what that
- * implied now asks a named question instead, so a feature that is absent on the web is absent for a
- * stated reason and can be shown to the user as such rather than silently doing nothing.
- *
- * Deliberately free of Vue and of every store: this is read during boot, before pinia exists, and
- * from the pre-mount gate that decides whether the app starts at all.
- */
+/** Build target and explicit service capabilities, available before stores mount. */
 
 /** Where the browser build sends people who want the parts it cannot offer. */
 export const DOWNLOAD_URL = "https://argon.gl/download";
 
+import { isVn } from "@/lib/vn";
+import { shell } from "@/lib/shell/host";
 const hasWindow = typeof window !== "undefined";
 
-/** True inside the Electron host (desktop app), false in a plain browser tab. */
-export const isDesktop: boolean = hasWindow && !!(globalThis as any).argon?.isArgonHost;
+/** True for the native desktop build, false for the browser build. */
+export const isDesktop: boolean = hasWindow && isVn;
 
 /** True in a plain browser tab — the web build. */
 export const isWeb: boolean = hasWindow && !isDesktop;
@@ -66,7 +57,13 @@ const WEB_UNSUPPORTED: ReadonlySet<PlatformFeature> = new Set<PlatformFeature>([
 
 /** Whether this build can do `feature` at all. */
 export function supports(feature: PlatformFeature): boolean {
-  if (isDesktop) return true;
+  if (isVn) {
+    if (feature === "globalHotkeys") return !!shell?.hotkeys;
+    if (feature === "nativeNotifications") return !!shell?.system.notifications;
+    if (feature === "appUpdates") return !!shell?.system.updates;
+    if (feature === "storageBreakdown") return !!shell?.system.storage;
+    return true;
+  }
   return !WEB_UNSUPPORTED.has(feature);
 }
 

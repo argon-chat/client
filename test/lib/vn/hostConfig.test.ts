@@ -1,28 +1,27 @@
 /**
  * The Electron shell's own config under vue-native (src/lib/vn/hostConfig.ts), reached the way
- * configStore and AppearanceSettings reach it: `argonIpc.invoke("HostProc", …)`. Same three keys and
+ * configStore and AppearanceSettings reach it: typed desktopConfig operations. Same three keys and
  * rules as ArgonApp's NativeConfigStore. Theme and WindowMaterial drive vue-native's `appWindow`, and
  * the values survive a relaunch.
  */
 
 import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
-import { ConfigPrimitiveType, type ConfigSectionMetadata_Value, type SetRequest } from "@argon/glue/ipc";
+import { ConfigValueType, type ConfigSection, type ConfigUpdate } from "@/lib/shell/configTypes";
 
 vi.mock("@/lib/vn", () => ({ isVn: true }));
 
-type Bridge = { invoke(service: string, method: string, args?: unknown[]): Promise<unknown> };
+type Bridge = typeof import("@/lib/shell/desktop");
 type Win = { backdrop: string; theme?: string };
 
 /** A fresh launch: the module graph re-evaluates against `win` and whatever localStorage holds. */
 async function launch(win: Win): Promise<Bridge> {
-  delete (window as { argonIpc?: unknown }).argonIpc;
   vi.stubGlobal("__VN_WINDOW__", { appWindow: win });
   vi.resetModules();
-  await import("@/lib/vn/ipc");
-  return (window as unknown as { argonIpc: Bridge }).argonIpc;
+  await import("@/lib/vn/bootstrap");
+  return import("@/lib/shell/desktop");
 }
 
-const req = (section: string, key: string, v: Partial<SetRequest>): SetRequest => ({
+const req = (section: string, key: string, v: Partial<ConfigUpdate>): ConfigUpdate => ({
   section,
   key,
   valueB: null,
@@ -33,8 +32,8 @@ const req = (section: string, key: string, v: Partial<SetRequest>): SetRequest =
   ...v,
 });
 
-const set = (bridge: Bridge, r: SetRequest) =>
-  bridge.invoke("HostProc", "setConfigValue", [r]) as Promise<{ value: { valueB: boolean | null; valueStr: string | null; valueEnum: string | null } | null }>;
+const set = (bridge: Bridge, r: ConfigUpdate) =>
+  bridge.desktopConfig.update(r) as Promise<{ value: { valueB: boolean | null; valueStr: string | null; valueEnum: string | null } | null }>;
 
 beforeEach(() => {
   localStorage.clear();
@@ -44,22 +43,21 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
-  delete (window as { argonIpc?: unknown }).argonIpc;
 });
 
-describe("HostProc.getConfig", () => {
+describe("application config", () => {
   test("NativeConfigStore's three keys, WindowMaterial defaulting to the window's own backdrop", async () => {
     const bridge = await launch({ backdrop: "mica", theme: "system" });
-    const sections = (await bridge.invoke("HostProc", "getConfig", [])) as ConfigSectionMetadata_Value[];
+    const sections = (await bridge.desktopConfig.read()) as ConfigSection[];
     expect(sections.map((s) => [s.section, s.keys.map((k) => k.key)])).toEqual([
       ["app", ["DevMode"]],
       ["appearance", ["Theme", "WindowMaterial"]],
     ]);
     const [devMode, theme, material] = sections.flatMap((s) => s.keys);
-    expect([devMode.type, devMode.valueB]).toEqual([ConfigPrimitiveType.Boolean, false]);
-    expect([theme.type, theme.valueStr]).toEqual([ConfigPrimitiveType.String, "Dark"]);
+    expect([devMode.type, devMode.valueB]).toEqual([ConfigValueType.Boolean, false]);
+    expect([theme.type, theme.valueStr]).toEqual([ConfigValueType.String, "Dark"]);
     expect([material.type, material.valueEnum, material.valueEnumVariants]).toEqual([
-      ConfigPrimitiveType.Enum,
+      ConfigValueType.Enum,
       "mica",
       ["acrylic", "mica", "solid"],
     ]);
@@ -84,12 +82,12 @@ describe("at launch, as the Electron shell does at window creation", () => {
     win = { backdrop: "mica", theme: "system" };
     bridge = await launch(win);
     expect(win).toEqual({ backdrop: "acrylic", theme: "light" });
-    const sections = (await bridge.invoke("HostProc", "getConfig", [])) as ConfigSectionMetadata_Value[];
+    const sections = (await bridge.desktopConfig.read()) as ConfigSection[];
     expect(sections.flatMap((s) => s.keys).map((k) => k.valueB ?? k.valueStr ?? k.valueEnum)).toEqual([true, "White", "acrylic"]);
   });
 });
 
-describe("HostProc.setConfigValue", () => {
+describe("application preference updates", () => {
   test("WindowMaterial drives the backdrop; solid is no backdrop", async () => {
     const win: Win = { backdrop: "mica", theme: "system" };
     const bridge = await launch(win);
@@ -131,12 +129,12 @@ describe("HostProc.setConfigValue", () => {
   });
 });
 
-describe("HostProc.setWindowMaterial", () => {
+describe("SDK window material", () => {
   test("acrylic, mica or none, and anything else is none", async () => {
     const win: Win = { backdrop: "mica", theme: "system" };
     const bridge = await launch(win);
     for (const [asked, got] of [["acrylic", "acrylic"], ["none", "none"], ["mica", "mica"], ["glass", "none"]]) {
-      expect(await bridge.invoke("HostProc", "setWindowMaterial", [asked])).toBe(true);
+      expect(await bridge.setWindowMaterial(asked)).toBe(true);
       expect(win.backdrop).toBe(got);
     }
   });

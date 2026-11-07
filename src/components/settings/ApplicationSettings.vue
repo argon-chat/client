@@ -32,22 +32,22 @@
                         </div>
                     </div>
 
-                    <Switch v-if="key.type === ConfigPrimitiveType.Boolean" :checked="key.valueB ?? false"
+                    <Switch v-if="key.type === ConfigValueType.Boolean" :checked="key.valueB ?? false"
                         @update:checked="v => configStore.setValue(section.section, key, v)" />
 
-                    <input v-else-if="key.type === ConfigPrimitiveType.String" class="input w-[180px]"
+                    <input v-else-if="key.type === ConfigValueType.String" class="input w-[180px]"
                         :value="key.valueStr ?? ''"
                         @change="e => configStore.setValue(section.section, key, (e.target as HTMLInputElement).value)" />
 
-                    <input v-else-if="key.type === ConfigPrimitiveType.Number" type="number" class="input w-[180px]"
+                    <input v-else-if="key.type === ConfigValueType.Number" type="number" class="input w-[180px]"
                         :value="key.valueNum ?? 0"
                         @change="e => configStore.setValue(section.section, key, Number((e.target as HTMLInputElement).value))" />
 
-                    <input v-else-if="key.type === ConfigPrimitiveType.Double" type="number" step="any" class="input w-[180px]"
+                    <input v-else-if="key.type === ConfigValueType.Double" type="number" step="any" class="input w-[180px]"
                         :value="key.valueF ?? 0"
                         @change="e => configStore.setValue(section.section, key, Number((e.target as HTMLInputElement).value))" />
 
-                    <Select v-else-if="key.type === ConfigPrimitiveType.Enum" :model-value="key.valueEnum!"
+                    <Select v-else-if="key.type === ConfigValueType.Enum" :model-value="key.valueEnum!"
                         @update:model-value="v => configStore.setValue(section.section, key, v)">
                         <SelectTrigger class="w-[180px]">
                             <SelectValue />
@@ -195,8 +195,10 @@ import {
 } from "@argon/ui/select";
 import { useToast } from "@argon/ui/toast";
 import { useAuthStore } from "@/store/auth/authStore";
-import { native } from "@argon/glue/native";
-import { Channel, ConfigKeyMetadata_Value, ConfigPrimitiveType, ConfigSectionMetadata_Value, SetRequest } from "@argon/glue/ipc";
+import { isVn } from "@/lib/vn";
+import { shell } from "@/lib/shell/host";
+import { openDevtools } from "@/lib/shell/desktop";
+import { ConfigKey, ConfigValueType, ConfigSection, ConfigUpdate } from "@/lib/shell/configTypes";
 import { useConfigStore } from "@/store/ui/configStore";
 import LinuxUpdateModal from "@/components/modals/LinuxUpdateModal.vue";
 const { t, has } = useLocale();
@@ -212,7 +214,7 @@ const me = useMe();
 const showLinuxUpdateModal = ref(false);
 const version = ref((window as any).ui_fullversion as string);
 const buildtime = ref((window as any).ui_buildtime as string);
-const host_version = ref((window as any).argon_host_version_full as string);
+const host_version = ref(isVn ? shell.system.info().appVersion : "");
 const selected_channel = ref("live" as "live" | "canary" | "beta");
 const disable_channel_select = ref(false);
 const selected_api_endpoint = ref("live" as "live" | "dev" | "local");
@@ -229,7 +231,7 @@ type AutostartBridge = {
     get: () => Promise<{ supported: boolean; enabled: boolean }>;
     set: (enabled: boolean) => Promise<{ supported: boolean; enabled: boolean }>;
 };
-const autostartBridge = (): AutostartBridge | undefined => (window as any).argonAutostart;
+const autostartBridge = () => isVn ? shell.system.autostart : undefined;
 
 async function loadAutostart() {
     const a = autostartBridge();
@@ -260,7 +262,7 @@ async function toggleAutostart(v: boolean) {
 
 const toggleDevTools = () => {
     // @ts-ignore
-    native.hostProc.toggleDevTools();
+    openDevtools();
 };
 
 const copyMyUserId = () => {
@@ -271,9 +273,8 @@ const copyMyUserId = () => {
     navigator.clipboard.writeText(me.me?.userId ?? "error");
 };
 
-watch(selected_channel, (e) => {
-    // @ts-ignore
-    native.hostProc.setCurrentChannel(Channel[e]);
+watch(selected_channel, (channel) => {
+    if (isVn) shell.system.updates?.setChannel(channel);
 });
 
 watch(selected_api_endpoint, async (e) => {
@@ -288,12 +289,8 @@ watch(selected_api_endpoint, async (e) => {
 onMounted(async () => {
     void loadAutostart();
 
-    if (!argon.isArgonHost) {
-        disable_channel_select.value = true;
-    } else {
-        // @ts-ignore
-        selected_channel.value = Channel[await native.hostProc.getCurrentChannel()] as any;
-    }
+    disable_channel_select.value = !isVn || !shell.system.updates;
+    if (isVn && shell.system.updates) selected_channel.value = shell.system.updates.getChannel();
 
     const currentApiEndpoint = localStorage.getItem("api_endpoint");
 

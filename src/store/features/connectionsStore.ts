@@ -18,8 +18,7 @@ import {
   type UserConnection,
   type UserConnectionsUpdated,
 } from "@argon/glue";
-import { argon } from "@argon/glue";
-import { native } from "@argon/glue/native";
+import { isDesktop } from "@/lib/platform";
 import { useApi } from "@/store/system/apiStore";
 import { useBus } from "@/store/realtime/busStore";
 import { onSessionReset } from "@/store/system/sessionLifecycle";
@@ -149,7 +148,7 @@ export const useConnectionsStore = defineStore("connections", () => {
 
   /** The server's return-to hint: the desktop app gets an argon:// link back, the web a page to close. */
   function returnKind(): ConnectReturnKind {
-    return argon?.isArgonHost || native?.hostProc ? ConnectReturnKind.DESKTOP : ConnectReturnKind.WEB;
+    return isDesktop ? ConnectReturnKind.DESKTOP : ConnectReturnKind.WEB;
   }
 
   /**

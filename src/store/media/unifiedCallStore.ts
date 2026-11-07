@@ -19,6 +19,7 @@ import { useDrawingSession } from "@/store/features/drawingSessionStore";
 import { useHotkeys } from "@/store/ui/hotKeyStore";
 import { metrics } from "@/lib/telemetry/metrics";
 import { logger } from "@argon/core";
+import { consumeCrashRecovery, selectCaptureSource } from "@/lib/shell/desktop";
 
 export type { ScreenShareOpts } from "@argon/calls";
 
@@ -78,13 +79,8 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
 
     persistedValue,
     ensureMediaPermission,
-    consumeCrashRecovery: async () =>
-      !!(await (window as any).argonIpc?.consumeCrashRecovery?.()),
-    selectScreenSource: async (sourceId, includeAudio) => {
-      const ipc = (window as any).argonIpc;
-      if (!ipc) return; // web build: the browser shows its own picker
-      await ipc.invoke("HostProc", "setPendingScreenSource", [sourceId, includeAudio]);
-    },
+    consumeCrashRecovery,
+    selectScreenSource: selectCaptureSource,
   };
 
   const manager = createCallManager(config);

@@ -1,21 +1,22 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import {
-  ConfigPrimitiveType,
-  type ConfigSectionMetadata_Value,
-  type ConfigKeyMetadata_Value,
-  type SetRequest,
-} from "@argon/glue/ipc";
-import { native } from "@argon/glue/native";
+  ConfigValueType,
+  type ConfigSection,
+  type ConfigKey,
+  type ConfigUpdate,
+} from "@/lib/shell/configTypes";
+import { desktopConfig } from "@/lib/shell/desktop";
+import { isDesktop } from "@/lib/platform";
 
 export const useConfigStore = defineStore("nativeConfig", () => {
-  const sections = ref<ConfigSectionMetadata_Value[]>([]);
+  const sections = ref<ConfigSection[]>([]);
   const requiresRestart = ref(new Set<string>());
   const devModeEnabled = ref(false);
   const loaded = ref(false);
 
   const flatKeys = computed(() => {
-    const map = new Map<string, ConfigKeyMetadata_Value>();
+    const map = new Map<string, ConfigKey>();
     for (const section of sections.value) {
       for (const key of section.keys) {
         map.set(`${section.section}:${key.key}`, key);
@@ -41,7 +42,7 @@ export const useConfigStore = defineStore("nativeConfig", () => {
   };
 
   const setTheme = async (theme: "Dark" | "White" | "OLED" | "System") => {
-    if (argon.isArgonHost)
+    if (isDesktop)
       await setValue_raw({
         key: "Theme",
         section: "appearance",
@@ -54,7 +55,7 @@ export const useConfigStore = defineStore("nativeConfig", () => {
   };
 
   const setWindowMaterial = async (material: string) => {
-    if (argon.isArgonHost)
+    if (isDesktop)
       await setValue_raw({
         key: "WindowMaterial",
         section: "appearance",
@@ -67,17 +68,17 @@ export const useConfigStore = defineStore("nativeConfig", () => {
   };
 
   const load = async () => {
-    if (!argon.isArgonHost) {
+    if (!isDesktop) {
       loaded.value = true;
       return;
     }
     // @ts-ignore
-    const raw = await native.hostProc.getConfig();
+    const raw = await desktopConfig.read();
 
     // DevMode
     for (const section of raw) {
       for (const key of section.keys) {
-        if (key.key === "DevMode" && key.type === ConfigPrimitiveType.Boolean) {
+        if (key.key === "DevMode" && key.type === ConfigValueType.Boolean) {
           devModeEnabled.value = key.valueB === true;
         }
       }
@@ -96,9 +97,9 @@ export const useConfigStore = defineStore("nativeConfig", () => {
     loaded.value = true;
   };
 
-  const setValue_raw = async (req: SetRequest) => {
+  const setValue_raw = async (req: ConfigUpdate) => {
     // @ts-ignore
-    const updated = await native.hostProc.setConfigValue(req);
+    const updated = await desktopConfig.update(req);
     if (!updated?.value) {
       throw new Error("Config update failed");
     }
@@ -108,10 +109,10 @@ export const useConfigStore = defineStore("nativeConfig", () => {
 
   const setValue = async (
     section: string,
-    key: ConfigKeyMetadata_Value,
+    key: ConfigKey,
     value: any
   ) => {
-    const req: SetRequest = {
+    const req: ConfigUpdate = {
       section,
       key: key.key,
       valueB: null,
@@ -122,25 +123,25 @@ export const useConfigStore = defineStore("nativeConfig", () => {
     };
 
     switch (key.type) {
-      case ConfigPrimitiveType.Boolean:
+      case ConfigValueType.Boolean:
         req.valueB = value;
         break;
-      case ConfigPrimitiveType.String:
+      case ConfigValueType.String:
         req.valueStr = value;
         break;
-      case ConfigPrimitiveType.Number:
+      case ConfigValueType.Number:
         req.valueNum = value;
         break;
-      case ConfigPrimitiveType.Enum:
+      case ConfigValueType.Enum:
         req.valueEnum = value;
         break;
-      case ConfigPrimitiveType.Double:
+      case ConfigValueType.Double:
         req.valueF = value;
         break;
     }
 
     // @ts-ignore
-    const updated = await native.hostProc.setConfigValue(req);
+    const updated = await desktopConfig.update(req);
     if (!updated?.value) {
       throw new Error("Config update failed");
     }

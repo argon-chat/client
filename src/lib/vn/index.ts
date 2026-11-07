@@ -10,4 +10,4 @@
  * Anything but a literal `true` is a browser or Electron, and every adaptation then keeps the code it
  * replaces. Read once: the flag cannot change while the app runs.
  */
-export const isVn: boolean = typeof window !== "undefined" && (window as { isVn?: unknown }).isVn === true;
+export const isVn: boolean = import.meta.env.VN === true || (typeof window !== "undefined" && (window as { isVn?: unknown }).isVn === true);

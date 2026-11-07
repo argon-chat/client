@@ -17,7 +17,7 @@ import { createPinia, setActivePinia } from "pinia";
 await vi.hoisted(async () => {
   // Before Dexie loads: it picks up the IndexedDB implementation once, at import.
   const { indexedDB, IDBKeyRange } = await import("fake-indexeddb");
-  Object.assign(globalThis, { indexedDB, IDBKeyRange, argon: { isArgonHost: false } });
+  Object.assign(globalThis, { indexedDB, IDBKeyRange });
 });
 
 const h = vi.hoisted(() => ({
@@ -33,7 +33,6 @@ vi.mock("@argon/core", () => ({
   logger: { log() {}, debug() {}, info() {}, warn() {}, error() {} },
   delay: (ms: number) => new Promise((r) => setTimeout(r, ms)),
 }));
-vi.mock("@argon/glue/native", () => ({ native: null }));
 vi.mock("@/lib/taskbarBadge", () => ({ renderOverlayBadge: () => null }));
 vi.mock("@argon/ui/toast", () => ({ toast: () => {} }));
 vi.mock("@/store/system/localeStore", () => ({ useLocale: () => ({ t: (k: string) => k }) }));

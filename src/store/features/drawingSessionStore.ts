@@ -18,6 +18,8 @@
  * someone its offer covers, judged by the sender's identity rather than what the packet claims.
  */
 import { defineStore } from "pinia";
+import { isVn } from "@/lib/vn";
+import { nativeDrawingAvailable, startNativeDrawing, stopNativeDrawing, applyNativeStroke } from "@/lib/shell/overlays";
 import { computed, ref, watch } from "vue";
 import type { Room, RemoteParticipant } from "livekit-client";
 import { RoomEvent } from "livekit-client";
@@ -38,17 +40,6 @@ export const DRAW_CAPABILITY = "draw";
 export const DRAW_CONTACTS = "contacts";
 /** The privacy rule behind the offer: who may draw on my streams. */
 const STREAM_DRAW_RULE = "stream.draw";
-
-/** The Electron bridge to the native overlay; absent on the web. */
-interface ScreencastDrawBridge {
-  isAvailable?(): Promise<boolean>;
-  start?(sourceId: string | null): void;
-  stop?(): void;
-  applyStroke?(packet: DrawPacket): void;
-}
-
-const bridge = (): ScreencastDrawBridge | undefined =>
-  (window as any).argonScreencastDraw as ScreencastDrawBridge | undefined;
 
 /** Fields a DrawOverlay supplies; the store stamps the envelope (v/from/target/t). */
 type PacketBody =
@@ -73,7 +64,7 @@ export const useDrawingSession = defineStore("drawingSession", () => {
   /** Whether this client can paint on the shared monitor at all. Probed once; false on the web. */
   const overlayAvailable = ref(false);
   void Promise.resolve()
-    .then(() => bridge()?.isAvailable?.())
+    .then(() => isVn && nativeDrawingAvailable())
     .then((ok) => { overlayAvailable.value = !!ok; })
     .catch(() => { overlayAvailable.value = false; });
 
@@ -112,9 +103,9 @@ export const useDrawingSession = defineStore("drawingSession", () => {
     try { call.setCapability(DRAW_CAPABILITY, value); }
     catch (e) { logger.warn("[draw] failed to publish the offer", e); }
     if (value !== null && previous === null) {
-      try { bridge()?.start?.(shareSourceId); } catch (e) { logger.warn("[draw] overlay start failed", e); }
+      try { startNativeDrawing(shareSourceId); } catch (e) { logger.warn("[draw] overlay start failed", e); }
     } else if (value === null && previous !== null) {
-      try { bridge()?.stop?.(); } catch (e) { logger.warn("[draw] overlay stop failed", e); }
+      try { stopNativeDrawing(); } catch (e) { logger.warn("[draw] overlay stop failed", e); }
     }
   }, { flush: "sync" });
 
@@ -223,7 +214,7 @@ export const useDrawingSession = defineStore("drawingSession", () => {
     const set = consumers.get(packet.target);
     if (set) for (const cb of set) cb(packet);
     if (packet.target === selfId()) {
-      try { bridge()?.applyStroke?.(packet); }
+      try { applyNativeStroke(packet); }
       catch (e) { logger.warn("[draw] native forward failed", e); }
     }
   }

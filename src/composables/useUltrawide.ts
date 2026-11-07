@@ -33,11 +33,6 @@ if (typeof document !== "undefined") {
   // correctly); fall back to CSS zoom on the web.
   watchEffect(() => {
     const factor = (uiScale.value || 100) / 100;
-    const wm = (window as any).windowManagement;
-    if (wm?.setZoom) {
-      wm.setZoom(factor);
-    } else {
-      document.documentElement.style.setProperty("zoom", String(factor));
-    }
+    document.documentElement.style.setProperty("zoom", String(factor));
   });
 }

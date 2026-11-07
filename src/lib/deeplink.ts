@@ -1,6 +1,7 @@
 import { logger } from "@argon/core";
 import { useWindow } from "@/store/ui/windowStore";
 import { isVn } from "@/lib/vn";
+import { shell } from "@/lib/shell/host";
 import { forwardLaunchLinks } from "@/lib/vn/launch";
 
 /**
@@ -55,18 +56,7 @@ export function handleDeepLink(rawUrl: string): boolean {
 
 let initialized = false;
 
-/**
- * Wires up deep-link delivery, from all three directions the host can arrive from:
- *
- *  - `window.argonDeepLink.onOpen(cb)` — the Electron preload bridge, which is how a real
- *    `argon://` activation actually reaches the renderer: the launcher hands the URL to the main
- *    process, which sends `deeplink:open` over IPC. Without this subscription that IPC message has
- *    no listener, and every link opened from the web lands in an app that does nothing.
- *  - `window.argonHandleDeepLink(url)` — a direct call, for hosts with no IPC of their own.
- *  - an `argon:deeplink` CustomEvent — the same, for anything that can only dispatch events.
- *
- * Under vue-native, which has no preload, `launchQueue` takes the bridge's place (lib/vn/launch.ts).
- */
+/** Delivers OS launch URLs through the SDK and browser-local app events. */
 export function initDeepLinks() {
   if (initialized) return;
   initialized = true;
@@ -80,14 +70,13 @@ export function initDeepLinks() {
 
   // vue-native has no preload bridge: its links come through `launchQueue` (lib/vn/launch.ts).
   // vue-native's client-gap.md §4, "launchQueue URLs → handleDeepLink" (A-webapi #94).
-  if (isVn) forwardLaunchLinks(handleDeepLink);
-
-  const bridge = (window as any).argonDeepLink;
-  if (typeof bridge?.onOpen === "function") {
-    try {
-      bridge.onOpen((url: string) => handleDeepLink(url));
-    } catch (e) {
-      logger.warn?.(`[deeplink] native bridge refused a subscription: ${e}`);
+  if (isVn) {
+    forwardLaunchLinks(handleDeepLink);
+    if (shell?.launch) {
+      shell.launch.onOpenUrl(handleDeepLink);
+      for (const url of shell.launch.pending()) handleDeepLink(url);
     }
   }
+
+
 }

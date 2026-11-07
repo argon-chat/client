@@ -1,5 +1,5 @@
 import { ref, watch, onBeforeUnmount } from "vue";
-import { native } from "@argon/glue/native";
+import { screenSources as readScreenSources } from "@/lib/shell/desktop";
 
 export interface ScreenSource {
   id: string;
@@ -70,7 +70,7 @@ export function useScreenShareSources() {
       // and the main process rasterises a thumbnail plus an icon for every window per call.
       const types = shareTab.value === "screens" ? ["screen"] : ["window"];
       // @ts-ignore
-      const sources: ScreenSource[] = await native.hostProc.getScreenSources(types, { withIcons: false });
+      const sources: ScreenSource[] = await readScreenSources(types, { withIcons: false });
       if (generation !== requestGeneration || !openShareSettings.value) return;
       for (const src of sources) {
         const existing = screenSources.value.find((s) => s.id === src.id);
@@ -95,7 +95,7 @@ export function useScreenShareSources() {
     stopThumbnailRefresh();
     try {
       // @ts-ignore
-      const sources: ScreenSource[] = await native.hostProc.getScreenSources(["screen", "window"], { withIcons: true });
+      const sources: ScreenSource[] = await readScreenSources(["screen", "window"], { withIcons: true });
       if (generation !== requestGeneration || !openShareSettings.value) return;
       screenSources.value = sources.filter((s) => s.id.startsWith("screen:"));
       windowSources.value = sources.filter((s) => s.id.startsWith("window:"));

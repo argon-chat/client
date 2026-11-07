@@ -1,7 +1,9 @@
 import { persistedValue } from "@argon/storage";
 import { openDB, type IDBPDatabase } from "idb";
 import { defineStore } from "pinia";
-import { computed, shallowReactive, watch } from "vue";
+import { isVn } from "@/lib/vn";
+import { shell } from "@/lib/shell/host";
+import { computed, shallowReactive, onScopeDispose } from "vue";
 import {
   defaultHudConfig,
   normalizeHudConfig,
@@ -190,7 +192,7 @@ export const useGameOverlaySettings = defineStore("gameOverlaySettings", () => {
       return;
     }
     try {
-      const dataUrl = await (globalThis as any).argonOverlay?.getGameIcon?.(id);
+      const dataUrl = await (isVn ? shell.activity.icon?.(id) : undefined);
       if (typeof dataUrl === "string" && dataUrl && games[id]) {
         icons[id] = dataUrl;
         await writeStoredIcon(id, dataUrl);
@@ -297,50 +299,24 @@ export const useGameOverlaySettings = defineStore("gameOverlaySettings", () => {
     };
   }
 
-  function push(): void {
-    (globalThis as any).argonOverlay?.publishGameSettings?.(snapshot());
-  }
-
   let initialized = false;
+  const nativeListeners: (() => void)[] = [];
+  onScopeDispose(() => { for (const off of nativeListeners) off(); });
   function init(): void {
     if (initialized) return;
     initialized = true;
-
-    // Housekeeping on the persisted journal: prune first so we don't migrate icons of
-    // entries that are about to be dropped anyway.
     pruneJournal();
     migrateLegacyIcons();
-
-    const bridge = (globalThis as any).argonOverlay;
-    if (!bridge) return;
-
-    // Backfill any HUD fields added since this config was first persisted.
     Object.assign(hud, normalizeHudConfig(hud));
-
-    // A game was detected by the native plugin — record it (and resolve any unsupported flag).
-    bridge.onGameDetected?.((g: { path?: string; name?: string }) => {
-      const entry = recordGame(g?.path ?? "", g?.name ?? "");
-      if (entry.supportsOverlay === false) { /* keep prior unsupported flag */ }
-      push();
-    });
-
-    // The overlay reported it can't show for a game (e.g. exclusive fullscreen).
-    bridge.onOverlayUnsupported?.((u: { path?: string; name?: string; reason?: string }) => {
-      const id = normalizeGameId(u?.path ?? "", u?.name ?? "");
-      if (!games[id]) recordGame(u?.path ?? "", u?.name ?? "");
-      markUnsupported(id, u?.reason ?? "unsupported");
-      push();
-    });
-
-    // Push settings to main whenever anything relevant changes.
-    watch(
-      [overlayEnabled, overlayOpacity, overlayAnchor, overlayScreenPadding, activityPublishEnabled, games, hud],
-      () => push(),
-      { deep: true },
-    );
-    push(); // initial
-
-    // Load cached icons (or extract them once) for every game in the journal.
+    if (isVn) {
+      for (const activity of shell.activity.list()) recordGame(activity.path, activity.name);
+      nativeListeners.push(shell.activity.onStarted((activity) => recordGame(activity.path, activity.name)));
+      nativeListeners.push(shell.activity.onWindowChanged((value) => {
+        if (!value?.exclusiveFullscreen) return;
+        const activity = shell.activity.list().find((item) => item.pid === value.pid);
+        if (activity) markUnsupported(normalizeGameId(activity.path, activity.name), "exclusive fullscreen");
+      }));
+    }
     for (const id of Object.keys(games)) void ensureIcon(id);
   }
 

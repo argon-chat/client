@@ -1,5 +1,7 @@
 import { ref, onMounted, onUnmounted, computed } from "vue";
 import { logger } from "@argon/core";
+import { isVn } from "@/lib/vn";
+import { shell } from "@/lib/shell/host";
 
 const UPDATE_CHECK_URL = "https://updates.argon.gl/runtime/core-linux/latest.linux";
 const DOWNLOAD_BASE_URL = "https://updates.argon.gl";
@@ -15,7 +17,7 @@ export function useLinuxUpdateChecker() {
   let timer: ReturnType<typeof setInterval> | null = null;
 
   const currentVersion = computed(() => {
-    return (window as any).argon_host_version_full as string | undefined;
+    return isVn ? shell.system.info().appVersion : undefined;
   });
 
   const downloadUrl = computed(() => {

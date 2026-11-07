@@ -12,7 +12,7 @@
  */
 
 import { defineStore } from "pinia";
-import { computed, ref, watch } from "vue";
+import { computed, ref, watch, onScopeDispose } from "vue";
 import { Subject, filter, type Subscription } from "rxjs";
 import { persistedValue, readPersistedValue } from "@argon/storage";
 import { logger } from "@argon/core";
@@ -127,6 +127,7 @@ export const useHotkeys = defineStore("hotkeys", () => {
   const syncError = ref<string | null>(null);
   /** The action whose key is being recorded right now. */
   const capturingFor = ref<HotkeyActionId | null>(null);
+  let captureGeneration = 0;
   const captureError = ref<string | null>(null);
   const events$ = new Subject<HotkeyEvent>();
 
@@ -218,11 +219,12 @@ export const useHotkeys = defineStore("hotkeys", () => {
       captureError.value = "Hotkeys are available only in the desktop app";
       return "failed";
     }
+    const generation = ++captureGeneration;
     capturingFor.value = id;
     captureError.value = null;
     try {
       const chord = await hotkeyHost.captureOnce();
-      if (isEmptyChord(chord)) return "cancelled";
+      if (generation !== captureGeneration || isEmptyChord(chord)) return "cancelled";
       setBinding(id, chord);
       return "bound";
     } catch (e) {
@@ -232,7 +234,7 @@ export const useHotkeys = defineStore("hotkeys", () => {
       return "failed";
     } finally {
       // A newer recording may own the field by now.
-      if (capturingFor.value === id) capturingFor.value = null;
+      if (generation === captureGeneration) capturingFor.value = null;
     }
   }
 
@@ -257,7 +259,8 @@ export const useHotkeys = defineStore("hotkeys", () => {
   }
 
   if (hotkeyHost.available) {
-    hotkeyHost.onFired(dispatch);
+    const stopNativeEvents = hotkeyHost.onFired(dispatch);
+    onScopeDispose(() => { stopNativeEvents?.(); captureGeneration++; void hotkeyHost.cancelCapture(); });
     watch(() => JSON.stringify(hostBindings()), () => void sync(), { immediate: true });
     void refreshStatus();
   }

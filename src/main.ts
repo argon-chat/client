@@ -1,7 +1,5 @@
-// First: vue-native's host identity, its argonIpc no-op and its window bridge must be in place
-// before @argon/glue and the shell read them (lib/vn/identity.ts, ipc.ts, window.ts).
-import "./lib/vn/identity";
-import "./lib/vn/ipc";
+// Apply saved SDK window preferences before mounting the application.
+import "./lib/vn/bootstrap";
 import "./lib/vn/window";
 import "vfonts/Lato.css";
 import "vfonts/FiraCode.css";
@@ -14,8 +12,6 @@ import "./styles/icon-motion.css";
 import "./styles/ultrawide.css";
 
 import "@argon/glue";
-import "@argon/glue/ipc";
-import { native } from "@argon/glue/native";
 
 import tailwindColorMap from "../tailwind-colors.json";
 

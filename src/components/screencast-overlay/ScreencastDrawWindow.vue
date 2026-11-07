@@ -3,18 +3,14 @@
 </template>
 
 <script setup lang="ts">
-/**
- * Lean offscreen view that renders screencast-drawing strokes for the streamer's
- * physical screen. Rendered inside a dedicated offscreen Electron BrowserWindow whose
- * painted output is handed (as a shared D3D11 texture) to the native overlay plugin
- * (libsdraw). Receives stroke packets over the `argonScreencastDraw` preload bridge;
- * owns no stores/socket. Sized to the full shared monitor, so normalized [0,1] points
- * map directly to canvas pixels.
- */
-import { onMounted, onUnmounted, ref } from "vue";
+/** Canvas 2D strokes painted inside a capture-excluded VnWindow. */
+import { onMounted, onUnmounted, ref, watch } from "vue";
+import { onNativeStroke } from "@/lib/shell/overlays";
 import { StrokeCanvas } from "@/lib/screencast-draw/StrokeCanvas";
 import type { DrawPacket } from "@/lib/screencast-draw/types";
 
+const props = defineProps<{ surfaceWidth?: number; surfaceHeight?: number }>();
+let offStroke: (() => void) | undefined;
 const canvasEl = ref<HTMLCanvasElement | null>(null);
 let surface: StrokeCanvas | null = null;
 
@@ -22,7 +18,7 @@ function sizeCanvas(): void {
   if (!canvasEl.value || !surface) return;
   const dpr = window.devicePixelRatio || 1;
   // Backing store at physical resolution → 1 canvas px ≈ 1 physical screen px.
-  surface.resize(window.innerWidth * dpr, window.innerHeight * dpr);
+  surface.resize(props.surfaceWidth ?? window.innerWidth * dpr, props.surfaceHeight ?? window.innerHeight * dpr);
   surface.kick();
 }
 
@@ -30,22 +26,23 @@ function onResize(): void {
   sizeCanvas();
 }
 
+watch(() => [props.surfaceWidth, props.surfaceHeight], sizeCanvas);
+
 onMounted(() => {
   if (!canvasEl.value) return;
   surface = new StrokeCanvas(canvasEl.value);
   sizeCanvas();
 
-  const bridge = (window as any).argonScreencastDraw;
-  bridge?.onStroke?.((packet: DrawPacket) => {
-    if (!surface) return;
-    if (surface.ingest(packet)) surface.kick();
-  });
-  bridge?.requestState?.();
+  const accept = (packet: DrawPacket) => {
+    if (surface?.ingest(packet)) surface.kick();
+  };
+  offStroke = onNativeStroke(accept);
 
   window.addEventListener("resize", onResize);
 });
 
 onUnmounted(() => {
+  offStroke?.();
   window.removeEventListener("resize", onResize);
   surface?.dispose();
   surface = null;

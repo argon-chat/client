@@ -20,7 +20,7 @@ const host = vi.hoisted(() => ({
   restart: vi.fn(async () => true),
   captureOnce: vi.fn(async (): Promise<unknown> => ({ buttons: [] })),
   cancelCapture: vi.fn(async () => {}),
-  onFired: vi.fn((_cb: (id: string, phase: "down" | "up") => void) => null),
+  onFired: vi.fn((_cb: (id: string, phase: "down" | "up") => void): (() => void) | null => null),
   toggleMainWindow: vi.fn(async () => true),
   showMainWindow: vi.fn(async () => true),
 }));
@@ -200,7 +200,7 @@ describe("recording a key", () => {
     const store = useHotkeys();
     store.setBinding("voice.toggleMute", kb(VK.M));
     host.captureOnce.mockRejectedValueOnce(
-      new Error("Error invoking remote method 'argon:rpc': HotkeyCaptureError: hotkey capture cancelled"),
+      new Error("hotkey capture cancelled"),
     );
     expect(await store.captureFor("voice.toggleMute")).toBe("cancelled");
     expect(store.chordOf("voice.toggleMute")).toEqual(kb(VK.M));
@@ -243,5 +243,32 @@ describe("conflicts", () => {
     expect(store.conflictsOf("call.leave")).toEqual(["voice.toggleMute"]);
     expect(store.conflictsOf("voice.deafen")).toEqual([]);
     expect(store.conflictsOf("voice.pushToTalk")).toEqual([]);
+  });
+});
+
+describe("native capture lifecycle", () => {
+  test("a superseded capture of the same action cannot clear or overwrite the newer capture", async () => {
+    const store = useHotkeys();
+    let finishFirst!: (value: unknown) => void;
+    let finishSecond!: (value: unknown) => void;
+    host.captureOnce
+      .mockImplementationOnce(() => new Promise((resolve) => { finishFirst = resolve; }))
+      .mockImplementationOnce(() => new Promise((resolve) => { finishSecond = resolve; }));
+    const first = store.captureFor("voice.toggleMute");
+    const second = store.captureFor("voice.toggleMute");
+    finishFirst(kb(VK.K));
+    expect(await first).toBe("cancelled");
+    expect(store.capturingFor).toBe("voice.toggleMute");
+    finishSecond(kb(VK.M));
+    expect(await second).toBe("bound");
+    expect(store.chordOf("voice.toggleMute")).toEqual(kb(VK.M));
+  });
+  test("disposing the store releases native event subscription and an active capture", () => {
+    const off = vi.fn();
+    host.onFired.mockReturnValueOnce(off);
+    const store = useHotkeys();
+    store.$dispose();
+    expect(off).toHaveBeenCalledTimes(1);
+    expect(host.cancelCapture).toHaveBeenCalledTimes(1);
   });
 });

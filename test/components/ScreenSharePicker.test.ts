@@ -2,10 +2,10 @@ import { afterEach, expect, test, vi } from "vitest";
 import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import { nextTick } from "vue";
 
-vi.mock("@argon/glue/native", () => ({ native: { hostProc: { getScreenSources: async () => [
+vi.mock("@/lib/shell/desktop", () => ({ screenSources: async () => [
   { id: "screen:7", name: "Display", thumbnailDataUrl: "", appIconDataUrl: null, displayId: "7" },
   { id: "window:42", name: "Music player", thumbnailDataUrl: "", appIconDataUrl: null, displayId: "7" },
-] } } }));
+] }));
 vi.mock("@/lib/platform", () => ({ isWeb: false }));
 vi.mock("@/store/system/localeStore", () => ({ useLocale: () => ({ t: (key: string) => key }) }));
 vi.mock("@/store/auth/meStore", () => ({ useMe: () => ({ isPremium: false }) }));

@@ -1,41 +1,11 @@
-/**
- * The Electron shell's own config, `HostProc.getConfig` / `setConfigValue`, under vue-native.
- *
- * In Electron this is ArgonApp's NativeConfigStore (desktop `ArgonApp/src/ipc/native-config.ts`). It
- * is a fixed schema of three keys, saved to `userData/app-config.enc`, and main.ts reads it when it
- * creates the window. The C# plugins take their settings from main.ts (`gap_set_config`,
- * `hv_set_config`) and have none of their own here. vue-native has the same schema, saved in
- * localStorage, which vue-native keeps on disk in the app's storage folder. Each key does what the
- * Electron shell does with it:
- *
- * | key                       | type    | default             | what it drives                       |
- * |---------------------------|---------|---------------------|--------------------------------------|
- * | app.DevMode               | Boolean | false               | nothing in the host: the client reads it back (debug panels, dev-only keys) |
- * | appearance.Theme          | String  | "Dark"              | the windows' colour scheme, `appWindow.theme` (Electron's `nativeTheme.themeSource`): the material's tint and `prefers-color-scheme` |
- * | appearance.WindowMaterial | Enum    | the window's own    | the window's backdrop, `appWindow.backdrop`: acrylic, mica, or solid (`none`) |
- *
- * `requiredToRestartApp` and `onlyForDevMode` are false for all three, as in Electron.
- *
- * Two differences, both on purpose:
- * - Electron's WindowMaterial default is `acrylic`. Here the default is the backdrop the window was
- *   opened with, so `getConfig` reports what is on screen. vn.config.json opens it on `acrylic`, DWM's
- *   own as in Electron, so the two agree unless that file says otherwise.
- * - Electron applies Theme and WindowMaterial when it creates the window. A live change goes through
- *   `HostProc.setWindowMaterial` and the `argonTheme` bridge, and `setConfigValue` only saves. Here
- *   both keys are applied when this module installs, before the app mounts, and again whenever they
- *   are set. So the Application settings list changes the window too, where Electron would wait for
- *   the next launch.
- *
- * A host too old for `appWindow.theme` still stores Theme. It reports the key back and says once
- * that it cannot apply it.
- */
+/** Saved application preferences. Theme and backdrop apply through SDK window properties. */
 import {
-  ConfigPrimitiveType,
-  type ConfigKeyMetadata_Value,
-  type ConfigSectionMetadata_Value,
-  type SetRequest,
-  type SetResult,
-} from "@argon/glue/ipc";
+  ConfigValueType,
+  type ConfigKey,
+  type ConfigSection,
+  type ConfigUpdate,
+  type ConfigResult,
+} from "@/lib/shell/configTypes";
 
 interface AppWindowLike {
   backdrop: string;
@@ -53,7 +23,7 @@ const STORAGE_KEY = "vn.hostConfig";
 
 interface KeySchema {
   key: string;
-  type: ConfigPrimitiveType;
+  type: ConfigValueType;
   defaultB?: boolean;
   defaultStr?: string;
   defaultEnum?: string;
@@ -106,20 +76,20 @@ const openedMaterial = backdropMaterial(appWindow?.backdrop);
 const SCHEMA: { section: string; keys: KeySchema[] }[] = [
   {
     section: "app",
-    keys: [{ key: "DevMode", type: ConfigPrimitiveType.Boolean, defaultB: false }],
+    keys: [{ key: "DevMode", type: ConfigValueType.Boolean, defaultB: false }],
   },
   {
     section: "appearance",
     keys: [
       {
         key: "Theme",
-        type: ConfigPrimitiveType.String,
+        type: ConfigValueType.String,
         defaultStr: "Dark",
         apply: (v) => setWindowTheme(themeSource(v?.s ?? "Dark")),
       },
       {
         key: "WindowMaterial",
-        type: ConfigPrimitiveType.Enum,
+        type: ConfigValueType.Enum,
         defaultEnum: openedMaterial,
         enumVariants: isWindows ? ["acrylic", "mica", "solid"] : ["solid"],
         // Only a saved value: the default is what the window already shows.
@@ -155,45 +125,45 @@ function save(): void {
 }
 
 /** NativeConfigStore.keyToValue: the schema merged with the saved value. */
-function keyToValue(section: string, schema: KeySchema): ConfigKeyMetadata_Value {
+function keyToValue(section: string, schema: KeySchema): ConfigKey {
   const stored = values()[section]?.[schema.key];
   return {
     key: schema.key,
     type: schema.type,
     requiredToRestartApp: false,
     onlyForDevMode: false,
-    valueB: schema.type === ConfigPrimitiveType.Boolean ? (stored?.b ?? schema.defaultB ?? null) : null,
-    valueStr: schema.type === ConfigPrimitiveType.String ? (stored?.s ?? schema.defaultStr ?? null) : null,
+    valueB: schema.type === ConfigValueType.Boolean ? (stored?.b ?? schema.defaultB ?? null) : null,
+    valueStr: schema.type === ConfigValueType.String ? (stored?.s ?? schema.defaultStr ?? null) : null,
     valueNum: null,
-    valueEnum: schema.type === ConfigPrimitiveType.Enum ? (stored?.e ?? schema.defaultEnum ?? null) : null,
+    valueEnum: schema.type === ConfigValueType.Enum ? (stored?.e ?? schema.defaultEnum ?? null) : null,
     valueEnumVariants: schema.enumVariants ?? [],
     valueF: null,
   };
 }
 
-/** `HostProc.getConfig`. */
-export function getConfig(): ConfigSectionMetadata_Value[] {
+/** Read saved settings with their schema defaults. */
+export function getConfig(): ConfigSection[] {
   return SCHEMA.map((s) => ({ section: s.section, keys: s.keys.map((k) => keyToValue(s.section, k)) }));
 }
 
 /**
- * `HostProc.setConfigValue`, with NativeConfigStore's rules. An unknown section or key, or an enum
+ * Update a saved preference. An unknown section or key, or an enum
  * value outside its variants, answers `{ value: null }`, which configStore reports as "Config update
  * failed". A request without a value for the key's type saves an empty entry, so the key reads its
  * default again.
  */
-export function setConfigValue(req: SetRequest): SetResult {
+export function setConfigValue(req: ConfigUpdate): ConfigResult {
   const schema = SCHEMA.find((s) => s.section === req.section)?.keys.find((k) => k.key === req.key);
   if (!schema) return { value: null };
   const stored: StoredValue = {};
   switch (schema.type) {
-    case ConfigPrimitiveType.Boolean:
+    case ConfigValueType.Boolean:
       if (req.valueB != null) stored.b = req.valueB;
       break;
-    case ConfigPrimitiveType.String:
+    case ConfigValueType.String:
       if (req.valueStr != null) stored.s = req.valueStr;
       break;
-    case ConfigPrimitiveType.Enum:
+    case ConfigValueType.Enum:
       if (req.valueEnum != null) {
         if (schema.enumVariants && !schema.enumVariants.includes(req.valueEnum)) return { value: null };
         stored.e = req.valueEnum;
@@ -207,14 +177,13 @@ export function setConfigValue(req: SetRequest): SetResult {
 }
 
 /**
- * `HostProc.setWindowMaterial`, the live switch AppearanceSettings makes before it saves the key.
- * Electron's rules: `acrylic`, `mica` or `none`, and anything else is `none`.
+ * Apply acrylic, mica or a solid backdrop through the SDK window API.
  */
 export function setWindowMaterial(material: string): boolean {
   return setBackdrop(material === "acrylic" || material === "mica" ? material : "none");
 }
 
-/** What the Electron shell does at window creation: each saved key, or its default, takes effect. */
+/** Apply saved window preferences at startup. */
 export function applyAtLaunch(): void {
   for (const s of SCHEMA) {
     for (const k of s.keys) k.apply?.(values()[s.section]?.[k.key]);

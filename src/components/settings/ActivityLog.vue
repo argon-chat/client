@@ -37,7 +37,7 @@
                 <div class="flex flex-row justify-between items-center">
                     <div class="flex items-center gap-2">
                         <Badge :variant="levelColor(log.logLevel)">
-                            {{ ActivityLogLevel[log.logLevel] }}
+                            {{ DiagnosticLevel[log.logLevel] }}
                         </Badge>
                         <span class="text-sm text-muted-foreground">
                             {{ formatTime(log.time) }}
@@ -113,20 +113,20 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { Input } from "@argon/ui/input";
 import { Button } from "@argon/ui/button";
 import { Badge } from "@argon/ui/badge";
-import { ActivityKind, ActivityLogEntity, ActivityLogLevel } from "@argon/glue/ipc";
-import { native } from "@argon/glue/native";
+import { ActivityCategory, type ActivityDiagnostic, DiagnosticLevel } from "@/lib/shell/activityDiagnostics";
+import { activityDiagnostics } from "@/lib/shell/activityDiagnostics";
 
 const kinds = [
-    { value: String(ActivityKind.GameActivity), label: "Game Activity" },
-    { value: String(ActivityKind.MusicActivity), label: "Music Activity" },
-    { value: String(ActivityKind.HotKeysActivity), label: "HotKeys Activity" },
-    { value: String(ActivityKind.SystemActivity), label: "System Activity" },
-    { value: String(ActivityKind.NetworkActivity), label: "Network Activity" },
+    { value: String(ActivityCategory.Game), label: "Game Activity" },
+    { value: String(ActivityCategory.Music), label: "Music Activity" },
+    { value: String(ActivityCategory.Hotkeys), label: "HotKeys Activity" },
+    { value: String(ActivityCategory.System), label: "System Activity" },
+    { value: String(ActivityCategory.Network), label: "Network Activity" },
 ];
 
 // state
-const kind = ref<string>(String(ActivityKind.SystemActivity));
-const logs = ref<ActivityLogEntity[]>([]);
+const kind = ref<string>(String(ActivityCategory.System));
+const logs = ref<ActivityDiagnostic[]>([]);
 const search = ref<string>("");
 const limit = 50;
 const offset = ref(0);
@@ -142,13 +142,7 @@ function toggle(idx: number) {
 
 // API
 async function load() {
-    // @ts-ignore
-    logs.value = await native.hostProc.getActivityDiagnostic(
-        parseInt(kind.value),
-        limit,
-        offset.value,
-        search.value || null
-    );
+    logs.value = activityDiagnostics(parseInt(kind.value), limit, offset.value, search.value);
 }
 
 function prev() {
@@ -168,17 +162,17 @@ watch([kind, search], () => {
 
 onMounted(load);
 
-function formatTime(t: { date: Date; offsetMinutes: number }) {
-    const corrected = new Date(t.date.getTime() + 0 * 60_000);
+function formatTime(t: number) {
+    const corrected = new Date(t);
 
     return corrected.toLocaleString();
 }
 
-function levelColor(level: ActivityLogLevel) {
+function levelColor(level: DiagnosticLevel) {
     switch (level) {
-        case ActivityLogLevel.Error:
+        case DiagnosticLevel.Error:
             return "destructive";
-        case ActivityLogLevel.Warn:
+        case DiagnosticLevel.Warn:
             return "secondary";
         default:
             return "default";

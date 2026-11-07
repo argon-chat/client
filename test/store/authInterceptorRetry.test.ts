@@ -11,6 +11,8 @@
  * three of them inside a minute signed a perfectly good session out.
  */
 import { describe, test, expect, vi, beforeEach } from "vitest";
+// Prepare the fixture graph during collection; resetModules below still gives each test fresh state.
+import "@/store/system/apiStore";
 import { IonRequestException, type IonCallContext } from "@argon-chat/ion.webcore";
 
 const stubs = vi.hoisted(() => ({

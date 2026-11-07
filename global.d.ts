@@ -129,39 +129,12 @@ declare global {
     constructor(url: string, options?: WebSocketStreamOptions);
   }
 
-  /** Window controls exposed by the Electron preload bridge (absent on web). */
-  interface WindowManagementBridge {
-    minimize(): void;
-    maximize(): void;
-    close(): void;
-    isMaximized(): Promise<boolean>;
-    /** Returns an unsubscribe; the preload keeps one listener per call, so drop it on unmount. */
-    onMaximizeChange(callback: (isMaximized: boolean) => void): () => void;
-    setZoom(factor: number): void;
-  }
-
-  /** Native theme bridge: window theme source + OS accent (absent on web). */
-  interface ArgonThemeBridge {
-    setSource(source: "dark" | "light" | "system"): Promise<boolean>;
-    getAccent(): Promise<string | null>;
-    isSystemDark(): Promise<boolean>;
-    /** Returns an unsubscribe; the preload keeps one listener per call, so drop it on unmount. */
-    onSystemUpdated(callback: (data: { dark: boolean; accent: string | null }) => void): () => void;
-  }
-
   interface Window {
     ui_version: string;
     ui_buildtime: string;
     ui_fullversion: string;
     ui_branch: string;
 
-    // Electron preload bridge — optional because the app also runs on the web.
-    windowManagement?: WindowManagementBridge;
-    argonTheme?: ArgonThemeBridge;
-    /** Host titlebar flag (0x1 = render the in-app titlebar). */
-    devolution_titlebar?: number;
-    ahid?: number;
-    argon_host_version_full?: string;
   }
 }
 

@@ -82,7 +82,6 @@
                         :diagnostics="diagnostics"
                     />
                     
-                    <OverlayNativeControls :members="voiceMembers" />
                 </div>
             </div>
         </div>
@@ -103,7 +102,6 @@ import { OverlayRenderer, VoiceMembersWidget, type VoiceMember, type CanvasSizeM
 import VoiceMembersList from './VoiceMembersList.vue'
 import OverlayControls from './OverlayControls.vue'
 import OverlayDiagnosticsView from './OverlayDiagnostics.vue'
-import OverlayNativeControls from './OverlayNativeControls.vue'
 
 // Stores
 const voice = useUnifiedCall()
@@ -327,24 +325,6 @@ watch(testMembers, () => {
         voiceMembersWidget.setMembers(voiceMembers.value)
     }
 }, { deep: true })
-
-// Forward widget display params (opacity/padding/anchor/…) to the native overlay window.
-watch(
-    [globalOpacity, showWidgetBackground, showMemberCards, screenPadding, widgetPadding, memberSpacing, widgetAnchor],
-    () => {
-        const bridge = (window as any).argonOverlay
-        bridge?.publishWidgetConfig?.({
-            globalOpacity: globalOpacity.value,
-            showWidgetBackground: showWidgetBackground.value,
-            showMemberCards: showMemberCards.value,
-            screenPadding: screenPadding.value,
-            widgetPadding: widgetPadding.value,
-            memberSpacing: memberSpacing.value,
-            widgetAnchor: widgetAnchor.value,
-        })
-    },
-    { immediate: true }
-)
 
 function handleResize() {
     if (!canvasContainer.value || !overlayCanvas.value || !rendererInstance) return

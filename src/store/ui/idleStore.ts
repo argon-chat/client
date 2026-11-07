@@ -5,7 +5,8 @@ import { useMe } from "@/store/auth/meStore";
 import { useUnifiedCall } from "@/store/media/unifiedCallStore";
 import { ref, watch, type WatchStopHandle } from "vue";
 import { UserStatus } from "@argon/glue";
-import { native } from "@argon/glue/native";
+import { idleSeconds as readIdleSeconds } from "@/lib/shell/desktop";
+import { isDesktop } from "@/lib/platform";
 
 export const useIdleStore = defineStore("idle", () => {
   const subscription = ref<Subscription | null>(null);
@@ -94,13 +95,13 @@ export const useIdleStore = defineStore("idle", () => {
     }
     trackVoice();
 
-    if (argon.isArgonHost) {
+    if (isDesktop) {
       subscription.value = interval(CHECK_INTERVAL_MS)
         .pipe(
           switchMap(async () => {
             try {
               // @ts-ignore
-              const inactiveSeconds = await native.hostProc.getIdleTimeSeconds();
+              const inactiveSeconds = await readIdleSeconds();
               tick(inactiveSeconds);
             } catch (e) {
               // A transient IPC failure (e.g. host not ready right after launch)

@@ -1,12 +1,7 @@
-/**
- * Publishes the current voice-channel state to the Electron main process so the
- * in-game overlay window can render it. No-op outside Electron (the `argonOverlay`
- * preload bridge only exists there) and in the overlay window itself.
- *
- * Mirrors the member computation in OverlayDebug.vue, but resolves avatars to a
- * fetchable CDN URL (via {@link cdnUrl}) so the offscreen overlay window can load them.
- */
+/** Keeps the native game HUD in step with the voice channel. */
 import { computed, watch } from "vue";
+import { isVn } from "@/lib/vn";
+import { setHudVoice } from "@/lib/shell/overlays";
 import { useUnifiedCall } from "@/store/media/unifiedCallStore";
 import { useRealtimeStore } from "@/store/realtime/realtimeStore";
 import { useUserColors } from "@/store/chat/userColors";
@@ -39,10 +34,7 @@ function overlayAvatarUrl(fileId: string): string {
 }
 
 export function useOverlayPublisher(): void {
-  const bridge = (globalThis as any).argonOverlay;
-  // Only the main app window (with the preload bridge) publishes. The overlay
-  // window subscribes instead; the web build has no bridge at all.
-  if (!bridge?.publishVoiceState || bridge?.isOverlayWindow) return;
+  if (!isVn) return;
 
   const voice = useUnifiedCall();
   const realtimeStore = useRealtimeStore();
@@ -85,7 +77,7 @@ export function useOverlayPublisher(): void {
   });
 
   const publish = () =>
-    bridge.publishVoiceState({ inVoice: inVoice.value, members: members.value });
+    setHudVoice({ inVoice: inVoice.value, members: members.value });
 
   // `members` recomputes when speaking/mute/membership changes, so a deep watch
   // here covers every overlay-relevant transition.

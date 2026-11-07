@@ -116,6 +116,7 @@
 </template>
 
 <script setup lang="ts">
+import { isDesktop } from "@/lib/platform";
 import { ref, watch, onUnmounted, nextTick } from "vue";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@argon/ui/dialog";
 import { Button } from "@argon/ui/button";
@@ -259,7 +260,7 @@ async function initCheckout() {
   }
 
   try {
-    const isWebview = "windowManagement" in window;
+    const isWebview = isDesktop;
 
     await headlessCheckout.init({
       isWebview,

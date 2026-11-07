@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { Toaster } from "@argon/ui/toast";
+import NativeOverlays from "@/components/overlays/NativeOverlays.vue";
+import { isVn } from "@/lib/vn";
 import { useColorMode, useMagicKeys } from "@vueuse/core";
 import { ref, watch, onMounted, computed } from "vue";
 import Island from "./components/shared/Island.vue";
 import { useSleepWatcher } from "./composables/useSleepWatcher";
 import { useTabLifecycle } from "./composables/useTabLifecycle";
 import { isWeb } from "@/lib/platform";
-import { native } from "@argon/glue/native";
+import { openDevtools } from "@/lib/shell/desktop";
 import IncomingCallOverlay from "./components/calls/IncomingCallOverlay.vue";
 import DiagnosticsOverlay from "./components/overlays/DiagnosticsOverlay.vue";
 import LoadingOverlay from "./components/overlays/LoadingOverlay.vue";
@@ -21,7 +23,6 @@ import CallSystemErrorModal from "./components/modals/CallSystemErrorModal.vue";
 import LegalUpdateGate from "./components/modals/LegalUpdateGate.vue";
 import InvitePreviewModal from "./components/modals/InvitePreviewModal.vue";
 import { initDeepLinks } from "@/lib/deeplink";
-import { initDesktopTaskbar } from "@/lib/desktopTaskbar";
 import { initPowerSaver } from "@/lib/powerSaver";
 import { useTheme } from "@/composables/useTheme";
 import { useOverlayPublisher } from "@/composables/useOverlayPublisher";
@@ -46,7 +47,7 @@ const mode = useColorMode();
 const { applyAppearanceSettings, currentTheme } = useTheme();
 
 // Stream voice-channel state + chat peek + toasts to the native in-game overlay
-// (Electron only; no-op otherwise).
+// (native desktop only).
 useOverlayPublisher();
 useOverlayChatPublisher();
 useOverlayNotificationsPublisher();
@@ -71,7 +72,6 @@ onMounted(() => {
   // A low battery or a running game takes the animations down; see lib/powerSaver.ts.
   initPowerSaver();
   initDeepLinks();
-  initDesktopTaskbar();
   initHotkeyActions();
   // The browser build has no global hotkeys: the radio key is a focused-window key instead.
   initWebRadioKey();
@@ -84,7 +84,7 @@ const altShift7 = keys["Shift+Ctrl+Digit7"];
 
 watch(shiftCtrlA, (_) => {
   // @ts-ignore
-  native.hostProc.toggleDevTools();
+  openDevtools();
 });
 
 watch(altShift7, (v) => {
@@ -114,6 +114,7 @@ watch(() => call.connectError, (err) => {
   <ErrorBoundary>
     <RouterView />
   </ErrorBoundary>
+  <NativeOverlays v-if="isVn" />
   <IncomingCallOverlay />
   <DiagnosticsOverlay v-if="showDiagnostics" />
   <ReconnectOverlay />

@@ -16,18 +16,10 @@
  */
 
 import { isDesktop } from "@/lib/platform";
+import { shell } from "@/lib/shell/host";
 
 export const CLIENT_DESCRIPTOR_HEADER = "X-Argon-Client";
 
-/** What the Electron host reports through the `argonHostInfo` bridge. */
-interface HostInfo {
-  platform: string;
-  arch: string;
-  osName: string;
-  osVersion: string;
-  hostname: string;
-  appVersion: string;
-}
 
 const MAX_VALUE_LENGTH = 64;
 
@@ -41,26 +33,10 @@ export function clientDescriptorHeader(): Promise<string> {
 
 async function build(): Promise<string> {
   if (!isDesktop) return encode(fromNavigator());
-
-  const bridge = (window as any).argonHostInfo as { get(): Promise<HostInfo> } | undefined;
-  const info = await bridge?.get?.();
-
-  if (info) {
-    return encode({
-      platform: platformOf(info.platform),
-      os: info.osName,
-      osv: info.osVersion,
-      app: info.appVersion,
-      device: info.hostname,
-      arch: info.arch,
-    });
-  }
-
-  // An older host without the bridge still exposes its version, and the platform can be read off
-  // the User-Agent the same way the server would.
+  const info = shell.system.info();
   return encode({
-    platform: fromNavigator().platform,
-    app: ((window as any).argon_host_version_full as string | undefined) ?? "",
+    platform: platformOf(info.platform), os: info.osName ?? info.platform,
+    osv: info.osVersion, app: info.appVersion, device: info.hostname, arch: info.osArchitecture,
   });
 }
 

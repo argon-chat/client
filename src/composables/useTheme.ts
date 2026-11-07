@@ -1,6 +1,7 @@
 // Re-export from @argon/theme with app-specific (native host) wiring.
 import { useTheme as useBaseTheme, type ThemeId, accentColors, hexToHSL } from "@argon/theme";
 import { ref } from "vue";
+import { appWindow } from "@/lib/vn/window";
 import { useConfigStore } from "@/store/ui/configStore";
 import { useFeatureFlags, FeatureFlagKeys } from "@/store/features/featureFlagsStore";
 
@@ -10,14 +11,6 @@ export { accentColors, hexToHSL };
 /** Live OS accent color (e.g. "#3b82f6"), or null when unavailable / on web. */
 export const systemAccent = ref<string | null>(null);
 
-type ThemeBridge = {
-  setSource: (source: "dark" | "light" | "system") => Promise<boolean>;
-  getAccent: () => Promise<string | null>;
-  isSystemDark: () => Promise<boolean>;
-  onSystemUpdated: (cb: (data: { dark: boolean; accent: string | null }) => void) => void;
-};
-
-const getBridge = (): ThemeBridge | undefined => (window as any).argonTheme;
 
 let baseInstance: ReturnType<typeof useBaseTheme> | null = null;
 let nativeInited = false;
@@ -41,7 +34,7 @@ function createBase() {
       if (source !== lastSource) {
         lastSource = source;
         try {
-          await getBridge()?.setSource(source);
+          if (appWindow) appWindow.theme = source;
         } catch (e) {
           console.warn("[theme] setSource failed:", e);
         }
@@ -63,28 +56,8 @@ function initNative() {
   if (nativeInited) return;
   nativeInited = true;
 
-  const bridge = getBridge();
-  if (bridge) {
-    // Initial OS accent.
-    bridge
-      .getAccent()
-      .then((hex) => {
-        systemAccent.value = hex;
-        baseInstance?.applyAppearanceSettings();
-      })
-      .catch(() => {});
-
-    // Live OS theme/accent changes — re-resolve "system" theme + accent.
-    bridge.onSystemUpdated((data) => {
-      systemAccent.value = data?.accent ?? null;
-      baseInstance?.applyAppearanceSettings();
-    });
-  } else {
-    // Web fallback: follow OS color scheme for the "system" theme.
-    window
-      .matchMedia?.("(prefers-color-scheme: dark)")
-      ?.addEventListener?.("change", () => baseInstance?.applyAppearanceSettings());
-  }
+  window.matchMedia?.("(prefers-color-scheme: dark)")
+    ?.addEventListener?.("change", () => baseInstance?.applyAppearanceSettings());
 }
 
 export function useTheme() {

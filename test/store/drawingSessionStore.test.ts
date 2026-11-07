@@ -18,6 +18,13 @@ const h = vi.hoisted(() => ({
   ff: null as any,
 }));
 
+vi.mock("@/lib/vn", () => ({ isVn: true }));
+vi.mock("@/lib/shell/overlays", () => ({
+  nativeDrawingAvailable: () => bridge.available,
+  startNativeDrawing: (sourceId: string | null) => bridge.start(sourceId),
+  stopNativeDrawing: () => bridge.stop(),
+  applyNativeStroke: (packet: unknown) => bridge.applyStroke(packet),
+}));
 vi.mock("livekit-client", () => ({ RoomEvent: { DataReceived: "dataReceived" } }));
 vi.mock("@/store/media/unifiedCallStore", () => ({ useUnifiedCall: () => h.call }));
 vi.mock("@/store/auth/meStore", () => ({ useMe: () => ({ me: { userId: "me" } }) }));
@@ -34,7 +41,7 @@ import { PrivacyRuleMode } from "@argon/glue";
 import { DRAW_TOPIC, type DrawPacket } from "@/lib/screencast-draw/types";
 import { useDrawingSession } from "@/store/features/drawingSessionStore";
 
-/** The Electron bridge to the native overlay, as the preload exposes it. */
+/** Native window operations, independent of the LiveKit authorization logic. */
 const bridge = {
   available: true,
   isAvailable: vi.fn(async () => bridge.available),
@@ -42,7 +49,6 @@ const bridge = {
   stop: vi.fn(),
   applyStroke: vi.fn(),
 };
-(window as any).argonScreencastDraw = bridge;
 
 /** A LiveKit room reduced to what the store touches: the data channel, both ways. */
 function fakeRoom() {

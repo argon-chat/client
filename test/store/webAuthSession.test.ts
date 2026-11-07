@@ -15,6 +15,8 @@
  */
 
 import { describe, test, expect, vi, beforeEach } from "vitest";
+// Prepare the fixture graph during collection; resetModules below still gives each test fresh state.
+import "@/store/auth/authStore";
 import { setActivePinia, createPinia } from "pinia";
 
 const API_ENDPOINT = "https://api.test.invalid";

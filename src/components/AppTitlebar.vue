@@ -16,7 +16,8 @@ import LinuxUpdateModal from './modals/LinuxUpdateModal.vue';
 import { Signal } from 'lucide-vue-next';
 import Counter from './motionCounter/Counter.vue';
 import { computedAsync } from '@vueuse/core';
-import { native } from '@argon/glue/native';
+import { openDevtools } from "@/lib/shell/desktop";
+import { appWindow } from "@/lib/vn/window";
 
 const { t } = useLocale();
 const route = useRoute();
@@ -33,6 +34,8 @@ const voice = useUnifiedCall();
 const runtimeErrorCount = ref(0);
 const hasRuntimeErrors = computed(() => runtimeErrorCount.value > 0);
 
+const onMaximized = () => { isMaximized.value = true; };
+const onUnmaximized = () => { isMaximized.value = false; };
 function onRuntimeError() {
   runtimeErrorCount.value++;
 }
@@ -43,19 +46,21 @@ onMounted(() => {
 
   // Sync the maximize/restore icon with the real window state: initial value
   // (covers a restored-maximized launch) + OS-driven changes (snap, double-click).
-  const wm = window.windowManagement;
-  wm?.isMaximized().then((v) => (isMaximized.value = v));
-  wm?.onMaximizeChange((v) => (isMaximized.value = v));
+  isMaximized.value = appWindow?.isMaximized() ?? false;
+  appWindow?.addEventListener("maximize", onMaximized);
+  appWindow?.addEventListener("unmaximize", onUnmaximized);
 });
 
 onBeforeUnmount(() => {
+  appWindow?.removeEventListener('maximize', onMaximized);
+  appWindow?.removeEventListener('unmaximize', onUnmaximized);
   window.removeEventListener('error', onRuntimeError);
   window.removeEventListener('unhandledrejection', onRuntimeError);
 });
 
 function openDevTools() {
   // @ts-ignore
-  native.hostProc.toggleDevTools();
+  openDevtools();
 }
 
 const isVoiceConnected = computed(() => voice.isConnected);
@@ -110,15 +115,15 @@ function goHome() {
 }
 
 const windowMinimize = () => {
-  window.windowManagement?.minimize?.();
+  appWindow?.minimize();
 };
 const windowMaximize = async () => {
-  window.windowManagement?.maximize?.();
+  appWindow?.toggleMaximize();
   // @ts-ignore
-  isMaximized.value = await window.windowManagement.isMaximized();
+  isMaximized.value = appWindow?.isMaximized() ?? false;
 };
 const windowClose = () => {
-  window.windowManagement?.close?.();
+  appWindow?.close();
 };
 
 // Frameless Windows/Linux don't auto-maximize on titlebar double-click — do it

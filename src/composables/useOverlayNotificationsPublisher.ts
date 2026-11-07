@@ -1,14 +1,15 @@
 /**
  * Emits transient toasts to the in-game overlay (notifications widget) for
  * overlay-relevant events: someone joining your voice channel, an @mention, a
- * recording starting, an incoming DM, and friend requests. No-op outside Electron
- * / in the overlay window / when the overlay feature flag is off.
+ * recording starting, an incoming DM, and friend requests. Native desktop only, behind the overlay feature flag.
  *
  * Note: a spam-free "friend came online" toast needs a friends×presence join that
  * the client doesn't expose today — friend-request events stand in for the social
  * signal until that lands.
  */
 import { usePoolStore } from "@/store/data/poolStore";
+import { isVn } from "@/lib/vn";
+import { pushHudNotification } from "@/lib/shell/overlays";
 import { useBus } from "@/store/realtime/busStore";
 import { useUnifiedCall } from "@/store/media/unifiedCallStore";
 import { useMe } from "@/store/auth/meStore";
@@ -19,8 +20,7 @@ let counter = 0;
 const nextId = () => `n${++counter}`;
 
 export function useOverlayNotificationsPublisher(): void {
-  const bridge = (globalThis as any).argonOverlay;
-  if (!bridge?.publishOverlayNotification || bridge?.isOverlayWindow) return;
+  if (!isVn) return;
 
   const pool = usePoolStore();
   const bus = useBus();
@@ -31,7 +31,7 @@ export function useOverlayNotificationsPublisher(): void {
   const emit = (kind: OverlayNotificationKind, title: string, body?: string) => {
     if (!featureFlags.overlayGamesEnabled) return;
     const n: OverlayNotification = { id: nextId(), kind, title, body };
-    bridge.publishOverlayNotification(n);
+    pushHudNotification(n);
   };
 
   const nameOf = async (userId: string): Promise<string> => {

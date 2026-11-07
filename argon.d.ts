@@ -1,28 +1,7 @@
-import type { INativeEvent, PinnedFn } from "@/lib/glue/argon.ipc";
-
+import type { ArgonShell } from "./src/lib/shell/host";
 export {};
-
 declare global {
-  interface IArgon {
-    get isArgonHost(): boolean;
-    get isArgonHost_MacOs(): boolean;
-    get isArgonHost_Windows(): boolean;
-    get isArgonHost_Mobile(): boolean;
-
-    on<T extends INativeEvent>(
-      key: T["UnionKey"],
-      callback: (event: T) => void
-    ): PinnedFn;
-  }
-
-  var argon: IArgon;
-
-  interface AbiEv {
-    bytes: ArrayBuffer | Uint8Array;
-    idx: number;
-  }
-
-  interface WindowEventMap {
-    native_abi: CustomEvent<AbiEv>;
-  }
+  /** Bound directly by the native application before the client starts. Absent on the web. */
+  var argon: ArgonShell;
+  interface Window { argon: ArgonShell }
 }

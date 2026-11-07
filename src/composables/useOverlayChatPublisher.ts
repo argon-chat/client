@@ -1,10 +1,12 @@
 /**
  * Publishes a rolling buffer of the active text channel's most-recent messages to
  * the in-game overlay (chat-peek widget). Live messages only — fills as messages
- * arrive while you're in-game. No-op outside Electron / in the overlay window /
- * when the overlay feature flag is off.
+ * arrive while you're in-game. Native desktop only;
+ * disabled when the overlay feature flag is off.
  */
 import { watch } from "vue";
+import { isVn } from "@/lib/vn";
+import { setHudChat } from "@/lib/shell/overlays";
 import { usePoolStore } from "@/store/data/poolStore";
 import { useChannelStore } from "@/store/data/channelStore";
 import { useUserColors } from "@/store/chat/userColors";
@@ -13,8 +15,7 @@ import { useFeatureFlags } from "@/store/features/featureFlagsStore";
 const MAX = 10;
 
 export function useOverlayChatPublisher(): void {
-  const bridge = (globalThis as any).argonOverlay;
-  if (!bridge?.publishChatPeek || bridge?.isOverlayWindow) return;
+  if (!isVn) return;
 
   const pool = usePoolStore();
   const channels = useChannelStore();
@@ -23,7 +24,7 @@ export function useOverlayChatPublisher(): void {
 
   let buffer: { id: string; author: string; authorColor: string; text: string }[] = [];
 
-  const flush = () => bridge.publishChatPeek(buffer.slice());
+  const flush = () => setHudChat(buffer.slice());
 
   pool.onNewMessageReceived.subscribe(async (msg: any) => {
     if (!featureFlags.overlayGamesEnabled) return;

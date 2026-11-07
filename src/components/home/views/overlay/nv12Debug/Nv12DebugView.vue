@@ -297,7 +297,6 @@ import {
     AlertCircle,
     Monitor
 } from 'lucide-vue-next'
-import { native } from '@argon/glue'
 
 // Monitor configuration
 const displayIndex = ref(0)
@@ -346,37 +345,8 @@ interface LogEvent {
 const eventLog = ref<LogEvent[]>([])
 
 async function initializeMonitor() {
-    if (isInitializing.value || isStreaming.value) return
-
-    try {
-        isInitializing.value = true
-        lastError.value = ''
-        logEvent('Monitor', `Initializing display ${displayIndex.value} (${textureWidth.value}x${textureHeight.value})`)
-
-        // Call native method to start shared texture streaming
-        // @ts-ignore
-        const generatedStreamId = await native.hostProc.startSharedTextureWithStreamingByMonitor(
-            displayIndex.value,
-            textureWidth.value,
-            textureHeight.value
-        )
-
-        if (!generatedStreamId) {
-            throw new Error('Failed to get stream ID from host')
-        }
-
-        streamId.value = generatedStreamId
-        logEvent('Monitor', `Stream ID received: ${generatedStreamId}`)
-        logEvent('Success', 'Monitor initialized successfully')
-
-    } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error)
-        lastError.value = errorMsg
-        logEvent('Error', `Monitor init failed: ${errorMsg}`)
-        console.error('[Nv12DebugView] Monitor initialization error:', error)
-    } finally {
-        isInitializing.value = false
-    }
+    lastError.value = "Shared-texture diagnostics are unavailable";
+    logEvent("Monitor", lastError.value);
 }
 
 async function startStreaming() {

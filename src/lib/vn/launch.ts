@@ -1,13 +1,4 @@
-/**
- * `argon://` links under vue-native: its Launch Handler API, `launchQueue`, in place of Electron's
- * `argonDeepLink` bridge. This process's own launch is delivered first (buffered until a consumer is
- * set), then each launch a second process forwards to this one (vue-native docs/LAUNCH.md §1).
- * vue-native's research/reports/m26/client-gap.md §4, "launchQueue URLs → handleDeepLink"
- * (client-gap/A-webapi.md #94).
- *
- * A link is untrusted input, like any argv: only its string goes on, and handleDeepLink accepts
- * nothing but the routes it knows.
- */
+/** The SDK launch queue delivers the initial and subsequent OS protocol activations. */
 
 interface LaunchQueueLike {
   setConsumer(consumer: (params: { targetURL?: string | null }) => void): void;

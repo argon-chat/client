@@ -6,6 +6,8 @@
 
 import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
 import { nextTick } from "vue";
+// Prepare the fixture graph during collection; load() still sets OS preferences before each fresh module.
+import "@/lib/expressions/settings";
 
 type Settings = typeof import("@/lib/expressions/settings");
 

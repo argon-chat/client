@@ -14,6 +14,8 @@
  * sitting in IndexedDB that would have kept them in. That is the bug this pins.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
+// Prepare the fixture graph during collection; resetModules below still gives each test fresh state.
+import "@/lib/net/sessionRecovery";
 import { setActivePinia, createPinia } from "pinia";
 
 const stubs = vi.hoisted(() => ({

@@ -28,20 +28,11 @@ const h = vi.hoisted(() => ({
   failNextIdleRead: false,
 }));
 
-vi.mock("@argon/glue/native", () => ({
-  native: {
-    hostProc: {
-      getIdleTimeSeconds: async () => {
-        if (h.failNextIdleRead) {
-          h.failNextIdleRead = false;
-          throw new Error("host not ready");
-        }
-        return h.idleSeconds;
-      },
-    },
-  },
-  argon: { isArgonHost: true },
-}));
+vi.mock("@/lib/platform", () => ({ isDesktop: true }));
+vi.mock("@/lib/shell/desktop", () => ({ idleSeconds: async () => {
+  if (h.failNextIdleRead) { h.failNextIdleRead = false; throw new Error("host not ready"); }
+  return h.idleSeconds;
+} }));
 
 vi.mock("@/store/auth/meStore", () => ({
   useMe: () => ({
@@ -88,7 +79,6 @@ describe("idle auto-away", () => {
     h.failNextIdleRead = false;
     speaking.clear();
     // The store branches on the host bridge; the desktop build is the one that has an idle timer.
-    vi.stubGlobal("argon", { isArgonHost: true });
     vi.stubGlobal("console", { ...console, log() {}, warn() {} });
     setActivePinia(createPinia());
   });

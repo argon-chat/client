@@ -14,7 +14,8 @@
 
 import { logger } from "@argon/core";
 import { isDesktop } from "@/lib/platform";
-import { SecNative } from "@/lib/native/argon-native.g";
+import { isVn } from "@/lib/vn";
+import { shell } from "@/lib/shell/host";
 
 /** A TPM that has stopped answering must not hold sign-in hostage. */
 const PROOF_TIMEOUT_MS = 5_000;
@@ -24,7 +25,7 @@ export async function makeDeviceProof(): Promise<string | null> {
 
   try {
     const proof = await Promise.race([
-      SecNative.makeDeviceProof(),
+      isVn ? (shell.security?.deviceProof?.() ?? Promise.resolve(null)) : Promise.resolve(null),
       new Promise<null>((resolve) => setTimeout(() => resolve(null), PROOF_TIMEOUT_MS)),
     ]);
 

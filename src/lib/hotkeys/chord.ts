@@ -9,7 +9,7 @@
  */
 
 export interface HotkeyButton {
-  /** 0 keyboard, 1 mouse (HostProc.ion HotkeyDevice). */
+  /** 0 keyboard, 1 mouse. */
   device: number;
   code: number;
 }

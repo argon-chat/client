@@ -1,11 +1,11 @@
 import { Guid } from "@argon-chat/ion.webcore";
 import { logger } from "@argon/core";
-import { useInstance } from "@/store/system/instanceStore";
 import { useConfig } from "@/store/system/remoteConfig";
 import { isWeb } from "@/lib/platform";
 import { clearMediaCache, mediaCacheStats } from "@/lib/webMediaCache";
 import { cdnCacheEnabled } from "@/store/system/cdnCache";
 import { isVn } from "@/lib/vn";
+import { shell } from "@/lib/shell/host";
 
 export type GroupReport = {
   name: string;
@@ -21,9 +21,6 @@ export type StorageUsageReport = {
   groups: GroupReport[];
 };
 
-// vue-native is not this "native": it has no `app://cdn` (that scheme only existed for Electron's
-// cache) and no Electron IPC, so files go over plain https. client-gap.md §4, "files and avatars".
-const isNative = typeof window !== "undefined" && "argonIpc" in window && !isVn;
 
 /**
  * Every file (avatar / banner / attachment) resolves to a single region-agnostic, by-fileId URL on
@@ -50,15 +47,6 @@ export function cdnUrl(fileId: string, _spaceId: Guid | null = null): string {
   // not something kept from an earlier one. See `cdnCacheEnabled`.
   if (!cdnCacheEnabled.value) return full;
 
-  const inst = useInstance();
-  // Official native → the dedicated app://cdn cache (Electron resolves it against the official API
-  // file-redirect and caches the resolved bytes under a stable, region-independent key).
-  if (isNative && inst.isOfficial)
-    return `app://cdn/${fileId}`;
-  // Self-hosted/managed native → cache locally against THIS instance's API via the generic
-  // app://cdn-proxy interceptor (cache key is the stable api URL, so no region poisoning).
-  if (isNative)
-    return `app://cdn-proxy/${encodeURIComponent(full)}`;
   return full;
 }
 
@@ -102,13 +90,9 @@ export async function getStorageUsageReport(): Promise<StorageUsageReport> {
   // Native: walk the real userData footprint (cdn-cache + HTTP cache + IndexedDB
   // + service worker + shaders…). navigator.storage.estimate() can't see most of
   // these, so on desktop it badly undercounts — we replace it entirely.
-  if (isNative) {
+  if (isVn && shell.system.storage) {
     try {
-      const res = (await (window as any).argonIpc.invoke(
-        "Storage",
-        "breakdown",
-        [],
-      )) as StorageBreakdown;
+      const res = shell.system.storage.usage();
 
       const total = res.categories.reduce((s, c) => s + (c.bytes || 0), 0);
       const groups: GroupReport[] = res.categories.map((c) => ({
@@ -188,17 +172,17 @@ export const pruneStorageCategory = async (category: string) => {
     try { await clearMediaCache(); } catch (e) { logger.error(e); }
     return;
   }
-  if (!isNative) return;
+  if (!isVn || !shell.system.storage) return;
   try {
-    await (window as any).argonIpc.invoke("Storage", "clear", [category]);
+    await shell.system.storage.clear(category);
   } catch (e) {
     logger.error(e);
   }
 };
 
 export const pruneCache = async () => {
-  if (isNative) {
-    try { await (window as any).argonIpc.invoke("CdnCache", "clear", []); } catch (e) { logger.error(e); }
+  if (isVn && shell.system.storage) {
+    try { await shell.system.storage.clear("mediaCache"); } catch (e) { logger.error(e); }
   }
   // The web's equivalent of that on-disk cdn cache: a bucket the service worker owns, which the
   // page cannot reach directly.

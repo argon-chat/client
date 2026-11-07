@@ -614,7 +614,8 @@ import {
 } from "@/composables/useUltrawide";
 import { splitTrigger, splitFeatureEnabled } from "@/composables/useSplitView";
 import { useFeatureFlags, FeatureFlagKeys } from "@/store/features/featureFlagsStore";
-import { native } from "@argon/glue/native";
+import { setWindowMaterial } from "@/lib/shell/desktop";
+import { isDesktop } from "@/lib/platform";
 import { useConfigStore } from "@/store/ui/configStore";
 import { supports } from "@/lib/platform";
 
@@ -883,12 +884,12 @@ const selectMaterial = async (materialId: string) => {
 };
 
 const applyMaterial = async (materialId: string) => {
-    if (!argon.isArgonHost) return;
+    if (!isDesktop) return;
     const mat = isOled.value ? 'solid' : materialId;
     const nativeMat = mat === 'solid' ? 'none' : mat; // 'none' for Electron's backgroundMaterial
     try {
         //@ts-ignore
-        await native.hostProc.setWindowMaterial(nativeMat);
+        await setWindowMaterial(nativeMat);
         await configStore.setWindowMaterial(mat);
     } catch (e) {
         console.warn('Failed to set window material:', e);

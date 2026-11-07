@@ -1,3 +1,4 @@
+import { titlebarOverride } from "@/lib/shell/titlebar";
 import { createRouter, createMemoryHistory } from "vue-router";
 import LoginPage from "../views/AuthPage.vue";
 import MasterView from "../views/MasterView.vue";
@@ -141,7 +142,7 @@ const __navTargets = {
 const __nav: Record<string, unknown> = {
   router,
   titlebar(on = true) {
-    window.devolution_titlebar = on ? 0x1 : 0x0;
+    titlebarOverride.value = on;
     // force re-eval of the shell's titlebar computed via a no-op re-nav
     return router.replace(router.currentRoute.value.fullPath);
   },

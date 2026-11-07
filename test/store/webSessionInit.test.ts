@@ -14,6 +14,8 @@
  */
 
 import { describe, test, expect, vi, beforeEach } from "vitest";
+// Prepare the fixture graph during collection; resetModules below still gives each test fresh state.
+import "@/store/auth/meStore";
 import { setActivePinia, createPinia } from "pinia";
 import { IonRequestException } from "@argon-chat/ion.webcore";
 

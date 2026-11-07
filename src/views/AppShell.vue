@@ -38,7 +38,8 @@ import { consumeSwitchFailure } from "@/store/auth/accountsStore";
 import { Loader2Icon } from "lucide-vue-next";
 import router from "@/router";
 import { useRoute } from "vue-router";
-import { isWeb } from "@/lib/platform";
+import { isWeb, isDesktop } from "@/lib/platform";
+import { titlebarOverride } from "@/lib/shell/titlebar";
 
 const { t } = useLocale();
 const { toast } = useToast();
@@ -61,7 +62,7 @@ const route = useRoute();
 // what drags, minimises and closes it. Take it off the login screen there and the window cannot be
 // moved or shut until somebody signs in.
 const showTitlebar = computed(() =>
-  window.devolution_titlebar === 0x1 || (isWeb && route.name !== "Login"));
+  titlebarOverride.value ?? (isDesktop || (isWeb && route.name !== "Login")));
 
 // Shell mounts once at app start — boot the app here (replaces the old Entry view).
 onMounted(() => {

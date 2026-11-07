@@ -1,8 +1,8 @@
 import { defineStore } from "pinia";
+import { isVn } from "@/lib/vn";
 import { ref, computed, shallowRef, triggerRef, watch } from "vue";
 import { logger } from "@argon/core";
-import { native } from "@argon/glue/native";
-import { renderOverlayBadge } from "@/lib/taskbarBadge";
+import { shell } from "@/lib/shell/host";
 import { useApi } from "@/store/system/apiStore";
 import { useBus } from "@/store/realtime/busStore";
 import { useMe } from "@/store/auth/meStore";
@@ -145,21 +145,9 @@ export const useNotificationStore = defineStore("notifications", () => {
   watch(
     [hasAnyUnread, pingCount],
     ([has, pings]) => {
-      if (!argon?.isArgonHost) return;
+      if (!isVn || !shell.system.notifications) return;
       try {
-        // @ts-ignore — dynamic HostProc RPC method
-        native?.hostProc.setTrayNotificationIndicator(has);
-
-        if (navigator.userAgent.includes("Win")) {
-          const icon = renderOverlayBadge(pings, has);
-          const desc = pings > 0 ? `${pings} new` : has ? "New" : "";
-          // @ts-ignore — dynamic HostProc RPC method
-          native?.hostProc.setOverlayBadge(icon, desc, pings);
-        } else {
-          // macOS dock / Linux Unity badge — count only (no overlay image).
-          // @ts-ignore — dynamic HostProc RPC method
-          native?.hostProc.setOverlayBadge(null, "", pings);
-        }
+        shell.system.notifications.setUnread({ unread: has, count: pings });
       } catch (e) {
         logger.error("[NotificationStore] Failed to update tray/taskbar badge:", e);
       }
@@ -170,10 +158,9 @@ export const useNotificationStore = defineStore("notifications", () => {
   // Pulse the taskbar button (Windows) / bounce the dock (macOS) on a real ping when the window
   // isn't focused — the host decides whether to actually flash based on focus.
   function flashForAttention() {
-    if (!argon?.isArgonHost) return;
+    if (!isVn || !shell.system.notifications) return;
     try {
-      // @ts-ignore — dynamic HostProc RPC method
-      native?.hostProc.flashTaskbar();
+      shell.system.notifications.requestAttention();
     } catch (e) {
       logger.error("[NotificationStore] Failed to flash taskbar:", e);
     }

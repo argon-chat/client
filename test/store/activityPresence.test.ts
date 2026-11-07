@@ -55,6 +55,11 @@ const bus = vi.hoisted(() => {
   };
 });
 
+vi.mock("@/lib/vn", () => ({ isVn: true }));
+vi.mock("@/lib/shell/host", () => ({ shell: { presence: { onChanged: (handler: (data: unknown) => void) => {
+  announce = handler as (presence: HostPresence) => void;
+  return () => {};
+} } } }));
 vi.mock("@argon/core", () => ({
   logger: { log() {}, debug() {}, info() {}, warn() {}, error() {} },
 }));
@@ -108,12 +113,6 @@ beforeEach(() => {
   stubs.remove.mockResolvedValue(undefined);
   setActivePinia(createPinia());
 
-  vi.stubGlobal("argon", { isArgonHost: true });
-  (window as unknown as { argonIpc: unknown }).argonIpc = {
-    onPresenceUpdate: (handler: (data: unknown) => void) => {
-      announce = handler as (presence: HostPresence) => void;
-    },
-  };
 });
 
 afterEach(() => {

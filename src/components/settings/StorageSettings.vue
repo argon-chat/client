@@ -158,7 +158,8 @@ import { cdnCacheEnabled } from "@/store/system/cdnCache";
 import { useConfigStore } from "@/store/ui/configStore";
 import { useConfig } from "@/store/system/remoteConfig";
 import { Switch } from "@argon/ui/switch";
-import { native } from "@argon/glue/native";
+import { isVn } from "@/lib/vn";
+import { shell } from "@/lib/shell/host";
 import {
     HardDriveIcon,
     DatabaseIcon,
@@ -282,12 +283,12 @@ const onWipeAll = async () => {
 onMounted(async () => {
     usageReport.value = await getStorageUsageReport();
 
-    if (argon.isArgonHost) {
+    if (isVn && shell.system.storage) {
         try {
             // @ts-ignore
-            const space = await native.hostProc.getStorageSpace();
-            diskTotal.value = +space.totalSize || 0;
-            diskFree.value = +space.availableFreeSpace || 0;
+            const space = shell.system.storage.diskSpace();
+            diskTotal.value = +space.totalBytes || 0;
+            diskFree.value = +space.freeBytes || 0;
         } catch { /* disk context is optional */ }
     }
 });
