@@ -1,6 +1,12 @@
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, test, vi } from "vitest";
 import type { NativeHotkeyBinding } from "@/lib/shell/host";
 vi.mock("@/lib/vn", () => ({ isVn: true }));
+// Cold transforms can exceed a test's timeout when all projects run together. Prepare the graph
+// separately, then reset it so each test still captures its own native service stub.
+beforeAll(async () => {
+  await import("@/store/ui/hotKeyStore");
+  vi.resetModules();
+}, 60_000);
 afterEach(() => { vi.unstubAllGlobals(); vi.resetModules(); });
 describe("direct native hotkeys", () => {
   test("passes stored VK/raw chords directly and turns native release events into UI actions", async () => {
