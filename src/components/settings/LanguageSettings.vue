@@ -21,7 +21,10 @@
                     @click="canSelect(language) && selectLanguage(language.code)"
                 >
                     <div class="flex items-center gap-3 flex-1">
-                        <span class="language-emoji" v-html="language.emoji"></span>
+                        <span class="language-emoji" aria-hidden="true">
+                            <img v-if="language.flagUrl" :src="language.flagUrl" class="language-flag" alt="" />
+                            <EmojiText v-else :text="language.emoji ?? ''" />
+                        </span>
                         <div class="flex-1">
                             <div 
                                 class="text-sm font-medium" 
@@ -45,6 +48,7 @@
 import { RadioGroup, RadioGroupItem } from "@argon/ui/radio-group";
 import { useLocale } from "@/store/system/localeStore";
 import { availableLanguages } from "@/lib/languages";
+import EmojiText from "@/components/chats/EmojiText";
 import { useLanguageSelection } from "@/composables/useLanguageSelection";
 import { LanguagesIcon } from "lucide-vue-next";
 import { ref, watch } from "vue";
@@ -90,7 +94,13 @@ watch(locale, (newLocale) => {
 }
 
 .language-emoji {
-    @apply text-2xl transition-transform duration-200;
+    @apply inline-flex items-center text-2xl transition-transform duration-200;
+}
+
+.language-flag {
+    width: 25px;
+    height: 23px;
+    object-fit: contain;
 }
 
 .language-item:hover .language-emoji {

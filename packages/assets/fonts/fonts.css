@@ -1,3 +1,12 @@
+/* VT323 (Peter Hull, OFL 1.1) — the terminal's declared monospace face. */
+@font-face {
+  font-family: 'VT323';
+  src: url('./VT323/VT323-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 /*
  * Alcarin Tengwar (Toshi Omagari, OFL 1.1) — the en_tengwar locale. Its strings are Private Use Area
  * code points, so the face is limited to that range: it sits in every font stack, is fetched only once

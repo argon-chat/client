@@ -1,0 +1,6 @@
+VT323 Regular, version 2.000
+Source: https://github.com/google/fonts/tree/eb8781e516576b414603df8cd267c0f21c9b4ee2/ofl/vt323
+Upstream commit: eb8781e516576b414603df8cd267c0f21c9b4ee2
+File: VT323-Regular.ttf
+SHA256: cf4de751ada78ceac033dbe16a687742939995b77bc2a052ae17a4957958594d
+License: SIL Open Font License 1.1 (OFL.txt)
