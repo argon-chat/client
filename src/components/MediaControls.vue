@@ -105,10 +105,10 @@
                     </PopoverTrigger>
                     <PopoverContent side="top" align="end" class="ctrl-popover">
                         <!-- System / desktop audio -->
-                        <button class="device-row" :class="{ active: voice.systemAudioEnabled }" @click="toggleSystemAudio">
+                        <button class="device-row" :class="{ active: voice.systemAudioEnabled }" :title="shareAudioHint" data-control="share-audio" @click="toggleSystemAudio">
                             <Volume2 v-if="voice.systemAudioEnabled" class="w-3.5 h-3.5 shrink-0 icon-appear" />
                             <VolumeX v-else class="w-3.5 h-3.5 shrink-0 icon-appear" />
-                            <span class="device-name">{{ t('system_audio') }}</span>
+                            <span class="device-name">{{ applicationAudio ? t('application_audio') : t('system_audio') }}</span>
                             <Check v-if="voice.systemAudioEnabled" class="w-3.5 h-3.5 ml-auto shrink-0" />
                         </button>
 
@@ -185,32 +185,32 @@
                 <button
                     class="ctrl-btn icon-motion icon-motion--lift"
                     :class="{ 'ctrl-btn--active': voice.isCameraOn, 'ctrl-btn--forbidden': !canVideo }"
-                    :aria-disabled="!canVideo || undefined"
-                    :title="canVideo ? undefined : t('voice_no_video_permission')"
+                    :aria-disabled="(!canVideo || (!voice.isCameraOn && voice.cameraUnavailable)) || undefined"
+                    :title="voice.cameraUnavailable && !voice.isCameraOn ? t('no_cameras_found') : canVideo ? undefined : t('voice_no_video_permission')"
                     data-control="camera"
                     @click="toggleCamera"
-                    :disabled="!isConnected">
+                    :disabled="!isConnected || (!voice.isCameraOn && voice.cameraUnavailable)">
                     <CameraOff v-if="voice.isCameraOn" class="w-[18px] h-[18px] icon-appear" />
                     <CameraIcon v-else class="w-[18px] h-[18px] icon-appear" />
                     <LockIcon v-if="!canVideo" class="ctrl-lock-badge" />
                 </button>
                 <Popover v-model:open="cam.open">
                     <PopoverTrigger as-child>
-                        <button class="ctrl-chevron icon-motion icon-motion--pop" :title="t('switch_camera')" :disabled="!isConnected">
+                        <button class="ctrl-chevron icon-motion icon-motion--pop" :title="voice.cameraUnavailable ? t('no_cameras_found') : t('switch_camera')" :disabled="!isConnected || voice.cameraUnavailable">
                             <ChevronUp class="w-3 h-3" />
                         </button>
                     </PopoverTrigger>
                     <PopoverContent side="top" align="end" class="ctrl-popover">
                         <div class="ctrl-popover-title">{{ t('camera') }}</div>
                         <div v-if="cam.devices.length === 0" class="device-row device-row--empty">
-                            {{ cam.loaded ? t('no_cameras_found') : t('loading') }}
+                            {{ cam.error || (cam.loaded ? t('no_cameras_found') : t('loading')) }}
                         </div>
                         <button
                             v-for="d in cam.devices"
                             :key="d.deviceId"
                             class="device-row"
                             :class="{ active: d.deviceId === activeCamId }"
-                            :disabled="cam.switching"
+                            :disabled="cam.switching || voice.cameraUnavailable"
                             @click="cam.pick(d.deviceId)">
                             <CameraIcon class="w-3.5 h-3.5 shrink-0" />
                             <span class="device-name">{{ d.label || t('camera') }}</span>
@@ -287,6 +287,7 @@ const toggleMic = () => {
 
 // Turning it off is always allowed: the right may have been taken away while it was on.
 const toggleCamera = () => {
+    if (!voice.isCameraOn && voice.cameraUnavailable) return;
     if (!voice.isCameraOn && !canVideo.value) return;
     voice.toggleCamera();
 };
@@ -353,6 +354,8 @@ async function toggleSystemAudio() {
 // --- Screen-share options menu ---
 const shareMenuOpen = ref(false);
 const currentQualityWidth = computed(() => voice.lastShareOpts?.width);
+const applicationAudio = computed(() => voice.lastShareOpts?.deviceId?.startsWith("window:") === true);
+const shareAudioHint = computed(() => applicationAudio.value ? t("screencast_window_audio_description") : t("screencast_system_audio_description"));
 
 const changeSource = () => {
     shareMenuOpen.value = false;
@@ -379,7 +382,10 @@ const speakers = useDeviceMenu("audiooutput", (id) => audio.setOutputDevice(id))
 const activeSpeakerId = computed(() => audio.getOutputDevice().value);
 
 // The camera goes through the call store so a live track is swapped, not just the preference.
-const cam = useDeviceMenu("videoinput", (id) => voice.switchCamera(id));
+const cam = useDeviceMenu("videoinput", (id) => voice.switchCamera(id), async () => {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    return devices.filter((device) => device.kind === "videoinput");
+});
 const activeCamId = computed(() => pref.defaultVideoDevice);
 </script>
 

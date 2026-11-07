@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import { persistedValue } from "@argon/storage";
+import { onScopeDispose } from "vue";
 import { createCallManager, type CallManagerConfig } from "@argon/calls";
 
 import { audio } from "@/lib/audio/AudioManager";
@@ -86,5 +87,7 @@ export const useUnifiedCall = defineStore("unifiedCall", () => {
     },
   };
 
-  return createCallManager(config);
+  const manager = createCallManager(config);
+  onScopeDispose(() => { void manager.dispose(); });
+  return manager;
 });

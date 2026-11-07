@@ -19,6 +19,7 @@ export type CallMode = "none" | "dm" | "channel";
 
 export interface ScreenShareOpts {
   deviceId: string | null;
+  /** Whole screen: other applications' audio. Window: only that window's application audio. */
   systemAudio: "include" | "exclude";
   width?: number;
   height?: number;

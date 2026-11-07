@@ -53,3 +53,5 @@ public/games/*/bundle.js.map
 __screenshots__/
 
 dist-capture/
+dist-media-fixes/
+dist-window-audio/

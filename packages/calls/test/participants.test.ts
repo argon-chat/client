@@ -504,6 +504,40 @@ describe("screen sharing", () => {
     expect(calls.isSharing.value).toBe(true);
   });
 
+  test("turning system audio on re-captures the selected source and publishes the new audio", async () => {
+    const { calls, room, config } = await joined();
+    await calls.startScreenShare({ deviceId: "screen:1", systemAudio: "exclude" });
+    await calls.toggleSystemAudio();
+    expect(config.selectScreenSource).toHaveBeenLastCalledWith("screen:1", true);
+    expect(room.localParticipant.setScreenShareEnabled).toHaveBeenCalledWith(false);
+    expect(calls.systemAudioEnabled.value).toBe(true);
+    expect(calls.isSharing.value).toBe(true);
+    expect(calls.lastShareOpts.value?.systemAudio).toBe("include");
+  });
+
+  test("switching a share between a window and a screen preserves audio intent and selects the new source", async () => {
+    const { calls, room, config } = await joined();
+    await calls.startScreenShare({ deviceId: "window:42", systemAudio: "include" });
+    await calls.switchScreenShare({ deviceId: "screen:7", systemAudio: "include" });
+    expect(config.selectScreenSource).toHaveBeenNthCalledWith(1, "window:42", true);
+    expect(config.selectScreenSource).toHaveBeenNthCalledWith(2, "screen:7", true);
+    expect(room.localParticipant.unpublishTrack).toHaveBeenCalled();
+    expect(calls.lastShareOpts.value?.deviceId).toBe("screen:7");
+    expect(calls.systemAudioEnabled.value).toBe(true);
+    expect(calls.isSharing.value).toBe(true);
+  });
+
+  test("an ended system audio publication updates the toggle while the video continues", async () => {
+    const { calls, room } = await joined();
+    await calls.startScreenShare({ deviceId: "screen:1", systemAudio: "include" });
+    const publication = await room.localParticipant.publishTrack.mock.results.at(-1).value;
+    const onEnded = publication.once.mock.calls.find(([event]) => event === "ended")[1];
+    onEnded();
+    expect(calls.systemAudioEnabled.value).toBe(false);
+    expect(calls.lastShareOpts.value?.systemAudio).toBe("exclude");
+    expect(calls.isSharing.value).toBe(true);
+  });
+
   test("outside a share the toggle only records the preference", async () => {
     const { calls, room } = await joined();
 
@@ -552,12 +586,98 @@ describe("camera", () => {
     expect(room.localParticipant.publishTrack.mock.calls.length).toBe(after);
   });
 
+  test("concurrent camera starts share one capture and publication while permission or capture is pending", async () => {
+    const { calls, room } = await joined();
+    const md = navigator.mediaDevices as any;
+    let captured!: (stream: unknown) => void;
+    md.getUserMedia = vi.fn(() => new Promise((resolve) => { captured = resolve; }));
+    const before = room.localParticipant.publishTrack.mock.calls.length;
+    const first = calls.startCamera("cam-1");
+    const second = calls.startCamera("cam-1");
+    expect(second).toBe(first);
+    await vi.waitFor(() => expect(md.getUserMedia).toHaveBeenCalledTimes(1));
+    const track = fakeTrack("video");
+    captured({ getVideoTracks: () => [track], getAudioTracks: () => [], getTracks: () => [track] });
+    await Promise.all([first, second]);
+    expect(room.localParticipant.publishTrack.mock.calls.length).toBe(before + 1);
+    expect(calls.isCameraOn.value).toBe(true);
+  });
+
+  test("leaving while capture is pending stops the late camera without publishing it", async () => {
+    const { calls, room } = await joined();
+    const md = navigator.mediaDevices as any;
+    let captured!: (stream: unknown) => void;
+    md.getUserMedia = vi.fn(() => new Promise((resolve) => { captured = resolve; }));
+    const before = room.localParticipant.publishTrack.mock.calls.length;
+    const starting = calls.startCamera("cam-1");
+    await vi.waitFor(() => expect(md.getUserMedia).toHaveBeenCalledTimes(1));
+    await calls.leave();
+    const track = fakeTrack("video");
+    track.stop = vi.fn();
+    captured({ getVideoTracks: () => [track], getAudioTracks: () => [], getTracks: () => [track] });
+    await starting;
+    expect(track.stop).toHaveBeenCalled();
+    expect(room.localParticipant.publishTrack.mock.calls.length).toBe(before);
+    expect(calls.isCameraOn.value).toBe(false);
+    expect(calls.videoTracks.has("me:camera")).toBe(false);
+  });
+
   test("switching devices remembers the choice for next time", async () => {
     const { calls, config } = await joined();
 
     await calls.switchCamera("cam-2");
 
     expect(config.preference.defaultVideoDevice).toBe("cam-2");
+  });
+
+  test("a confirmed empty hardware list prevents starting capture", async () => {
+    const md = navigator.mediaDevices as any;
+    md.__vnVideoEnumerationAuthoritative = true;
+    md.enumerateDevices = async () => [];
+    const capture = vi.fn(md.getUserMedia);
+    md.getUserMedia = capture;
+    const { calls } = await joined();
+    await calls.startCamera();
+    expect(calls.cameraUnavailable.value).toBe(true);
+    expect(capture).not.toHaveBeenCalled();
+  });
+
+  test("a removed saved camera falls back to the available virtual camera", async () => {
+    const md = navigator.mediaDevices as any;
+    md.__vnVideoEnumerationAuthoritative = true;
+    md.enumerateDevices = async () => [{ deviceId: "obs", kind: "videoinput", label: "OBS Virtual Camera", groupId: "" }];
+    const originalCapture = md.getUserMedia;
+    const requested: unknown[] = [];
+    const capture = vi.fn(async (constraints) => {
+      requested.push(structuredClone(constraints));
+      return originalCapture(constraints);
+    });
+    md.getUserMedia = capture;
+    const config = makeConfig();
+    config.preference.defaultVideoDevice = "removed-camera";
+    const { calls } = await joined(config);
+    capture.mockClear();
+    await calls.startCamera();
+    expect(config.preference.defaultVideoDevice).toBe("obs");
+    expect(JSON.stringify(requested)).toContain("obs");
+    expect(JSON.stringify(requested)).not.toContain("removed-camera");
+    expect(calls.isCameraOn.value).toBe(true);
+  });
+
+  test("permission refusal is not retried on another device or classified as no camera", async () => {
+    const md = navigator.mediaDevices as any;
+    md.__vnVideoEnumerationAuthoritative = true;
+    md.enumerateDevices = async () => [{ deviceId: "obs", kind: "videoinput", label: "OBS Virtual Camera", groupId: "" }];
+    md.getUserMedia = vi.fn(async () => { throw Object.assign(new Error("Camera access denied"), { name: "NotAllowedError" }); });
+    const config = makeConfig();
+    config.preference.defaultVideoDevice = "obs";
+    const { calls } = await joined(config);
+    md.getUserMedia.mockClear();
+    await calls.startCamera();
+    expect(md.getUserMedia).toHaveBeenCalledTimes(1);
+    expect(config.preference.defaultVideoDevice).toBe("obs");
+    expect(calls.cameraUnavailable.value).toBe(false);
+    expect(calls.isCameraOn.value).toBe(false);
   });
 });
 

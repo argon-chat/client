@@ -63,3 +63,4 @@ export type {
   ICallTelemetry,
   CallTelemetryAttributes,
 } from "./types";
+export { createCameraDeviceState } from "./cameraDevices";

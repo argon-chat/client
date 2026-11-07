@@ -45,6 +45,7 @@ import { decodeVoiceState, encodeSelfVoiceState } from "./voiceState";
 import { connectRoom } from "./connectRoom";
 import { CAPABILITIES_ATTR, encodeCapabilities, isValidCapability, parseCapabilities } from "./capabilities";
 import { createMicHold } from "./micHold";
+import { createCameraDeviceState } from "./cameraDevices";
 import type { AudioDeviceError, CallManagerConfig, CallNotice, InterlinkResult, RemoteAudioGraph, ScreenShareOpts } from "./types";
 import { initialRadioState, type RadioState, type RadioUnavailableReason } from "./radio/types";
 import { isRadioIdentity, radioUserId, RADIO_ATTR, RADIO_ON_AIR } from "./radio/identity";
@@ -362,6 +363,10 @@ export function createCallManager(config: CallManagerConfig) {
 
   const isCameraOn = ref(false);
   let cameraTrackPub: any = null;
+  let cameraGeneration = 0;
+  let cameraStart: { room: NonNullable<typeof room.value>; generation: number; promise: Promise<void> } | null = null;
+  const cameraDevicesState = createCameraDeviceState({ onError: (e) => logger.warn("[CALL] Could not enumerate cameras", e) });
+  cameraDevicesState.start();
 
   const isCpuConstrained = ref(false);
   // Whether the live room was created with adaptive streaming on. LiveKit fixes both
@@ -500,6 +505,8 @@ export function createCallManager(config: CallManagerConfig) {
 
   async function leave() {
     logger.info("[CALL] leave()");
+    cameraGeneration++;
+    isConnected.value = false;
     recordCallEnded("leave");
     // The room's listeners go with it below, so its "disconnected" handler will not run: clear the
     // reconnect clock here, or a leave mid-reconnect would time the next call's reconnect from now.
@@ -2057,10 +2064,10 @@ export function createCallManager(config: CallManagerConfig) {
           height: opts.height,
           frameRate: opts.frameRate ?? 30,
         },
-        // restrictOwnAudio keeps this page's own output out of the desktop capture, so the
-        // other participants' voices coming from our speakers aren't echoed back into the
-        // room. Unknown constraint names are dropped where unsupported, and Electron's
-        // loopback path builds the audio track in the main process regardless.
+        // The native host binds audio to the authorized video source: an
+        // application's audio for a window, or other applications' audio for
+        // a screen. The browser constraint also keeps our call out of its mix
+        // where supported; JS never chooses or supplies a process id.
         audio:
           opts.systemAudio === "include"
             ? ({ restrictOwnAudio: true } as unknown as MediaTrackConstraints)
@@ -2105,9 +2112,8 @@ export function createCallManager(config: CallManagerConfig) {
         },
       });
 
-      // Publish the desktop/system audio captured alongside the video. Electron's
-      // display-media handler returns `audio: "loopback"` when system audio is
-      // requested, so the stream carries a real audio track — forward it to the room.
+      // Window/application or screen/system audio accompanies the video as a
+      // separate track, with its own publication and mute state.
       const audioTrack = stream.getAudioTracks()[0];
       if (opts.systemAudio === "include" && audioTrack) {
         const sysAudio = new LocalAudioTrack(audioTrack);
@@ -2117,6 +2123,13 @@ export function createCallManager(config: CallManagerConfig) {
             dtx: false, // keep continuous music/game audio intact (DTX is for speech gaps)
             red: false,
             audioPreset: AudioPresets.musicHighQualityStereo,
+          });
+          const publishedAudio = screenAudioTrackPub;
+          publishedAudio.once("ended", () => {
+            if (screenAudioTrackPub !== publishedAudio) return;
+            screenAudioTrackPub = null;
+            systemAudioEnabled.value = false;
+            if (lastShareOpts.value) lastShareOpts.value = { ...lastShareOpts.value, systemAudio: "exclude" };
           });
         } catch (err) {
           logger.error("[CALL] Failed to publish system audio:", err);
@@ -2193,9 +2206,20 @@ export function createCallManager(config: CallManagerConfig) {
     }
   }
 
-  async function startCamera(deviceId?: string) {
-    if (!room.value) return;
-    if (isCameraOn.value) return;
+  function startCamera(deviceId?: string): Promise<void> {
+    const targetRoom = room.value;
+    if (!targetRoom || !isConnected.value || isCameraOn.value) return Promise.resolve();
+    if (cameraStart?.room === targetRoom && cameraStart.generation === cameraGeneration) return cameraStart.promise;
+    const generation = cameraGeneration;
+    const promise = startCameraInRoom(targetRoom, generation, deviceId).finally(() => {
+      if (cameraStart?.promise === promise) cameraStart = null;
+    });
+    cameraStart = { room: targetRoom, generation, promise };
+    return promise;
+  }
+
+  async function startCameraInRoom(targetRoom: NonNullable<typeof room.value>, generation: number, deviceId?: string) {
+    const current = () => room.value === targetRoom && isConnected.value && cameraGeneration === generation;
     if (!canInCurrentChannel("Video")) {
       logger.warn("[CALL] No Video permission in this channel");
       return;
@@ -2203,19 +2227,34 @@ export function createCallManager(config: CallManagerConfig) {
 
     let cam: LocalVideoTrack | null = null;
     try {
+      await cameraDevicesState.refresh();
+      if (!current() || cameraDevicesState.unavailable.value) return;
       // Prompt for camera access before capturing (macOS native host only — elsewhere a no-op).
       await ensureMediaPermission("camera");
+      if (!current()) return;
 
-      const dev = deviceId || preference.defaultVideoDevice || undefined;
+      const preferred = deviceId || preference.defaultVideoDevice || undefined;
+      const dev = cameraDevicesState.resolveDevice(preferred);
+      if (preferred && preferred !== "default" && dev !== preferred && cameraDevicesState.confirmed.value) preference.defaultVideoDevice = dev || "";
       cam = await createLocalVideoTrack({
-        deviceId: dev,
+        // A string makes the browser SDK retry every capture error with an
+        // ideal device, including permission refusals. We already resolved
+        // stale ids above; an exact constraint preserves the real failure.
+        deviceId: dev ? { exact: dev } : undefined,
         resolution: VideoPresets.h720.resolution,
       });
+      if (!current()) { cam.stop(); return; }
 
       // The room explicitly disables simulcast; VP9 uses L3T3_KEY SVC layers.
-      cameraTrackPub = await room.value.localParticipant.publishTrack(cam, {
+      const publication = await targetRoom.localParticipant.publishTrack(cam, {
         videoEncoding: VideoPresets.h720.encoding,
       });
+      if (!current()) {
+        try { await targetRoom.localParticipant.unpublishTrack(cam, true); }
+        finally { cam.stop(); }
+        return;
+      }
+      cameraTrackPub = publication;
       isCameraOn.value = true;
       cameraStartedAt = performance.now();
       telemetry.count("call.camera.start", { result: "ok", mode: mode.value });
@@ -2224,19 +2263,20 @@ export function createCallManager(config: CallManagerConfig) {
       const localId = me.me!.userId;
       videoTracks.set(videoTrackKey(localId, Track.Source.Camera), cam);
 
-      cameraTrackPub.once("ended", () => stopCamera());
+      publication.once("ended", () => { if (cameraTrackPub === publication) void stopCamera(); });
     } catch (err) {
       logger.error("[CALL] Failed to start camera:", err);
       telemetry.count("call.camera.start", { result: "failed", mode: mode.value, error: errorName(err) });
       // createLocalVideoTrack has already opened the device: a publish that fails after it
       // has to close it again, or the camera LED stays on with nothing behind it.
-      if (cam && !isCameraOn.value) {
+      if (cam && (!current() || !isCameraOn.value)) {
         try { cam.stop(); } catch { /* already stopped */ }
       }
     }
   }
 
   async function stopCamera() {
+    cameraGeneration++;
     if (cameraTrackPub) {
       if (cameraStartedAt !== null) {
         telemetry.distribution("call.camera.duration", (performance.now() - cameraStartedAt) / 1000, "second");
@@ -2963,6 +3003,7 @@ export function createCallManager(config: CallManagerConfig) {
    * subscriptions has to offer a way to release them.
    */
   async function dispose() {
+    cameraDevicesState.dispose();
     await leave();
     stopSharingWatch();
     for (const sub of busSubscriptions) sub.unsubscribe();
@@ -3040,6 +3081,11 @@ export function createCallManager(config: CallManagerConfig) {
 
     isSharing,
     isCameraOn,
+    cameraDevices: cameraDevicesState.devices,
+    cameraDevicesLoaded: cameraDevicesState.loaded,
+    cameraDevicesError: cameraDevicesState.error,
+    cameraUnavailable: cameraDevicesState.unavailable,
+    refreshCameraDevices: cameraDevicesState.refresh,
     systemAudioEnabled,
     lastShareOpts,
 

@@ -106,10 +106,10 @@
                     </div>
                 </div>
 
-                <div class="sp-audio" :class="{ active: includeAudio }" role="button" tabindex="0" @click="includeAudio = !includeAudio">
+                <div class="sp-audio" :class="{ active: includeAudio }" role="button" tabindex="0" :title="audioHint" :aria-label="audioLabel + '. ' + audioHint" @click="includeAudio = !includeAudio">
                     <div class="sp-audio-info">
                         <Volume2 class="w-4 h-4 shrink-0" />
-                        <span class="sp-audio-title">{{ t("enable_system_sound") }}</span>
+                        <span class="sp-audio-title">{{ audioLabel }}</span>
                     </div>
                     <Switch :checked="includeAudio" class="sp-audio-switch" />
                 </div>
@@ -190,6 +190,11 @@ const {
 const currentSources = computed(() =>
     shareTab.value === "screens" ? screenSources.value : windowSources.value,
 );
+const applicationAudio = computed(() => selectedSourceId.value
+    ? selectedSourceId.value.startsWith("window:")
+    : shareTab.value === "windows");
+const audioLabel = computed(() => applicationAudio.value ? t("enable_sound_from_window") : t("enable_system_sound"));
+const audioHint = computed(() => applicationAudio.value ? t("screencast_window_audio_description") : t("screencast_system_audio_description"));
 
 // --- Premium gating ---
 // `premiumEnabled` = whether premium (Ultima) exists in this build at all.

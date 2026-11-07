@@ -17,22 +17,24 @@ export type DeviceMenuKind = "audioinput" | "audiooutput" | "videoinput";
  * preference. Its failure is logged and swallowed here: the button must come back to
  * life either way, and the manager already reports what went wrong.
  */
-export function useDeviceMenu(kind: DeviceMenuKind, apply: (deviceId: string) => Promise<unknown>) {
+export function useDeviceMenu(kind: DeviceMenuKind, apply: (deviceId: string) => Promise<unknown>, readDevices?: () => Promise<MediaDeviceInfo[]>) {
   const devices = ref<MediaDeviceInfo[]>([]);
   // False until the first list arrives, so a slow enumeration reads as loading, not as no devices.
   const loaded = ref(false);
   const open = ref(false);
   const switching = ref(false);
+  const error = ref<string | null>(null);
 
   watch(open, async (isOpen) => {
     if (!isOpen) return;
     try {
-      devices.value = await audio.enumerateDevicesByKind(kind);
+      devices.value = await (readDevices ? readDevices() : audio.enumerateDevicesByKind(kind));
+      loaded.value = true;
+      error.value = null;
     } catch (e) {
       // The list already shown is still the best answer; wiping it emptied the menu.
       logger.warn(`[controls] could not list ${kind} devices`, e);
-    } finally {
-      loaded.value = true;
+      error.value = e instanceof Error ? e.message : String(e);
     }
   });
 
@@ -51,5 +53,5 @@ export function useDeviceMenu(kind: DeviceMenuKind, apply: (deviceId: string) =>
 
   // Reactive so a template can bind `menu.open` with v-model and read `menu.devices`
   // without `.value` — the refs are unwrapped through the proxy.
-  return reactive({ devices, loaded, open, switching, pick });
+  return reactive({ devices, loaded, open, switching, error, pick });
 }

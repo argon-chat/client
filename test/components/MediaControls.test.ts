@@ -54,6 +54,7 @@ const { audio, devicesByKind, sys, voice, callRights, windows } = await vi.hoist
   const voice = reactive({
     isSharing: false,
     isCameraOn: false,
+    cameraUnavailable: false,
     systemAudioEnabled: false,
     lastShareOpts: null as null | Record<string, unknown>,
     adaptiveSettingPending: false,
@@ -183,7 +184,9 @@ beforeEach(() => {
   callRights.canVideo.value = true;
   callRights.canStream.value = true;
   voice.isCameraOn = false;
+  voice.cameraUnavailable = false;
   voice.isSharing = false;
+  voice.lastShareOpts = null;
   voice.microphoneUnavailable = false;
   preference.allowVideoPause = true;
   voice.videoPauseSettingPending = false;
@@ -195,6 +198,19 @@ beforeEach(() => {
 afterEach(() => {
   for (const w of mounted) w.unmount();
   mounted = [];
+});
+
+test("the share audio control describes application audio for windows and system audio for screens", async () => {
+  const w = render();
+  voice.lastShareOpts = { deviceId: "window:42" };
+  await split(w, "share").find(".ctrl-chevron").trigger("click");
+  await nextTick();
+  expect(w.get('[data-control="share-audio"]').text()).toBe("application_audio");
+  expect(w.get('[data-control="share-audio"]').attributes("title")).toBe("screencast_window_audio_description");
+  voice.lastShareOpts = { deviceId: "screen:7" };
+  await nextTick();
+  expect(w.get('[data-control="share-audio"]').text()).toBe("system_audio");
+  expect(w.get('[data-control="share-audio"]').attributes("title")).toBe("screencast_system_audio_description");
 });
 
 // ── Speakers ─────────────────────────────────────────────────────────────────
@@ -373,6 +389,31 @@ describe("when the channel does not grant it", () => {
   const mic = (w: VueWrapper) => w.find('[data-control="microphone"]');
   const camera = (w: VueWrapper) => w.find('[data-control="camera"]');
   const share = (w: VueWrapper) => w.find('[data-control="screen-share"]');
+
+  test("a missing camera stays visible and disabled, and becomes available after hotplug", async () => {
+    voice.cameraUnavailable = true;
+    const w = render();
+    expect(camera(w).exists()).toBe(true);
+    expect(camera(w).attributes("disabled")).toBeDefined();
+    expect(camera(w).attributes("title")).toBe("no_cameras_found");
+    expect(split(w, "camera").find(".ctrl-chevron").attributes("disabled")).toBeDefined();
+    await camera(w).trigger("click");
+    expect(voice.toggleCamera).not.toHaveBeenCalled();
+    voice.cameraUnavailable = false;
+    await nextTick();
+    expect(camera(w).attributes("disabled")).toBeUndefined();
+    await camera(w).trigger("click");
+    expect(voice.toggleCamera).toHaveBeenCalledTimes(1);
+  });
+
+  test("an active camera can still be stopped after its device disappears", async () => {
+    voice.cameraUnavailable = true;
+    voice.isCameraOn = true;
+    const w = render();
+    expect(camera(w).attributes("disabled")).toBeUndefined();
+    await camera(w).trigger("click");
+    expect(voice.toggleCamera).toHaveBeenCalledTimes(1);
+  });
 
   test("without Speak the microphone is locked, says why, and does not toggle", async () => {
     callRights.canSpeak.value = false;

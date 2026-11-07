@@ -293,7 +293,7 @@
             <Select
                 v-model="selectedCamera"
                 @update:modelValue="onCameraChange" 
-                :disabled="videoDevices.length === 0"
+                :disabled="cameraUnavailable"
             >
                 <SelectTrigger class="w-full">
                     <SelectValue :placeholder="t('no_camera_found')" />
@@ -322,8 +322,8 @@
                 </div>
             </Transition>
             
-            <div v-if="!videoActive && videoDevices.length > 0 && !needsCameraPermission" class="mt-4 flex justify-center">
-                <Button @click="startVideoPreview" variant="outline" class="w-full max-w-xs">
+            <div v-if="!videoActive" class="mt-4 flex justify-center">
+                <Button @click="startVideoPreview" variant="outline" class="w-full max-w-xs" :disabled="cameraUnavailable" :title="cameraUnavailable ? t('no_cameras_found') : undefined">
                     <VideoIcon class="w-4 h-4 mr-2" />
                     {{ t("test_camera") }}
                 </Button>
@@ -408,6 +408,7 @@ import {
     ShieldAlertIcon,
 } from "lucide-vue-next";
 import { computed, nextTick, onBeforeUnmount, onMounted, onUnmounted, ref, watch } from "vue";
+import { useCameraDevices } from "@/composables/useCameraDevices";
 import { storeToRefs } from "pinia";
 import { watchArray } from "@vueuse/core";
 import type { Subscription } from "rxjs";
@@ -444,7 +445,9 @@ const selectedMicrophone = ref("");
 const selectedAudioOutput = ref("");
 const selectedCamera = ref("");
 const audioDevices = ref<MediaDeviceInfo[]>([]);
-const videoDevices = ref<MediaDeviceInfo[]>([]);
+const cameraDevicesState = useCameraDevices();
+const videoDevices = cameraDevicesState.devices;
+const cameraUnavailable = cameraDevicesState.unavailable;
 const audioOutputs = ref<MediaDeviceInfo[]>([]);
 
 // Video refs
@@ -609,7 +612,7 @@ watch(isInputVUEnabled, () => {
 // Device list management
 async function refreshDeviceLists() {
     audioDevices.value = await audio.enumerateDevicesByKind("audioinput");
-    videoDevices.value = await audio.enumerateDevicesByKind("videoinput");
+    await cameraDevicesState.refresh();
     audioOutputs.value = await audio.enumerateDevicesByKind("audiooutput");
 }
 
@@ -781,6 +784,9 @@ const playTestSound = async () => {
 // Video preview
 const startVideoPreview = async () => {
     try {
+        await cameraDevicesState.refresh();
+        if (cameraUnavailable.value) return;
+        selectedCamera.value = cameraDevicesState.resolveDevice(selectedCamera.value || preferenceStore.defaultVideoDevice) || "";
         if (!selectedCamera.value && videoDevices.value.length > 0) {
             selectedCamera.value = videoDevices.value[0].deviceId;
         }
@@ -795,7 +801,6 @@ const startVideoPreview = async () => {
 };
 
 const updateVideoStream = async () => {
-    if (!selectedCamera.value) return;
     
     preferenceStore.defaultVideoDevice = selectedCamera.value;
     if (videoStream.value) {
@@ -804,7 +809,7 @@ const updateVideoStream = async () => {
     
     try {
         const constraints: MediaStreamConstraints = {
-            video: selectedCamera.value === 'default' 
+            video: !selectedCamera.value || selectedCamera.value === 'default'
                 ? true 
                 : { deviceId: { exact: selectedCamera.value } }
         };
@@ -817,6 +822,7 @@ const updateVideoStream = async () => {
         }
     } catch (error) {
         logger.error('Error accessing video stream:', error);
+        throw error;
     }
 };
 
@@ -833,7 +839,8 @@ const stopVideoPreview = () => {
 
 const onCameraChange = async () => {
     if (videoActive.value) {
-        await updateVideoStream();
+        try { await updateVideoStream(); }
+        catch { stopVideoPreview(); }
     }
 };
 

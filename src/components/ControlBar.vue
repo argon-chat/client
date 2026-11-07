@@ -42,9 +42,9 @@
             <ScreenSharePicker ref="sharePicker" @start="goShare" />
 
                 <button @click="toggleCamera" class="icon-motion icon-motion--lift"
-                    :class="{ active: voice.isCameraOn, forbidden: !canVideo }" :disabled="!isConnected"
-                    :aria-disabled="!canVideo || undefined"
-                    :title="canVideo ? undefined : t('voice_no_video_permission')">
+                    :class="{ active: voice.isCameraOn, forbidden: !canVideo }" :disabled="!isConnected || (!voice.isCameraOn && voice.cameraUnavailable)"
+                    :aria-disabled="(!canVideo || (!voice.isCameraOn && voice.cameraUnavailable)) || undefined"
+                    :title="voice.cameraUnavailable && !voice.isCameraOn ? t('no_cameras_found') : canVideo ? undefined : t('voice_no_video_permission')">
                     <span class="relative inline-flex">
                         <CameraOff v-if="voice.isCameraOn" class="w-5 h-5 icon-appear" />
                         <CameraIcon v-else class="w-5 h-5 icon-appear" />
@@ -139,6 +139,7 @@ function toggleMic() {
 
 // Turning it off is always allowed: the right may have been taken away while it was on.
 function toggleCamera() {
+    if (!voice.isCameraOn && voice.cameraUnavailable) return;
     if (!voice.isCameraOn && !canVideo.value) return;
     voice.toggleCamera();
 }
