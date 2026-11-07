@@ -1017,6 +1017,13 @@ function handleKey(e: KeyboardEvent): boolean {
   const video = videoRef.value;
   if (!video || !full.value || e.defaultPrevented || e.isComposing || e.ctrlKey || e.metaKey) return false;
   if (isTextEntryTarget(e.target)) return false;
+  // A focused slider owns its navigation keys; window capture must leave
+  // their default action available (volume, custom rate and ARIA sliders).
+  if (
+    e.target instanceof Element &&
+    e.target.closest('input[type="range"],[role="slider"]') &&
+    ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"].includes(e.key)
+  ) return false;
   // Space presses a focused button (the viewer's close or download, or one of ours) instead.
   if (e.code === "Space" && pressesOnSpace(e.target)) return false;
   if (e.key === "Escape") {

@@ -176,6 +176,31 @@ describe("VideoPlayer", () => {
     expect(below).not.toHaveBeenCalled();
   });
 
+  test("focused sliders keep native arrow navigation under the global player shortcuts", async () => {
+    const { video, $ } = show({ listenKeyboard: "always" });
+    await loaded(video);
+    const volume = $("video-player-volume") as HTMLInputElement;
+    volume.value = "0.5";
+    volume.dispatchEvent(new Event("input", { bubbles: true }));
+    volume.dispatchEvent(new Event("change", { bubbles: true }));
+    await nextTick();
+    volume.focus();
+    await userEvent.keyboard("{ArrowRight}");
+    expect(volume.valueAsNumber).toBeCloseTo(0.51);
+    expect(video.volume).toBeCloseTo(0.51);
+    expect(video.currentTime).toBe(0);
+    expect(localStorage.getItem("argon_video_volume::acc-1")).toBe("0.51");
+
+    await userEvent.click($("video-player-rate")!);
+    const rate = $("video-player-rate-custom") as HTMLInputElement;
+    rate.focus();
+    await userEvent.keyboard("{ArrowRight}");
+    expect(rate.valueAsNumber).toBeCloseTo(1.05);
+    expect(video.playbackRate).toBeCloseTo(1.05);
+    expect(video.currentTime).toBe(0);
+    expect(localStorage.getItem("argon_video_rate::acc-1")).toBe("1.05");
+  });
+
   test("the speed menu sets the rate and it is remembered; Alt+= steps it", async () => {
     const { root, video, $ } = show();
     await loaded(video);
