@@ -1,14 +1,9 @@
 <template>
-  <!-- Dark overlay with crop hole (SVG mask) -->
+  <!-- A single even-odd fill leaves the selected crop fully visible. -->
   <template v-if="isReady">
-    <!-- Behind the (transparent) image canvas: shows what will be transparent in the file -->
     <div v-if="transparent" class="media-editor-checker absolute pointer-events-none z-[-1]" :style="cropAreaStyle" />
-    <div class="absolute inset-0 bg-black/50 pointer-events-none z-[1]" :style="{ mask: `url(#${spotlightId})` }" />
-    <svg class="absolute pointer-events-none" width="0" height="0">
-      <mask :id="spotlightId">
-        <rect x="0" y="0" :width="(store.uiState.canvasSize?.[0] ?? 0) + 1" :height="(store.uiState.canvasSize?.[1] ?? 0) + 1" fill="white" />
-        <rect :x="spotLeft" :y="spotTop" :width="spotWidth" :height="spotHeight" :rx="spotRoundness" fill="black" />
-      </mask>
+    <svg class="absolute inset-0 w-full h-full pointer-events-none z-[1]" aria-hidden="true">
+      <path :d="spotlightPath" fill="black" fill-opacity="0.5" fill-rule="evenodd" />
     </svg>
   </template>
 
@@ -45,12 +40,12 @@ import { useCropOffset } from '../composables/useCropOffset';
 import { fitToAspectRatio, mix, mixArray, clamp } from '../geometry';
 import { tween, type TweenHandle } from '../animation';
 import { computeCropBounds } from '../canvas/computeCropBounds';
+import { cropSpotlightPath } from '../canvas/cropSpotlight';
 import { isExpressionMode, type Vec2 } from '../types';
 
 const { store, mode } = useMediaEditorContext();
 const cropOffset = useCropOffset();
 const cropAreaEl = ref<HTMLDivElement | null>(null);
-const spotlightId = `spotlight-${Math.random().toString(36).substring(2)}`;
 
 const isAvatar = mode === 'avatar';
 const transparent = isExpressionMode(mode) && store.mediaType === 'image';
@@ -146,6 +141,11 @@ const spotRoundness = computed(() => {
   if (isAvatar) return Math.min(spotWidth.value, spotHeight.value) / 2;
   return 0;
 });
+
+const spotlightPath = computed(() => cropSpotlightPath(
+  (store.uiState.canvasSize?.[0] ?? 0) + 1, (store.uiState.canvasSize?.[1] ?? 0) + 1,
+  spotLeft.value, spotTop.value, spotWidth.value, spotHeight.value, spotRoundness.value,
+));
 
 const cropAreaStyle = computed(() => ({
   left: spotLeft.value + 'px',
