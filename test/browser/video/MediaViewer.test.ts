@@ -98,6 +98,7 @@ describe("the viewer with videos", () => {
     await userEvent.click(document.querySelector(".lightbox-image")!, { button: "right" });
     const save = () => document.querySelector<HTMLElement>('[data-testid="lightbox-menu-save"]');
     await until(() => !!save() && !save()!.hasAttribute("data-disabled"), 2_000, "the prepared save action");
+    expect(document.querySelector('[data-testid="lightbox-menu"]')?.getAttribute("role")).toBe("menu");
     expect(fetchFile).toHaveBeenCalledOnce();
     expect(picker).not.toHaveBeenCalled();
     await userEvent.click(save()!);

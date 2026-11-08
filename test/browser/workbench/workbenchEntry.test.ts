@@ -12,6 +12,11 @@ import { createPinia } from "pinia";
 import { createI18n } from "vue-i18n";
 import { ExpressionFormat, ExpressionKind, type ExpressionItem, type ExpressionPack } from "@argon/glue";
 
+const h = await vi.hoisted(async () => {
+  const { reactive } = await import("vue");
+  return { state: reactive({ packs: [] as ExpressionPack[] }), uploads: [] as unknown[] };
+});
+
 vi.mock("@/store/system/localeStore", () => ({ useLocale: () => ({ t: (k: string) => k }) }));
 vi.mock("@/store/ui/configStore", () => ({ useConfigStore: () => ({ devModeEnabled: false }) }));
 vi.mock("@/store/features/featureFlagsStore", () => ({ useFeatureFlags: () => ({ stickersAndEmojiActive: true }) }));
@@ -25,9 +30,7 @@ vi.mock("@/composables/useLiveQuery", async () => {
   return { useLiveQuery: () => ref(undefined) };
 });
 vi.mock("@/store/data/expressionsStore", async () => {
-  const { reactive } = await import("vue");
-  const state = reactive({ packs: [] as ExpressionPack[] });
-  const uploads: unknown[] = [];
+  const { state, uploads } = h;
   const count = (kind: number) => state.packs.filter((p) => p.kind === kind).reduce((n, p) => n + p.items.length, 0);
   const store = {
     ensureLoaded: async () => {},
@@ -41,20 +44,17 @@ vi.mock("@/store/data/expressionsStore", async () => {
       return { itemId: `new-${uploads.length}`, name: options.name, kind: options.kind, packId: options.packId } as unknown;
     },
   };
-  return { __state: state, __uploads: uploads, useExpressionsStore: () => store, toMedia: () => ({}) };
+  return { useExpressionsStore: () => store, toMedia: () => ({}) };
 });
 
 import ExpressionsSettings from "@/components/settings/spaces/ExpressionsSettings.vue";
-import * as storeModule from "@/store/data/expressionsStore";
 import { useMediaEditorStore } from "@argon/media-editor";
 import { acquireDevice, type DeviceLease } from "../../../packages/media-editor/src/webgpu/initDevice";
 
 const adapter = navigator.gpu ? await navigator.gpu.requestAdapter().catch(() => null) : null;
 
-const { __state: state, __uploads: uploads } = storeModule as unknown as {
-  __state: { packs: ExpressionPack[] };
-  __uploads: { name: string; kind: ExpressionKind; format: ExpressionFormat; file: Blob; contentType: string }[];
-};
+const { state } = h;
+const uploads = h.uploads as { name: string; kind: ExpressionKind; format: ExpressionFormat; file: Blob; contentType: string }[];
 
 const mounted: VueWrapper[] = [];
 const deviceLeases: DeviceLease[] = [];
@@ -129,12 +129,15 @@ describe.skipIf(!adapter)(`sticker workbench entry${adapter ? "" : " — skipped
     (document.querySelector('.media-editor__container [data-tab="brush"]') as HTMLElement).click();
     await nextTick();
     (document.querySelector('[data-brush="maskErase"]') as HTMLElement).click();
-    const brushCanvas = editor.uiState.brushCanvas!;
-    const r = brushCanvas.getBoundingClientRect();
-    const at = (fx: number, fy: number) => ({ clientX: r.left + r.width * fx, clientY: r.top + r.height * fy, pointerId: 1, bubbles: true });
-    brushCanvas.dispatchEvent(new PointerEvent("pointerdown", at(0.3, 0.5)));
-    brushCanvas.dispatchEvent(new PointerEvent("pointermove", at(0.5, 0.5)));
-    brushCanvas.dispatchEvent(new PointerEvent("pointerup", at(0.5, 0.5)));
+    const brushSurface = document.querySelector<HTMLElement>("[data-media-editor-brush-surface]")!;
+    const r = brushSurface.getBoundingClientRect();
+    const at = (fx: number, fy: number, buttons: number) => ({
+      clientX: r.left + r.width * fx, clientY: r.top + r.height * fy,
+      pointerId: 1, button: 0, buttons, bubbles: true, cancelable: true,
+    });
+    brushSurface.dispatchEvent(new PointerEvent("pointerdown", at(0.3, 0.5, 1)));
+    brushSurface.dispatchEvent(new PointerEvent("pointermove", at(0.5, 0.5, 1)));
+    brushSurface.dispatchEvent(new PointerEvent("pointerup", at(0.5, 0.5, 0)));
     expect(editor.mediaState.mask.strokes).toHaveLength(1);
     const [p0] = editor.mediaState.mask.strokes[0].points;
     expect(p0[0]).toBeGreaterThan(-300);

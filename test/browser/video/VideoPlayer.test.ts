@@ -298,7 +298,10 @@ describe("VideoPlayer", () => {
     const shown = show({ refreshSrc });
     wrapper = shown.wrapper;
     const { video, $ } = shown;
-    await loaded(video);
+    // readyState can change before the queued loadedmetadata event reaches the player.
+    const metadata = vi.fn();
+    video.addEventListener("loadedmetadata", metadata);
+    await until(() => metadata.mock.calls.length === 1, 10_000, "the initial metadata event");
     const sets = trackSrc(video);
 
     failWith(video, 2);
@@ -310,7 +313,7 @@ describe("VideoPlayer", () => {
     expect($("video-player-retry")).toBeNull();
 
     // The refreshed address fails as well: no second quiet refresh, the error is shown.
-    await loaded(video);
+    await until(() => metadata.mock.calls.length === 2, 10_000, "the refreshed metadata event");
     failWith(video, 2);
     await nextTick();
     expect($("video-player-retry")).not.toBeNull();

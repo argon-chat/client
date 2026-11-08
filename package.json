@@ -22,7 +22,7 @@
     "validate:locales": "bun run scripts/validate-locales.ts",
     "i18n:tengwar": "node scripts/tengwar/generate.mjs",
     "test": "bun run test:app && bun run test:packages",
-    "test:app": "vitest run",
+    "test:app": "vitest run --maxWorkers=8",
     "test:watch": "vitest",
     "test:packages": "bun test playframe",
     "test:coverage": "bun run scripts/coverage-report.ts"
@@ -130,8 +130,8 @@
     "@types/node": "^24.13.3",
     "@vitejs/plugin-basic-ssl": "^2.3.0",
     "@vitejs/plugin-vue": "^6.0.8",
-    "@vitest/browser-playwright": "4.1.10",
-    "@vitest/coverage-v8": "^4.1.10",
+    "@vitest/browser-playwright": "5.1.0",
+    "@vitest/coverage-v8": "5.1.0",
     "@vue/reactivity": "3.5.40",
     "@vue/test-utils": "^2.4.11",
     "autoprefixer": "^10.5.4",
@@ -147,7 +147,7 @@
     "vite-plugin-vue-devtools": "^8.2.1",
     "vite-plugin-wasm": "^3.6.0",
     "vite-svg-loader": "^5.1.1",
-    "vitest": "^4.1.10",
+    "vitest": "5.1.0",
     "vue-tsc": "^3.3.9"
   },
   "overrides": {

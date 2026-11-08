@@ -82,6 +82,7 @@ import EnterText from "@/components/chats/EnterText.vue";
 import MessageInput from "@/components/chats/MessageInput.vue";
 import { useExpressionsStore } from "@/store/data/expressionsStore";
 import { db } from "@/store/db/dexie";
+import { runSessionReset } from "@/store/system/sessionLifecycle";
 import { EXPRESSION_RESOLVER, createStoreResolver } from "@/lib/expressions/resolver";
 import { suggestIndices } from "@/lib/chat/emojiSuggest/indices";
 import {
@@ -171,6 +172,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   localStorage.clear();
+  await runSessionReset();
   setActivePinia(createPinia());
   await db.servers.clear();
   for (const setting of [emojiSuggestionsEnabled, suggestEmoji, replaceEmoticons, suggestCustomEmoji, suggestStickers]) setting.value = true;

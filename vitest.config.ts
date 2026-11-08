@@ -4,7 +4,6 @@ import { playwright } from "@vitest/browser-playwright";
 import tailwind from "tailwindcss";
 import autoprefixer from "autoprefixer";
 import path from "node:path";
-import { availableParallelism } from "node:os";
 
 /**
  * Runs the app's own tests plus every package that ships its own vitest config.
@@ -21,8 +20,7 @@ const vueOptions = { template: { compilerOptions: { isCustomElement: (tag: strin
 
 export default defineConfig({
   test: {
-    // Leave room for browser projects and cold transforms instead of saturating large CI hosts.
-    maxWorkers: Math.min(8, availableParallelism()),
+    // The test:app CLI caps workers across referenced package projects too.
     coverage: {
       provider: "v8",
       // Packages only. The app's src/ is overwhelmingly Vue components whose value is

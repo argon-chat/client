@@ -19,6 +19,14 @@ const h = await vi.hoisted(async () => {
   return {
     flags: reactive({ stickersAndEmojiActive: true }),
     perms: reactive(new Set<string>(["CreateExpressions", "ManageExpressions"])),
+    state: reactive({ packs: [] as ExpressionPack[] }),
+    calls: {
+      uploadItem: [] as UploadCall[],
+      createPack: [] as unknown[][],
+      reorderPacks: [] as unknown[][],
+      ensureLoaded: [] as string[],
+    },
+    hooks: [] as ((options: UploadCall) => Promise<void>)[],
   };
 });
 
@@ -39,16 +47,7 @@ vi.mock("@/composables/useLiveQuery", async () => {
   return { useLiveQuery: () => ref(undefined) };
 });
 vi.mock("@/store/data/expressionsStore", async () => {
-  const { reactive } = await import("vue");
-  const state = reactive({ packs: [] as ExpressionPack[] });
-  const calls = {
-    uploadItem: [] as unknown[],
-    createPack: [] as unknown[][],
-    reorderPacks: [] as unknown[][],
-    ensureLoaded: [] as string[],
-  };
-  /** Run before the next upload finishes: it may wait, report progress, or throw a refusal. */
-  const hooks: ((options: unknown) => Promise<void>)[] = [];
+  const { state, calls, hooks } = h;
   const count = (kind: number) => state.packs.filter((p) => p.kind === kind).reduce((n, p) => n + p.items.length, 0);
   const store = {
     ensureLoaded: async (id: string) => void calls.ensureLoaded.push(id),
@@ -56,7 +55,7 @@ vi.mock("@/store/data/expressionsStore", async () => {
     emojiPacks: () => state.packs.filter((p) => p.kind === 1),
     stickerPacks: () => state.packs.filter((p) => p.kind === 0),
     quotaUsage: () => ({ emoji: count(1), stickers: count(0), packs: state.packs.length }),
-    uploadItem: async (options: { name: string; kind: number; format: number; packId: string; onProgress?: (p: number) => void }) => {
+    uploadItem: async (options: UploadCall) => {
       calls.uploadItem.push(options);
       const hook = hooks.shift();
       if (hook) await hook(options);
@@ -101,9 +100,6 @@ vi.mock("@/store/data/expressionsStore", async () => {
     reorderItems: async () => [],
   };
   return {
-    __state: state,
-    __calls: calls,
-    __hooks: hooks,
     useExpressionsStore: () => store,
     toMedia: (item: ExpressionItem) => ({
       fileId: item.fileId,
@@ -118,7 +114,6 @@ vi.mock("@/store/data/expressionsStore", async () => {
 
 import ExpressionsSettings from "@/components/settings/spaces/ExpressionsSettings.vue";
 import StickerView from "@/components/expressions/StickerView.vue";
-import * as storeModule from "@/store/data/expressionsStore";
 import { decodeOutline } from "@/lib/expressions/outline";
 import { ExpressionRefusal } from "@/lib/refusals";
 
@@ -137,15 +132,7 @@ type UploadCall = {
   onProgress?: (p: number) => void;
 };
 
-const {
-  __state: state,
-  __calls: calls,
-  __hooks: hooks,
-} = storeModule as unknown as {
-  __state: { packs: ExpressionPack[] };
-  __calls: { uploadItem: UploadCall[]; createPack: unknown[][]; reorderPacks: unknown[][]; ensureLoaded: string[] };
-  __hooks: ((options: UploadCall) => Promise<void>)[];
-};
+const { state, calls, hooks } = h;
 
 const item = (itemId: string, packId: string, kind: ExpressionKind, creatorId: string | null = "me", format = ExpressionFormat.Lottie): ExpressionItem => ({
   itemId,
