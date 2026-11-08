@@ -1,7 +1,0 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-:root { --background:240 6% 6%; --foreground:0 0% 95%; --card:240 5% 11%; --card-foreground:0 0% 95%; --popover:240 5% 10%; --popover-foreground:0 0% 95%; --primary:215 80% 55%; --primary-foreground:0 0% 100%; --secondary:240 5% 18%; --secondary-foreground:0 0% 90%; --muted:240 5% 18%; --muted-foreground:240 5% 65%; --accent:240 5% 20%; --accent-foreground:0 0% 95%; --destructive:0 70% 45%; --destructive-foreground:0 0% 100%; --border:240 5% 22%; --input:240 5% 22%; --ring:215 80% 55%; --radius:0.5rem; }
-body { margin:0; background:hsl(var(--background)); color:hsl(var(--foreground)); font-family:Arial; }
-.native-editor-probe { width:100%; height:100%; }
-.native-editor-probe > p { padding:16px; }
