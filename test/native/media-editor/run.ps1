@@ -2,9 +2,12 @@ param(
   [Parameter(Mandatory=$true)][string]$HostPath,
   [string]$Output,
   [switch]$SharedDevice,
+  [switch]$SeparateDevice,
   [switch]$Readback
 )
 $ErrorActionPreference='Stop'
+if($SharedDevice -and $SeparateDevice){throw 'Choose SharedDevice or SeparateDevice, not both'}
+$expectShared=-not $SeparateDevice
 $repo=(Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '../../../..')).Path
 $sdk=Join-Path $repo 'crates/vue-native'
 $ctl=Join-Path $sdk 'packages/vue-native/devtools/ctl.ts'
@@ -23,9 +26,9 @@ $env:VN_SINGLE_INSTANCE='0'
 $env:VN_WINDOW_FOCUS='never'
 $env:VN_WINDOW='1440x1000'
 $env:VN_OWNER_PID=[string]$PID
-$env:VN_GPU_SHARED=if($SharedDevice){'1'}else{'0'}
-$env:VN_GPU_PRESENT=if($Readback){'readback'}else{'native'}
-$env:VN_LOG=if($SharedDevice){'info'}else{'warn'}
+if($SeparateDevice){$env:VN_GPU_SHARED='0'}elseif($SharedDevice){$env:VN_GPU_SHARED='1'}else{Remove-Item Env:VN_GPU_SHARED -ErrorAction SilentlyContinue}
+if($Readback){$env:VN_GPU_PRESENT='readback'}else{Remove-Item Env:VN_GPU_PRESENT -ErrorAction SilentlyContinue}
+$env:VN_LOG=if($expectShared){'info'}else{'warn'}
 function Eval-Probe([string]$code) {
   $raw=& bun $ctl --dist ($out+'/dist') --timeout 10000 --json eval $code
   if($LASTEXITCODE -ne 0){throw ('Editor eval failed: '+($raw -join ' '))}
@@ -114,7 +117,7 @@ try {
     Start-Sleep -Milliseconds 100
     $handshake=if(Test-Path -LiteralPath ($out+'/dist/devtools.json')){Get-Content -LiteralPath ($out+'/dist/devtools.json') -Raw|ConvertFrom-Json}else{$null}
   }until($handshake -and $handshake.pid -eq $child.Id)
-  if($SharedDevice -and (Get-Content -LiteralPath ($out+'/stderr.log') -Raw) -notmatch 'WebGPU/GPUI share the same physical device via D3D11On12'){throw 'Host did not confirm shared native GPU identity'}
+  if($expectShared -and (Get-Content -LiteralPath ($out+'/stderr.log') -Raw) -notmatch 'WebGPU/GPUI share the same physical device via D3D11On12'){throw 'Host did not confirm shared native GPU identity'}
   $initial=Wait-Ready
   if(@($initial.fontFaces|Where-Object {$_.status -eq 'loaded'}).Count -lt 8){throw 'Bundled editor fonts did not all load'}
   $initial|ConvertTo-Json -Depth 8|Set-Content -LiteralPath ($out+'/initial-state.json') -Encoding utf8
@@ -264,10 +267,10 @@ try {
   $mem|ConvertTo-Json -Depth 35|Set-Content -LiteralPath ($out+'/memory.json') -Encoding utf8
   $presentation=$mem.data.webgpuPresentation
   if(-not $presentation){throw 'Missing WebGPU presentation counters'}
-  if($SharedDevice -and -not $Readback){
+  if($expectShared -and -not $Readback){
     if($presentation.nativeDisplayFrames -le 0 -or $presentation.atlasGpuCopies -le 0 -or $presentation.readbackDisplayFrames -ne 0 -or $presentation.atlasCpuFallbacks -ne 0){throw 'Native display unexpectedly used CPU readback or failed to import'}
   }elseif($presentation.readbackDisplayFrames -le 0){throw 'Readback baseline did not present frames'}
-  [ordered]@{ok=$true;sharedDevice=[bool]$SharedDevice;gpuOnly=([bool]$SharedDevice -and -not [bool]$Readback);presentation=$presentation;pid=$child.Id;shader=$true;slider=$true;undo=$true;crop=$true;mask=$true;outline=$true;reopen=$true;nativeBrushCapture=$true;textEditing=$true;fonts=$true;projectedAnnotations=$true;largeImage=$true;avatar=@{width=$avatar.export.width;height=$avatar.export.height};sticker=@{width=$expression.export.width;height=$expression.export.height};output=$out}|ConvertTo-Json -Depth 6|Set-Content -LiteralPath ($out+'/result.json') -Encoding utf8
+  [ordered]@{ok=$true;sharedDevice=[bool]$expectShared;gpuOnly=([bool]$expectShared -and -not [bool]$Readback);presentation=$presentation;gpuOverrides=@{shared=$env:VN_GPU_SHARED;presentation=$env:VN_GPU_PRESENT};pid=$child.Id;shader=$true;slider=$true;undo=$true;crop=$true;mask=$true;outline=$true;reopen=$true;nativeBrushCapture=$true;textEditing=$true;fonts=$true;projectedAnnotations=$true;largeImage=$true;avatar=@{width=$avatar.export.width;height=$avatar.export.height};sticker=@{width=$expression.export.width;height=$expression.export.height};output=$out}|ConvertTo-Json -Depth 6|Set-Content -LiteralPath ($out+'/result.json') -Encoding utf8
   Get-Content -LiteralPath ($out+'/result.json')
 } finally {
   if($child){

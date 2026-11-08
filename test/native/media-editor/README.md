@@ -12,10 +12,10 @@ Push-Location crates/vue-native
 cargo build --release -p vn-app --no-default-features --features webgpu --locked
 Pop-Location
 ./client/test/native/media-editor/run.ps1 -HostPath <path-to-vn-app.exe>
-# Experimental one-device GPU-only display:
-./client/test/native/media-editor/run.ps1 -HostPath <path-to-vn-app.exe> -SharedDevice -Output artifacts/editor-native
+# Default one-device GPU-only display (no environment overrides):
+./client/test/native/media-editor/run.ps1 -HostPath <path-to-vn-app.exe> -Output artifacts/editor-native
 # Same physical device, previous readback display for A/B comparison:
-./client/test/native/media-editor/run.ps1 -HostPath <path-to-vn-app.exe> -SharedDevice -Readback -Output artifacts/editor-readback
+./client/test/native/media-editor/run.ps1 -HostPath <path-to-vn-app.exe> -Readback -Output artifacts/editor-readback
 # Optional independent comparison (requires Python + Pillow):
 python ./client/test/native/media-editor/compare.py artifacts/editor-native artifacts/editor-readback
 ```
@@ -54,7 +54,7 @@ resource/process cleanup for both runs.
 
 This qualifies static image avatar/sticker paths, annotation rasterization and
 interactive text/brush input. Magnetic lasso workers, video/WebCodecs imports
-and a production account flow are not covered. Native WebGPU remains opt-in. Canvas presentation uses
-GPU textures in shared-device mode. The separate-device default and explicit
+and a production account flow are not covered. Native WebGPU and shared-device presentation are enabled by default. Canvas presentation uses
+GPU textures in shared-device mode. The explicit `-SeparateDevice` diagnostic mode and
 `-Readback` baseline retain bounded asynchronous readback; pixel/PNG export
 always remains an explicit CPU readback.
