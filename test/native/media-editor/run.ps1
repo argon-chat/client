@@ -1,7 +1,8 @@
 param(
   [Parameter(Mandatory=$true)][string]$HostPath,
   [string]$Output,
-  [switch]$SharedDevice
+  [switch]$SharedDevice,
+  [switch]$Readback
 )
 $ErrorActionPreference='Stop'
 $repo=(Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '../../../..')).Path
@@ -23,6 +24,7 @@ $env:VN_WINDOW_FOCUS='never'
 $env:VN_WINDOW='1440x1000'
 $env:VN_OWNER_PID=[string]$PID
 $env:VN_GPU_SHARED=if($SharedDevice){'1'}else{'0'}
+$env:VN_GPU_PRESENT=if($Readback){'readback'}else{'native'}
 $env:VN_LOG=if($SharedDevice){'info'}else{'warn'}
 function Eval-Probe([string]$code) {
   $raw=& bun $ctl --dist ($out+'/dist') --timeout 10000 --json eval $code
@@ -136,7 +138,16 @@ try {
   Wait-Ready|Out-Null
   Snapshot '09-reopened'|Out-Null
   Close-Editor 'reopened'
-  [ordered]@{ok=$true;sharedDevice=[bool]$SharedDevice;pid=$child.Id;shader=$true;slider=$true;undo=$true;crop=$true;mask=$true;outline=$true;reopen=$true;avatar=@{width=$avatar.export.width;height=$avatar.export.height};sticker=@{width=$expression.export.width;height=$expression.export.height};output=$out}|ConvertTo-Json -Depth 6|Set-Content -LiteralPath ($out+'/result.json') -Encoding utf8
+  $memRaw=& bun $ctl --dist ($out+'/dist') --timeout 20000 --json mem
+  if($LASTEXITCODE -ne 0){throw 'GPU presentation counters unavailable'}
+  $mem=($memRaw -join [Environment]::NewLine)|ConvertFrom-Json
+  $mem|ConvertTo-Json -Depth 35|Set-Content -LiteralPath ($out+'/memory.json') -Encoding utf8
+  $presentation=$mem.data.webgpuPresentation
+  if(-not $presentation){throw 'Missing WebGPU presentation counters'}
+  if($SharedDevice -and -not $Readback){
+    if($presentation.nativeDisplayFrames -le 0 -or $presentation.atlasGpuCopies -le 0 -or $presentation.readbackDisplayFrames -ne 0 -or $presentation.atlasCpuFallbacks -ne 0){throw 'Native display unexpectedly used CPU readback or failed to import'}
+  }elseif($presentation.readbackDisplayFrames -le 0){throw 'Readback baseline did not present frames'}
+  [ordered]@{ok=$true;sharedDevice=[bool]$SharedDevice;gpuOnly=([bool]$SharedDevice -and -not [bool]$Readback);presentation=$presentation;pid=$child.Id;shader=$true;slider=$true;undo=$true;crop=$true;mask=$true;outline=$true;reopen=$true;avatar=@{width=$avatar.export.width;height=$avatar.export.height};sticker=@{width=$expression.export.width;height=$expression.export.height};output=$out}|ConvertTo-Json -Depth 6|Set-Content -LiteralPath ($out+'/result.json') -Encoding utf8
   Get-Content -LiteralPath ($out+'/result.json')
 } finally {
   if($child){

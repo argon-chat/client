@@ -118,6 +118,8 @@ async function save() {
   for (let y=0;y<height;y++) for (let x=0;x<width;x++) {
     const at=(y*width+x)*4; const colour=colours[(y>=height/2?2:0)+(x>=width/2?1:0)]!;
     data.data.set([...colour, x<16||y<16||x>=width-16||y>=height-16?0:255],at);
+    // A translucent strip also qualifies GPU -> straight-alpha atlas conversion.
+    if(x>=112&&x<144&&y>=24&&y<40) data.data.set([210,120,60,128],at);
   }
   const canvas = new OffscreenCanvas(width,height); canvas.getContext('2d')!.putImageData(data,0,0);
   source.value = URL.createObjectURL(await canvas.convertToBlob({type:'image/png'}));
