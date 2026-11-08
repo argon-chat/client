@@ -1,4 +1,5 @@
 import type { RenderTransform, Vec2 } from '../types';
+import { imageProjection, inverse, project } from '../canvas/projective';
 
 /** Mask rasters are kept at source resolution up to this long side. */
 export const MAX_MASK_SIDE = 2048;
@@ -109,29 +110,13 @@ export function featherMask(mask: Uint8Array, width: number, height: number, rad
 
 // ─── Canvas ↔ source mapping ───────────────────────────────────────
 // The vertex shader moves a source pixel to the canvas as: centre it, mirror and zoom, rotate by
-// -rotation, re-centre in the viewport, add the translation. Perspective is not modelled here.
+// -rotation, re-centre in the viewport, add the translation. The shared homography also includes perspective.
 
-export function sourceToCanvas(point: Vec2, t: RenderTransform, viewport: Vec2, imageSize: Vec2): Vec2 {
-  let x = (point[0] - imageSize[0] / 2) * t.flip[0] * t.scale;
-  let y = (point[1] - imageSize[1] / 2) * t.flip[1] * t.scale;
-  const a = -t.rotation;
-  const c = Math.cos(a);
-  const s = Math.sin(a);
-  [x, y] = [x * c + y * s, y * c - x * s];
-  return [x + viewport[0] / 2 + t.translation[0], y + viewport[1] / 2 + t.translation[1]];
+export function sourceToCanvas(point:Vec2,t:RenderTransform,viewport:Vec2,imageSize:Vec2):Vec2 {
+  return project(imageProjection(t,viewport,imageSize),point);
 }
-
-export function canvasToSource(point: Vec2, t: RenderTransform, viewport: Vec2, imageSize: Vec2): Vec2 {
-  const qx = point[0] - viewport[0] / 2 - t.translation[0];
-  const qy = point[1] - viewport[1] / 2 - t.translation[1];
-  const a = -t.rotation;
-  const c = Math.cos(a);
-  const s = Math.sin(a);
-  const x = qx * c - qy * s;
-  const y = qx * s + qy * c;
-  const kx = t.flip[0] * t.scale || 1;
-  const ky = t.flip[1] * t.scale || 1;
-  return [x / kx + imageSize[0] / 2, y / ky + imageSize[1] / 2];
+export function canvasToSource(point:Vec2,t:RenderTransform,viewport:Vec2,imageSize:Vec2):Vec2 {
+  return project(inverse(imageProjection(t,viewport,imageSize)),point);
 }
 
 // ─── Outline ───────────────────────────────────────────────────────

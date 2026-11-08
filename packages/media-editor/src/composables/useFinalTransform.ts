@@ -62,6 +62,7 @@ export function useFinalTransform() {
       () => store.uiState.canvasSize,
       () => store.uiState.pixelRatio,
       () => store.uiState.cropTabAnimationProgress,
+      () => store.mediaState.perspective,
       () => store.mediaState.scale,
       () => store.mediaState.rotation,
       () => store.mediaState.translation,
@@ -78,6 +79,7 @@ export function useFinalTransform() {
       const ct = cropTranslation.value;
 
       store.uiState.finalTransform = {
+        perspective: [...store.mediaState.perspective] as Vec2,
         flip: store.mediaState.flip as Vec2,
         rotation: store.mediaState.rotation,
         scale: store.mediaState.scale * store.uiState.pixelRatio * snappedImageScale * toCropScale,

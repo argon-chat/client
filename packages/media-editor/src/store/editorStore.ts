@@ -1,3 +1,4 @@
+import { sourceLayer, sourceLine, type AnnotationFrame } from '../canvas/annotationSpace';
 import { defineStore } from 'pinia';
 import { ref, reactive, computed, shallowRef, toRaw } from 'vue';
 import { adjustmentsConfig, type AdjustmentKey } from '../adjustments';
@@ -72,6 +73,8 @@ export type GestureOptions = {
 // ─── State types ───────────────────────────────────────────────────
 
 export interface EditingMediaState {
+  /** Missing only in snapshots saved by the viewport-coordinate editor. */
+  annotationSpace?: 'source';
   scale: number;
   rotation: number;
   translation: Vec2;
@@ -167,6 +170,14 @@ export type PendingSelection = {
 export const SELECTION_MAX_FEATHER = 20;
 
 export interface MediaEditorUIState {
+  annotationRevision: number;
+  /** Shared source-plane bitmap density for brush, text and the lazy blur input. */
+  annotationRasterSize?: Vec2;
+  annotationUploadedRevision: number;
+  annotationDirtyRect?: { x: number; y: number; width: number; height: number };
+  sourceImageRevision: number;
+  getSourceImageCanvas?: () => HTMLCanvasElement;
+  editingTextLayer?: number;
   isReady: boolean;
   pixelRatio: number;
   renderingPayload?: RenderingPayload;
@@ -228,6 +239,7 @@ export interface MediaEditorUIState {
 
 function getDefaultEditingMediaState(): EditingMediaState {
   return {
+    annotationSpace: 'source',
     scale: 1,
     rotation: 0,
     translation: [0, 0],
@@ -299,6 +311,13 @@ export function getDefaultCutoutOptions(): CutoutOptions {
 
 function getDefaultUIState(): MediaEditorUIState {
   return {
+    annotationRevision: 0,
+    annotationRasterSize: undefined,
+    annotationUploadedRevision: -1,
+    annotationDirtyRect: undefined,
+    sourceImageRevision: 0,
+    getSourceImageCanvas: undefined,
+    editingTextLayer: undefined,
     isReady: false,
     pixelRatio: window.devicePixelRatio,
     renderingPayload: undefined,
@@ -445,7 +464,9 @@ export const useMediaEditorStore = defineStore('media-editor', () => {
       ? { ...getDefaultEditingMediaState(), ...structuredClone(options.initialState) }
       : getDefaultEditingMediaState();
 
+    if (options.initialState && options.initialState.annotationSpace !== 'source') delete newState.annotationSpace;
     Object.assign(mediaState, newState);
+    if (!newState.annotationSpace) delete mediaState.annotationSpace;
     Object.assign(uiState, getDefaultUIState());
 
     if (options.initialTab) {
@@ -678,7 +699,46 @@ export const useMediaEditorStore = defineStore('media-editor', () => {
 
   // ─── Layers and drawings ─────────────────────────────────────────
 
+  function annotationFrame(): AnnotationFrame | null {
+    const size = uiState.canvasSize, media = uiState.mediaSize, dpr = uiState.pixelRatio;
+    return size && media ? { transform: uiState.finalTransform, canvas: [Math.round(size[0] * dpr), Math.round(size[1] * dpr)], media, dpr } : null;
+  }
+
+  /** Convert old viewport snapshots once, including undo/redo and the saved comparison state. */
+  function ensureSourceAnnotations() {
+    if (mediaState.annotationSpace === 'source') return;
+    const frame = annotationFrame(); if (!frame) return;
+    const convert = (state: EditingMediaState) => {
+      if (state.annotationSpace === 'source') return;
+      state.resizableLayers = state.resizableLayers.map(layer => sourceLayer(layer, frame));
+      state.brushDrawnLines = state.brushDrawnLines.map(line => sourceLine(line, frame));
+      const history = (item: HistoryItem) => {
+        if (item.group) { item.group.forEach(history); return; }
+        const [root, , field] = item.path;
+        const map = (value: any) => {
+          if (!value || typeof value !== 'object') return value;
+          if (root === 'resizableLayers') {
+            if (item.path.length === 1) return value.map((layer: EditorLayer) => sourceLayer(layer, frame));
+            if (item.path.length === 2) return sourceLayer(value, frame);
+            if (field === 'position') return sourceLayer({ type: 'text', id: 0, rotation: 0, scale: 1, position: value }, frame).position;
+          }
+          if (root === 'brushDrawnLines') {
+            if (item.path.length === 1) return value.map((line: BrushDrawnLine) => sourceLine(line, frame));
+            if (item.path.length === 2) return sourceLine(value, frame);
+          }
+          return value;
+        };
+        item.oldValue = map(item.oldValue); item.newValue = map(item.newValue);
+      };
+      state.history.forEach(history); state.redoHistory.forEach(history);
+      state.annotationSpace = 'source';
+    };
+    convert(mediaState); convert(initialSnapshot);
+  }
+
   function addLayer(layer: EditorLayer) {
+    const frame = annotationFrame();
+    if (frame) { ensureSourceAnnotations(); layer = sourceLayer(layer, frame); }
     mediaState.resizableLayers.push(layer);
     pushToHistory({ path: ['resizableLayers', mediaState.resizableLayers.length - 1], oldValue: REMOVE_ARRAY_ITEM, newValue: plainClone(layer) });
   }
@@ -693,6 +753,8 @@ export const useMediaEditorStore = defineStore('media-editor', () => {
   }
 
   function addBrushLine(line: BrushDrawnLine) {
+    const frame = annotationFrame();
+    if (frame) { ensureSourceAnnotations(); line = sourceLine(line, frame); }
     mediaState.brushDrawnLines.push(line);
     pushToHistory({ path: ['brushDrawnLines', mediaState.brushDrawnLines.length - 1], oldValue: REMOVE_ARRAY_ITEM, newValue: plainClone(line) });
   }
@@ -935,6 +997,7 @@ export const useMediaEditorStore = defineStore('media-editor', () => {
     set,
     getAt,
 
+    ensureSourceAnnotations,
     addLayer,
     removeLayer,
     addBrushLine,

@@ -167,7 +167,7 @@ describe.skipIf(!adapter)(`undo and redo in the editor${SKIP}`, () => {
     // Drag the first slider (Enhance) from its start to about 70 % in several moves.
     const track = document.querySelector<HTMLElement>(".media-editor__container .range-input .relative")!;
     const rect = track.getBoundingClientRect();
-    const at = (f: number) => ({ clientX: rect.left + rect.width * f, clientY: rect.top + rect.height / 2, pointerId: 7, button: 0, bubbles: true });
+    const at = (f: number) => ({ clientX: rect.left + rect.width * f, clientY: rect.top + rect.height / 2, pointerId: 7, button: 0, isPrimary: true, bubbles: true });
     track.dispatchEvent(new PointerEvent("pointerdown", { ...at(0.1), buttons: 1 }));
     for (const f of [0.2, 0.35, 0.5, 0.6, 0.7]) track.dispatchEvent(new PointerEvent("pointermove", { ...at(f), buttons: 1 }));
     expect(store.uiState.gesture).toBe(true);
@@ -197,7 +197,7 @@ describe.skipIf(!adapter)(`undo and redo in the editor${SKIP}`, () => {
     await tab(store, "adjustments");
     const track = document.querySelector<HTMLElement>(".media-editor__container .range-input .relative")!;
     const rect = track.getBoundingClientRect();
-    const at = (f: number) => ({ clientX: rect.left + rect.width * f, clientY: rect.top + rect.height / 2, pointerId: 8, button: 0, bubbles: true });
+    const at = (f: number) => ({ clientX: rect.left + rect.width * f, clientY: rect.top + rect.height / 2, pointerId: 8, button: 0, isPrimary: true, bubbles: true });
     track.dispatchEvent(new PointerEvent("pointerdown", { ...at(0.3), buttons: 1 }));
     track.dispatchEvent(new PointerEvent("pointermove", { ...at(0.8), buttons: 1 }));
     expect(store.mediaState.adjustments.enhance).toBeGreaterThan(0.5);

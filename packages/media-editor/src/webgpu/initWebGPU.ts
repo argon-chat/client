@@ -1,3 +1,4 @@
+import { clearAnnotations } from './annotations';
 import { markRaw } from 'vue';
 import type { MediaType, Vec2 } from '../types';
 import { acquireDevice, getPreferredFormat } from './initDevice';
@@ -197,7 +198,7 @@ export function cleanupWebGPU(payload: RenderingPayload): void {
   // resources or destroy another preview/export's still-active shared device.
   let failure: unknown;
   for (const release of [
-    () => payload.vertexBuffer.destroy(), () => payload.uniformBuffer.destroy(),
+    () => clearAnnotations(payload), () => payload.vertexBuffer.destroy(), () => payload.uniformBuffer.destroy(),
     () => payload.texture.destroy(), () => payload.maskTexture.destroy(),
     () => payload.colourTexture.destroy(), () => payload.compositor?.destroy(),
     () => releaseMedia(payload.media), () => session?.context.unconfigure(),

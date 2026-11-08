@@ -1,3 +1,4 @@
+import { encodeAnnotations } from './annotations';
 import type { AdjustmentKey } from '../adjustments';
 import type { Vec2 } from '../types';
 import type { RenderingPayload } from './initWebGPU';
@@ -19,7 +20,7 @@ export type DrawingParameters = {
  * `outline` applies to a transparent payload only (radius in canvas pixels): the image then goes to
  * the compositor's texture and the compositor fills the canvas.
  */
-export function draw(device: GPUDevice, context: GPUCanvasContext, payload: RenderingPayload, parameters: DrawingParameters, outline: OutlineDrawParams | null = null): void {
+export function draw(device: GPUDevice, context: GPUCanvasContext, payload: RenderingPayload, parameters: DrawingParameters, outline: OutlineDrawParams | null = null, annotations = true, clearAlpha: 0 | 1 = 1): void {
   const canvas = context.canvas as HTMLCanvasElement | OffscreenCanvas;
 
   const uniformData: UniformData = {
@@ -60,7 +61,7 @@ export function draw(device: GPUDevice, context: GPUCanvasContext, payload: Rend
   const pass = encoder.beginRenderPass({
     colorAttachments: [{
       view: compositor ? compositor.imageView : textureView,
-      clearValue: { r: 0, g: 0, b: 0, a: compositor ? 0 : 1 },
+      clearValue: { r: 0, g: 0, b: 0, a: compositor ? 0 : clearAlpha },
       loadOp: 'clear',
       storeOp: 'store'
     }]
@@ -73,6 +74,7 @@ export function draw(device: GPUDevice, context: GPUCanvasContext, payload: Rend
   pass.end();
 
   if (compositor) compositor.encode(encoder, textureView, outline);
+  if (annotations) encodeAnnotations(payload, encoder, textureView);
 
   device.queue.submit([encoder.finish()]);
 }

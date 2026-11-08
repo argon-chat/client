@@ -55,6 +55,8 @@ function Capture([string]$name) {
 function Snapshot([string]$name) {
   $pixels=Eval-Probe 'JSON.stringify(__nativeEditorProbe.snapshot())'
   $pixels|ConvertTo-Json -Depth 8|Set-Content -LiteralPath ($out+'/'+$name+'-pixels.json') -Encoding utf8
+  $state=Eval-Probe 'JSON.stringify(__nativeEditorProbe.annotationState())'
+  $state|ConvertTo-Json -Depth 8|Set-Content -LiteralPath ($out+'/'+$name+'-annotations.json') -Encoding utf8
   Capture $name
   return $pixels
 }
@@ -74,6 +76,22 @@ function Export([string]$name) {
   $state.export.PSObject.Properties.Remove('png')
   $state|ConvertTo-Json -Depth 10|Set-Content -LiteralPath ($out+'/'+$name+'-export.json') -Encoding utf8
   return $state
+}
+function Wait-Settled {
+  $deadline=[DateTime]::UtcNow.AddSeconds(5)
+  do {
+    $s=State;$target=if($s.tab -eq 'crop'){1}else{0}
+    if([DateTime]::UtcNow -gt $deadline){throw 'Editor crop transition did not settle'}
+    if([Math]::Abs($s.cropProgress-$target) -gt 0.00000001){Start-Sleep -Milliseconds 30}
+  }until([Math]::Abs($s.cropProgress-$target) -le 0.00000001)
+  Start-Sleep -Milliseconds 80
+}
+function Mouse([double]$x,[double]$y,[string]$kind,[switch]$Held,[int]$Clicks=1) {
+  if($kind -eq 'down' -or $kind -eq 'click'){Wait-Settled}
+  $mouseArgs=@($ctl,'--dist',($out+'/dist'),'--timeout','10000','mouse','--x',[string][Math]::Round($x),'--y',[string][Math]::Round($y),'--kind',$kind,'--clicks',[string]$Clicks)
+  if($Held){$mouseArgs+='--held'}
+  & bun @mouseArgs *> ($out+'/last-mouse.json')
+  if($LASTEXITCODE -ne 0){throw ('Native pointer event failed: '+$kind)}
 }
 function Close-Editor([string]$name) {
   Eval-Probe 'JSON.stringify((__nativeEditorProbe.close(),true))'|Out-Null
@@ -98,6 +116,7 @@ try {
   }until($handshake -and $handshake.pid -eq $child.Id)
   if($SharedDevice -and (Get-Content -LiteralPath ($out+'/stderr.log') -Raw) -notmatch 'WebGPU/GPUI share the same physical device via D3D11On12'){throw 'Host did not confirm shared native GPU identity'}
   $initial=Wait-Ready
+  if(@($initial.fontFaces|Where-Object {$_.status -eq 'loaded'}).Count -lt 8){throw 'Bundled editor fonts did not all load'}
   $initial|ConvertTo-Json -Depth 8|Set-Content -LiteralPath ($out+'/initial-state.json') -Encoding utf8
   $geometry=Eval-Probe 'JSON.stringify(__nativeEditorProbe.geometry())'
   $geometry|ConvertTo-Json -Depth 5|Set-Content -LiteralPath ($out+'/crop-geometry.json') -Encoding utf8
@@ -137,7 +156,108 @@ try {
   Eval-Probe 'JSON.stringify((__nativeEditorProbe.open("avatar"),true))'|Out-Null
   Wait-Ready|Out-Null
   Snapshot '09-reopened'|Out-Null
+  # Exercise GPUI hit-testing and native capture, not synthetic JS dispatch.
+  Eval-Probe 'JSON.stringify((__nativeEditorProbe.brush("pen"),true))'|Out-Null
+  Start-Sleep -Milliseconds 200
+  $surface=Eval-Probe 'JSON.stringify(__nativeEditorProbe.surfaceGeometry())'
+  $x=$surface.x+$surface.width*.5;$y=$surface.y+$surface.height*.5
+  Mouse $x $y 'down'
+  Mouse ($x+35) ($y+20) 'move' -Held
+  Mouse ($surface.x+$surface.width+30) ($y+25) 'move' -Held
+  Mouse ($surface.x+$surface.width+30) ($y+25) 'up'
+  Start-Sleep -Milliseconds 250
+  if((State).annotations -ne 1 -or (State).gesture){throw 'Native brush capture/release failed'}
+  Mouse $x $y 'move'
+  if((State).annotations -ne 1){throw 'Brush remained attached after release outside'}
+  $brush=Snapshot '10-native-brush'
+  foreach($brushKind in @('neon','blur')) {
+    Eval-Probe ('JSON.stringify((__nativeEditorProbe.brush("'+$brushKind+'"),true))')|Out-Null
+    Start-Sleep -Milliseconds 100
+    Mouse ($x-25) ($y-30) 'down'
+    Mouse ($x+25) ($y-30) 'move' -Held
+    Mouse ($x+25) ($y-30) 'up'
+    Start-Sleep -Milliseconds 250
+    Snapshot ('11-'+$brushKind)|Out-Null
+  }
+  Eval-Probe 'JSON.stringify((__nativeEditorProbe.addText(),true))'|Out-Null
+  Start-Sleep -Milliseconds 300
+  Eval-Probe 'JSON.stringify((__nativeEditorProbe.tab("brush"),true))'|Out-Null
+  Start-Sleep -Milliseconds 200
+  $annotated=Snapshot '12-text'
+  if($annotated.hash -eq $brush.hash){throw 'Text/effect annotations did not reach native GPU preview'}
+  $annotationsBefore=Eval-Probe 'JSON.stringify(__nativeEditorProbe.annotationState())'
+  Eval-Probe 'JSON.stringify((__nativeEditorProbe.perspective(),__nativeEditorProbe.diagnostics(),true))'|Out-Null
+  Start-Sleep -Milliseconds 300
+  $projected=Snapshot '13-perspective-gizmos'
+  $annotationsAfter=Eval-Probe 'JSON.stringify(__nativeEditorProbe.annotationState())'
+  if($projected.hash -eq $annotated.hash -or $annotationsBefore.lines -ne $annotationsAfter.lines -or $annotationsBefore.layers -ne $annotationsAfter.layers){throw 'Perspective did not reproject stable source annotations'}
+  Eval-Probe 'JSON.stringify((__nativeEditorProbe.tab("text"),true))'|Out-Null
+  Start-Sleep -Milliseconds 150
+  $layer=Eval-Probe 'JSON.stringify(__nativeEditorProbe.layerGeometry())'
+  Mouse $layer.x $layer.y 'down'
+  Mouse ($layer.x+12) ($layer.y+8) 'move' -Held
+  Mouse ($layer.x+12) ($layer.y+8) 'up'
+  if((State).selected -ne 101 -or (State).gesture){throw 'Projected native text selection/drag failed'}
+  Mouse ($layer.x+12) ($layer.y+8) 'click' -Clicks 2
+  Start-Sleep -Milliseconds 150
+  if((State).editing -ne 101){throw 'Native text double-click did not enter editing'}
+  & bun $ctl --dist ($out+'/dist') type 'textarea' ' Edited' *> ($out+'/text-input.json')
+  if($LASTEXITCODE -ne 0 -or (State).text -ne ' Edited'){throw 'Native text input did not update the layer'}
+  Capture '14-text-editing'
+  Eval-Probe 'JSON.stringify((__nativeEditorProbe.tab("crop"),true))'|Out-Null
+  Start-Sleep -Milliseconds 200
+  Export 'annotated'|Out-Null
+  Eval-Probe 'JSON.stringify((__nativeEditorProbe.performance(),true))'|Out-Null
+  $deadline=[DateTime]::UtcNow.AddSeconds(40)
+  do {
+    $perf=(State).performance
+    if([DateTime]::UtcNow -gt $deadline){throw 'Interactive frame probe timed out'}
+    if($perf.state -ne 'done'){Start-Sleep -Milliseconds 200}
+  }until($perf.state -eq 'done')
+  $perf|ConvertTo-Json|Set-Content -LiteralPath ($out+'/interactive-performance.json') -Encoding utf8
+  if($perf.max -gt 500){throw ('Interactive rendering stalled for '+$perf.max+' ms')}
   Close-Editor 'reopened'
+  Eval-Probe 'JSON.stringify((__nativeEditorProbe.open("sticker",true),true))'|Out-Null
+  Wait-Ready|Out-Null
+  Eval-Probe 'JSON.stringify((__nativeEditorProbe.brush("neon"),true))'|Out-Null
+  Start-Sleep -Milliseconds 150
+  $surface=Eval-Probe 'JSON.stringify(__nativeEditorProbe.surfaceGeometry())'
+  $x=$surface.x+$surface.width*.5;$y=$surface.y+$surface.height*.5
+  Mouse ($x-80) ($y-60) 'down'
+  Mouse ($x+80) ($y+60) 'move' -Held
+  Mouse ($x+80) ($y+60) 'up'
+  Eval-Probe 'JSON.stringify((__nativeEditorProbe.brush("blur"),true))'|Out-Null
+  Mouse ($x-80) ($y+40) 'down'
+  Mouse ($x+80) ($y-40) 'move' -Held
+  Mouse ($x+80) ($y-40) 'up'
+  Eval-Probe 'JSON.stringify((__nativeEditorProbe.addText(),true))'|Out-Null
+  Start-Sleep -Milliseconds 200
+  Eval-Probe 'JSON.stringify((__nativeEditorProbe.tab("crop"),__nativeEditorProbe.performance(),true))'|Out-Null
+  $deadline=[DateTime]::UtcNow.AddSeconds(60)
+  do {
+    $perf=(State).performance
+    if([DateTime]::UtcNow -gt $deadline){throw 'Large image interactive frame probe timed out'}
+    if($perf.state -ne 'done'){Start-Sleep -Milliseconds 200}
+  }until($perf.state -eq 'done')
+  $perf|ConvertTo-Json|Set-Content -LiteralPath ($out+'/large-interactive-performance.json') -Encoding utf8
+  Capture '15-large-annotated'
+  if($perf.max -gt 500){throw ('Large image interactive rendering stalled for '+$perf.max+' ms')}
+  foreach($brushKind in @('pen','blur','neon','maskErase')) {
+    Eval-Probe ('JSON.stringify((__nativeEditorProbe.brushPerformance("'+$brushKind+'"),true))')|Out-Null
+    $deadline=[DateTime]::UtcNow.AddSeconds(60)
+    do {
+      $perf=(State).performance
+      if([DateTime]::UtcNow -gt $deadline){throw ('Large brush probe timed out: '+$brushKind)}
+      if($perf.state -ne 'done'){Start-Sleep -Milliseconds 200}
+    }until($perf.state -eq 'done')
+    $perf|ConvertTo-Json|Set-Content -LiteralPath ($out+'/large-brush-'+$brushKind+'-performance.json') -Encoding utf8
+    if($perf.historyAfter -ne $perf.historyBefore+1){throw ($brushKind+' performance probe did not commit an actual gesture')}
+    if($perf.max -gt 500){throw ($brushKind+' brush stalled for '+$perf.max+' ms')}
+  }
+  Close-Editor 'large'
+
+  $runtimeLog=Get-Content -LiteralPath ($out+'/stderr.log') -Raw
+  if($runtimeLog -match '\[js uncaught\]|\[dev\] boot: Error|bundled font .* did not load'){throw 'Native runtime logged an uncaught error or failed font load; see stderr.log'}
   $memRaw=& bun $ctl --dist ($out+'/dist') --timeout 20000 --json mem
   if($LASTEXITCODE -ne 0){throw 'GPU presentation counters unavailable'}
   $mem=($memRaw -join [Environment]::NewLine)|ConvertFrom-Json
@@ -147,7 +267,7 @@ try {
   if($SharedDevice -and -not $Readback){
     if($presentation.nativeDisplayFrames -le 0 -or $presentation.atlasGpuCopies -le 0 -or $presentation.readbackDisplayFrames -ne 0 -or $presentation.atlasCpuFallbacks -ne 0){throw 'Native display unexpectedly used CPU readback or failed to import'}
   }elseif($presentation.readbackDisplayFrames -le 0){throw 'Readback baseline did not present frames'}
-  [ordered]@{ok=$true;sharedDevice=[bool]$SharedDevice;gpuOnly=([bool]$SharedDevice -and -not [bool]$Readback);presentation=$presentation;pid=$child.Id;shader=$true;slider=$true;undo=$true;crop=$true;mask=$true;outline=$true;reopen=$true;avatar=@{width=$avatar.export.width;height=$avatar.export.height};sticker=@{width=$expression.export.width;height=$expression.export.height};output=$out}|ConvertTo-Json -Depth 6|Set-Content -LiteralPath ($out+'/result.json') -Encoding utf8
+  [ordered]@{ok=$true;sharedDevice=[bool]$SharedDevice;gpuOnly=([bool]$SharedDevice -and -not [bool]$Readback);presentation=$presentation;pid=$child.Id;shader=$true;slider=$true;undo=$true;crop=$true;mask=$true;outline=$true;reopen=$true;nativeBrushCapture=$true;textEditing=$true;fonts=$true;projectedAnnotations=$true;largeImage=$true;avatar=@{width=$avatar.export.width;height=$avatar.export.height};sticker=@{width=$expression.export.width;height=$expression.export.height};output=$out}|ConvertTo-Json -Depth 6|Set-Content -LiteralPath ($out+'/result.json') -Encoding utf8
   Get-Content -LiteralPath ($out+'/result.json')
 } finally {
   if($child){

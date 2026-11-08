@@ -46,9 +46,9 @@ function addSticker(emoji: string) {
   store.addLayer({
     id,
     type: 'sticker',
-    position: [0.5, 0.5],
+    position: store.uiState.canvasSize ? [store.uiState.canvasSize[0] / 2, store.uiState.canvasSize[1] / 2] : [200, 200],
     rotation: 0,
-    scale: 0.15,
+    scale: 1,
     stickerSrc: src,
   });
   store.uiState.selectedResizableLayer = id;

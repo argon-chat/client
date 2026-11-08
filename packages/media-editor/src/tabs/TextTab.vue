@@ -18,6 +18,7 @@
         <button
           v-for="align in alignments"
           :key="align.value"
+          :data-text-align="align.value"
           class="px-3 py-2 flex items-center cursor-pointer transition-all duration-150 border-none"
           :class="store.uiState.currentTextLayerInfo.alignment === align.value ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'"
           @click="store.uiState.currentTextLayerInfo.alignment = align.value"
@@ -97,20 +98,46 @@ const { store } = useMediaEditorContext();
 const MIN_SIZE = 16;
 const MAX_SIZE = 64;
 
-// Sync currentTextLayerInfo changes to the selected layer, as one history entry.
 const STYLE_KEYS = ['font', 'size', 'color', 'alignment', 'style'] as const;
+const selectedTextStyle = computed(() => {
+  const layer = store.mediaState.resizableLayers.find(layer => layer.id === store.uiState.selectedResizableLayer);
+  return layer?.type === 'text' ? layer.textInfo : undefined;
+});
+let syncingSelection = false;
+
+// Selection and undo/redo update the controls without becoming edits themselves. Synchronous
+// guards matter: a toolbar event can follow a layer selection in the same JavaScript turn.
+watch(
+  () => selectedTextStyle.value && STYLE_KEYS.map(key => selectedTextStyle.value![key]),
+  () => {
+    const info = selectedTextStyle.value;
+    if (!info) return;
+    syncingSelection = true;
+    try {
+      for (const key of STYLE_KEYS) {
+        if (store.uiState.currentTextLayerInfo[key] !== info[key]) {
+          (store.uiState.currentTextLayerInfo as Record<string, unknown>)[key] = info[key];
+        }
+      }
+    } finally { syncingSelection = false; }
+  },
+  { immediate: true, flush: 'sync' }
+);
+
+// Change only differing fields, preserving the selected layer's other style and content.
 watch(
   () => store.uiState.currentTextLayerInfo,
   (info) => {
-    const sel = store.uiState.selectedResizableLayer;
-    if (sel == null) return;
-    const index = store.mediaState.resizableLayers.findIndex(l => l.id === sel);
-    if (index < 0 || !store.mediaState.resizableLayers[index].textInfo) return;
+    if (syncingSelection || !selectedTextStyle.value) return;
+    const index = store.mediaState.resizableLayers.findIndex(layer => layer.id === store.uiState.selectedResizableLayer);
+    if (index < 0) return;
     store.batch(() => {
-      for (const key of STYLE_KEYS) store.set(['resizableLayers', index, 'textInfo', key], info[key]);
+      for (const key of STYLE_KEYS) {
+        if (selectedTextStyle.value![key] !== info[key]) store.set(['resizableLayers', index, 'textInfo', key], info[key]);
+      }
     });
   },
-  { deep: true }
+  { deep: true, flush: 'sync' }
 );
 
 const fonts: { key: FontKey; fontFamily: string; fontWeight: number; labelKey: string }[] = Object.entries(FONT_REGISTRY).map(([key, info]) => ({

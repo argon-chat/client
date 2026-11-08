@@ -3,7 +3,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch } from 'vue';
+import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
 import { useMediaEditorContext } from '../composables/useMediaEditorContext';
 import { useCropOffset } from '../composables/useCropOffset';
 import { useMaskPainterSlot, type MaskPainter } from '../composables/useMaskPainter';
@@ -20,6 +20,12 @@ import { createMaskRaster, type MaskRasterCanvas } from '../mask/maskRaster';
 import { canvasToSource, maskResolution, outlineRadiusOnCanvas } from '../mask/maskMath';
 import { fitExpressionContent } from '../finalRender/computeExportDimensions';
 import getResultTransform from '../finalRender/getResultTransform';
+import { uploadAnnotation, clearAnnotation } from '../webgpu/annotations';
+import { rasterSize, previewRasterSize } from '../canvas/annotationSpace';
+import { drawAnnotationLayers } from '../canvas/annotationRaster';
+import { getPreferredFormat } from '../webgpu/initDevice';
+import { imageProjection, projectionBasis } from '../canvas/projective';
+
 
 const { store, mode, videoQualitySteps } = useMediaEditorContext();
 const cropOffset = useCropOffset();
@@ -88,12 +94,25 @@ onMounted(async () => {
 
   if (expression) syncMask();
 
+  await nextTick();
+  store.ensureSourceAnnotations();
+  updateAnnotationDensity();
+  store.uiState.getSourceImageCanvas = getSourceImageCanvas;
   store.uiState.isReady = true;
+  scheduleLayerSync();
   redraw();
 });
 
 onBeforeUnmount(() => {
   disposed = true;
+  layerGeneration++;
+  if (layerSyncFrame !== null) cancelAnimationFrame(layerSyncFrame);
+  if (sourceInvalidationFrame !== null) cancelAnimationFrame(sourceInvalidationFrame);
+  sourceContext?.unconfigure();
+  if (sourceCanvas) sourceCanvas.width = sourceCanvas.height = 0;
+  if (sourceSnapshot) sourceSnapshot.width = sourceSnapshot.height = 0;
+  if (layersCanvas) layersCanvas.width = layersCanvas.height = 0;
+  store.uiState.getSourceImageCanvas = undefined;
   initAbort.abort();
   if (animFrameId !== null) cancelAnimationFrame(animFrameId);
   if (videoPlaybackId !== null) cancelAnimationFrame(videoPlaybackId);
@@ -150,6 +169,7 @@ function syncMask() {
     if (raster.colourCanvas) uploadColour(payload, raster.colourCanvas);
     else clearColour(payload);
   }
+  invalidateSourceSnapshot();
   scheduleRedraw();
 }
 
@@ -203,13 +223,16 @@ function paintLive(from: number) {
   const rect = raster.drawStroke(liveStroke, from);
   uploadMask(payload, raster.canvas, rect);
   if (raster.colourCanvas) uploadColour(payload, raster.colourCanvas, rect);
+  invalidateSourceSnapshot();
   scheduleRedraw();
 }
 
 const maskPainter: MaskPainter = {
   begin(strokeMode: 'erase' | 'restore', size: number, point: Vec2) {
     const p = toSource(point);
-    const scale = store.uiState.finalTransform.scale;
+    const basis = p && canvasEl.value && payload ? projectionBasis(imageProjection(store.uiState.finalTransform,
+      [canvasEl.value.width, canvasEl.value.height], [payload.media.width, payload.media.height]), p) : null;
+    const scale = basis ? Math.sqrt(Math.abs(basis[0] * basis[3] - basis[1] * basis[2])) : 0;
     if (!p || !(scale > 0)) return;
     liveStroke = { mode: strokeMode, size: size / scale, points: [p] };
     paintLive(0);
@@ -242,6 +265,7 @@ const maskPainter: MaskPainter = {
     uploadMask(payload, raster.canvas, rect);
     if (colour) raster.putColour(rect, colour);
     if (raster.colourCanvas) uploadColour(payload, raster.colourCanvas, rect);
+    invalidateSourceSnapshot();
     scheduleRedraw();
   },
   refresh() {
@@ -395,6 +419,94 @@ watch(
   { deep: true }
 );
 
+/** Keep the highest useful density; perspective animation never rasterizes vector layers. */
+function updateAnnotationDensity() {
+  if (!payload) return;
+  const media: Vec2 = [payload.media.width, payload.media.height];
+  const current = store.uiState.annotationRasterSize;
+  const wanted = previewRasterSize(media, store.uiState.finalTransform.scale);
+  if (current && wanted[0] <= current[0] && wanted[1] <= current[1]) return;
+  store.uiState.annotationRasterSize = wanted;
+}
+watch(() => store.uiState.finalTransform.scale, updateAnnotationDensity);
+
+let uploadedBrushRevision = -1;
+watch(() => store.uiState.annotationRevision, scheduleRedraw);
+let layersCanvas: HTMLCanvasElement | null = null;
+let layerGeneration = 0, layerSyncFrame: number | null = null;
+function scheduleLayerSync() {
+  if (layerSyncFrame !== null) return;
+  layerSyncFrame = requestAnimationFrame(() => { layerSyncFrame = null; void syncLayers(); });
+}
+async function syncLayers() {
+  if (!payload || disposed) return;
+  const generation = ++layerGeneration;
+  const size: Vec2 = [payload.media.width, payload.media.height];
+  const layers = store.mediaState.resizableLayers.filter(layer => layer.id !== store.uiState.editingTextLayer);
+  if (!layers.length) {
+    clearAnnotation(payload, 'layers');
+    if (layersCanvas) layersCanvas.width = layersCanvas.height = 0;
+    layersCanvas = null; scheduleRedraw(); return;
+  }
+  const raster = document.createElement('canvas');
+  [raster.width, raster.height] = store.uiState.annotationRasterSize ?? rasterSize(size);
+  try {
+    await drawAnnotationLayers(raster, layers, size);
+    if (disposed || generation !== layerGeneration || !payload) return;
+    if (layersCanvas) layersCanvas.width = layersCanvas.height = 0;
+    layersCanvas = raster;
+    uploadAnnotation(payload, 'layers', raster);
+    scheduleRedraw();
+  } finally { if (layersCanvas !== raster) raster.width = raster.height = 0; }
+}
+watch(() => [store.mediaState.resizableLayers, store.uiState.editingTextLayer, store.uiState.annotationRasterSize], scheduleLayerSync, { deep: true });
+
+let sourceSnapshot: HTMLCanvasElement | null = null;
+let sourceCanvas: HTMLCanvasElement | null = null, sourceContext: GPUCanvasContext | null = null;
+let sourceRevision = -1;
+let sourceInvalidationFrame: number | null = null;
+/** Mask/colour uploads happen after state watchers; invalidate only once the GPU input is current. */
+function invalidateSourceSnapshot() {
+  sourceRevision = -1;
+  if (sourceInvalidationFrame !== null) return;
+  sourceInvalidationFrame = requestAnimationFrame(() => {
+    sourceInvalidationFrame = null;
+    if (!disposed) store.uiState.sourceImageRevision++;
+  });
+}
+/** A filtered image in its own plane, rendered only when a blur stroke needs its pixels. */
+function getSourceImageCanvas(): HTMLCanvasElement {
+  if (!payload || !device) throw new Error('Editor source is not ready');
+  if (!sourceCanvas) {
+    sourceCanvas = document.createElement('canvas');
+    sourceSnapshot = document.createElement('canvas');
+    [sourceCanvas.width, sourceCanvas.height] = store.uiState.annotationRasterSize ?? rasterSize([payload.media.width, payload.media.height]);
+    sourceSnapshot.width = sourceCanvas.width; sourceSnapshot.height = sourceCanvas.height;
+    sourceContext = sourceCanvas.getContext('webgpu')!;
+    sourceContext.configure({ device, format: getPreferredFormat(), alphaMode: 'premultiplied' });
+  }
+  const size = store.uiState.annotationRasterSize;
+  if (size && (sourceCanvas.width !== size[0] || sourceCanvas.height !== size[1])) {
+    [sourceCanvas.width, sourceCanvas.height] = size;
+    sourceSnapshot!.width = size[0]; sourceSnapshot!.height = size[1]; sourceRevision = -1;
+  }
+  if (sourceRevision !== store.uiState.sourceImageRevision) {
+    // Sampling needs neither outline nor its viewport-sized compositor targets.
+    draw(device, sourceContext!, { ...payload, compositor: undefined }, {
+      rotation: 0, scale: sourceCanvas.width / payload.media.width, translation: [0, 0],
+      imageSize: [payload.media.width, payload.media.height], flip: [1, 1], perspective: [0, 0],
+      curves: store.mediaState.curves, selective: store.mediaState.selective, ...store.mediaState.adjustments,
+    }, null, false, 0);
+    // The GPU canvas expires at task end. Preserve just the lazily requested snapshot.
+    const snapshot = sourceSnapshot!.getContext('2d')!;
+    snapshot.clearRect(0, 0, sourceSnapshot!.width, sourceSnapshot!.height);
+    snapshot.drawImage(sourceCanvas, 0, 0);
+    sourceRevision = store.uiState.sourceImageRevision;
+  }
+  return sourceSnapshot!;
+}
+watch(() => [store.mediaState.adjustments, store.mediaState.curves, store.mediaState.selective], invalidateSourceSnapshot, { deep: true });
+
 function scheduleRedraw() {
   if (animFrameId !== null) return;
   animFrameId = requestAnimationFrame(() => {
@@ -428,6 +540,12 @@ function redraw() {
     ...adjustmentValues as any
   };
 
+  if (store.uiState.brushCanvas && uploadedBrushRevision !== store.uiState.annotationRevision) {
+    uploadAnnotation(payload, 'brush', store.uiState.brushCanvas, store.uiState.annotationDirtyRect);
+    store.uiState.annotationDirtyRect = undefined;
+    uploadedBrushRevision = store.uiState.annotationRevision;
+    store.uiState.annotationUploadedRevision = uploadedBrushRevision;
+  }
   draw(device, context, payload, params, outlineOnCanvas());
 
   // Debug gizmos overlay
@@ -440,6 +558,7 @@ function redraw() {
       mediaSize: [payload.media.width, payload.media.height],
       cropOffset: co,
       currentImageRatio: store.mediaState.currentImageRatio,
+      cropProgress: store.uiState.cropTabAnimationProgress,
       params
     });
   } else {

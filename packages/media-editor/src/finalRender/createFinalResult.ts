@@ -1,18 +1,15 @@
+import { projectAnnotations } from './projectAnnotations';
 import { shallowRef, toRaw, type Ref } from 'vue';
 import { ALL_FORMATS, BlobSource, CanvasSink, Input } from 'mediabunny';
-import { isExpressionMode, type EditorLayer, type EditorMode, type ExpressionEditorMode, type ExpressionExportFormat, type MaskRaster, type Vec2 } from '../types';
+import { isExpressionMode, type EditorMode, type ExpressionEditorMode, type ExpressionExportFormat, type MaskRaster, type Vec2 } from '../types';
 import type { RenderingPayload } from '../webgpu/initWebGPU';
 import { initWebGPU, cleanupWebGPU, uploadMask, uploadColour } from '../webgpu/initWebGPU';
 import { draw, type DrawingParameters } from '../webgpu/draw';
 import { updateFrameTexture, updateVideoTexture } from '../webgpu/loadTexture';
 import { defaultVideoQuality } from '../constants';
 import type { AdjustmentKey } from '../adjustments';
-import { createBrushPainter } from '../canvas/brushPainter';
 import { computeExportDimensions, computeExpressionLayout } from './computeExportDimensions';
 import getResultTransform from './getResultTransform';
-import getScaledLayersAndLines from './getScaledLayersAndLines';
-import drawTextLayer from './drawTextLayer';
-import drawStickerLayer from './drawStickerLayer';
 import { loadLayerFonts } from '../fonts';
 import { selectEncodingProfile } from './videoEncoding';
 import { encodeTransparentImage } from './encodeImage';
@@ -107,13 +104,6 @@ function cropOffsetFor(canvasSize: Vec2) {
   };
 }
 
-async function drawLayers(ctx: CanvasRenderingContext2D, layers: EditorLayer[]): Promise<void> {
-  for (const layer of layers) {
-    if (layer.type === 'text') drawTextLayer(ctx, layer);
-    else if (layer.type === 'sticker') await drawStickerLayer(ctx, layer);
-  }
-}
-
 export async function createFinalResult(args: CreateFinalResultArgs): Promise<MediaEditorFinalResult> {
   const { mediaSrc, mediaType, mediaState, canvasSize, mediaRatio, renderingPayload } = args;
 
@@ -170,12 +160,7 @@ export async function createFinalResult(args: CreateFinalResultArgs): Promise<Me
     waitToSeek: true
   });
 
-  // Render brushes onto a separate canvas
-  const brushResultCanvas = document.createElement('canvas');
-  brushResultCanvas.width = scaledWidth;
-  brushResultCanvas.height = scaledHeight;
-
-  // The export payload and both canvases are owned here only. Releasing is idempotent because the
+  // The export payload and its canvas are owned here only. Releasing is idempotent because the
   // video path hands it to getResult()/cancel() while every earlier exit (return or throw) runs it too.
   let released = false;
   const release = (): void => {
@@ -183,7 +168,6 @@ export async function createFinalResult(args: CreateFinalResultArgs): Promise<Me
     released = true;
     try { cleanupWebGPU(gpuPayload); } finally {
       releaseCanvas(resultCanvas);
-      releaseCanvas(brushResultCanvas);
     }
   };
 
@@ -210,27 +194,8 @@ export async function createFinalResult(args: CreateFinalResultArgs): Promise<Me
       ...(mediaState.adjustments as Record<AdjustmentKey, number>)
     };
 
+    await projectAnnotations(gpuPayload, drawParams, mediaState, canvasSize, args.pixelRatio);
     draw(gpuPayload.device, gpuContext, gpuPayload, drawParams);
-
-    const { scaledLayers, scaledLines } = getScaledLayersAndLines({
-      layers: mediaState.resizableLayers,
-      lines: mediaState.brushDrawnLines,
-      canvasSize,
-      resultSize: [scaledWidth, scaledHeight],
-      cropRatio: newRatio,
-      pixelRatio: args.pixelRatio
-    });
-
-    // Redraw brush lines at output resolution
-    if (scaledLines.length) {
-      const painter = createBrushPainter({
-        targetCanvas: brushResultCanvas,
-        imageCanvas: resultCanvas
-      });
-      for (const line of scaledLines) {
-        painter.commitLine(line);
-      }
-    }
 
     if (mediaType === 'image') {
       // Image export
@@ -241,9 +206,6 @@ export async function createFinalResult(args: CreateFinalResultArgs): Promise<Me
         const ctx = compositeCanvas.getContext('2d')!;
 
         ctx.drawImage(resultCanvas, 0, 0);
-        ctx.drawImage(brushResultCanvas, 0, 0);
-
-        await drawLayers(ctx, scaledLayers);
 
         const blob = await new Promise<Blob>((resolve) =>
           compositeCanvas.toBlob((b) => resolve(b!), 'image/png')
@@ -271,10 +233,8 @@ export async function createFinalResult(args: CreateFinalResultArgs): Promise<Me
       device: gpuPayload.device,
       context: gpuContext,
       resultCanvas,
-      brushResultCanvas,
       scaledWidth,
       scaledHeight,
-      scaledLayers,
       mediaState,
       mediaSrc,
       drawParams,
@@ -395,10 +355,8 @@ async function renderVideoResult(opts: {
   device: GPUDevice;
   context: GPUCanvasContext;
   resultCanvas: HTMLCanvasElement;
-  brushResultCanvas: HTMLCanvasElement;
   scaledWidth: number;
   scaledHeight: number;
-  scaledLayers: EditorLayer[];
   mediaState: EditingMediaState;
   mediaSrc: string;
   drawParams: DrawingParameters;
@@ -406,7 +364,7 @@ async function renderVideoResult(opts: {
   release: () => void;
   videoEdit: VideoEditSummary;
 }): Promise<MediaEditorFinalResult> {
-  const { payload, device, context, resultCanvas, brushResultCanvas, scaledWidth, scaledHeight, scaledLayers, mediaState, mediaSrc, drawParams, args, release, videoEdit } = opts;
+  const { payload, device, context, resultCanvas, scaledWidth, scaledHeight, mediaState, mediaSrc, drawParams, args, release, videoEdit } = opts;
 
   const video = payload.media.video!;
   const sourceDuration = video.duration;
@@ -418,31 +376,18 @@ async function renderVideoResult(opts: {
   const controller = new AbortController();
   let exporting = false;
 
-  // Brush lines and layers do not move over time: drawn once, laid over every frame.
-  const overlayCanvas = document.createElement('canvas');
-  overlayCanvas.width = scaledWidth;
-  overlayCanvas.height = scaledHeight;
-  const overlayCtx = overlayCanvas.getContext('2d')!;
-  overlayCtx.drawImage(brushResultCanvas, 0, 0);
-  await drawLayers(overlayCtx, scaledLayers);
-  const hasOverlay = scaledLayers.length > 0 || mediaState.brushDrawnLines.length > 0;
-
   // The preview is the cover frame, as initWebGPU seeked to it.
   const previewCanvas = document.createElement('canvas');
   previewCanvas.width = scaledWidth;
   previewCanvas.height = scaledHeight;
   const previewCtx = previewCanvas.getContext('2d')!;
   previewCtx.drawImage(resultCanvas, 0, 0);
-  if (hasOverlay) previewCtx.drawImage(overlayCanvas, 0, 0);
   const previewBlob = await new Promise<Blob>((resolve) =>
     previewCanvas.toBlob((b) => resolve(b!), 'image/jpeg', 0.8)
   );
   releaseCanvas(previewCanvas);
 
-  const releaseAll = (): void => {
-    releaseCanvas(overlayCanvas);
-    release();
-  };
+  const releaseAll = release;
 
   const getResult = async (): Promise<MediaEditorFinalResultPayload> => {
     if (controller.signal.aborted) throw new DOMException('The export was cancelled.', 'AbortError');
@@ -464,7 +409,6 @@ async function renderVideoResult(opts: {
         // Copied out in the task that drew it: a WebGPU canvas's texture does not outlive the task.
         compositeCtx.clearRect(0, 0, scaledWidth, scaledHeight);
         compositeCtx.drawImage(resultCanvas, 0, 0);
-        if (hasOverlay) compositeCtx.drawImage(overlayCanvas, 0, 0);
         return compositeCanvas;
       };
 
@@ -530,9 +474,6 @@ async function createExpressionResult(args: CreateFinalResultArgs, mode: Express
   const resultCanvas = document.createElement('canvas');
   resultCanvas.width = width;
   resultCanvas.height = height;
-  const brushCanvas = document.createElement('canvas');
-  brushCanvas.width = width;
-  brushCanvas.height = height;
   const outCanvas = document.createElement('canvas');
   outCanvas.width = layout.canvas[0];
   outCanvas.height = layout.canvas[1];
@@ -585,30 +526,12 @@ async function createExpressionResult(args: CreateFinalResultArgs, mode: Express
     const outline = mediaState.outline?.enabled && mediaState.outline.radius > 0
       ? { radius: mediaState.outline.radius, color: mediaState.outline.color }
       : null;
+    await projectAnnotations(payload, drawParams, mediaState, canvasSize, args.pixelRatio);
     draw(payload.device, context, payload, drawParams, outline);
-
-    const { scaledLayers, scaledLines } = getScaledLayersAndLines({
-      layers: mediaState.resizableLayers,
-      lines: mediaState.brushDrawnLines,
-      canvasSize,
-      resultSize: [width, height],
-      cropRatio: mediaState.currentImageRatio || mediaRatio,
-      pixelRatio: args.pixelRatio
-    });
-
-    if (scaledLines.length) {
-      const painter = createBrushPainter({ targetCanvas: brushCanvas, imageCanvas: resultCanvas });
-      for (const line of scaledLines) painter.commitLine(line);
-    }
 
     const ctx = outCanvas.getContext('2d')!;
     const { x, y } = layout.content;
     ctx.drawImage(resultCanvas, x, y);
-    ctx.drawImage(brushCanvas, x, y);
-    ctx.save();
-    ctx.translate(x, y);
-    await drawLayers(ctx, scaledLayers);
-    ctx.restore();
 
     const blob = await encodeTransparentImage(outCanvas, { format: args.exportFormat, maxBytes: args.maxBytes });
 
@@ -624,7 +547,6 @@ async function createExpressionResult(args: CreateFinalResultArgs, mode: Express
   } finally {
     try { cleanupWebGPU(payload); } finally {
       releaseCanvas(resultCanvas);
-      releaseCanvas(brushCanvas);
       releaseCanvas(outCanvas);
     }
   }

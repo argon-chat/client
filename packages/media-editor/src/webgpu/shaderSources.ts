@@ -269,6 +269,7 @@ fn rotate_uv(uv: vec2f, angle: f32) -> vec2f {
 // ─── Adjustment passes ─────────────────────────────────────────────
 
 fn brightness_pass(color: vec4f, intensity: f32) -> vec4f {
+  if (abs(intensity) < 0.001) { return color; }
   let mag = intensity * 1.045;
   let power = select(1.0 + abs(mag), 1.0 / (1.0 + abs(mag)), mag < 0.0);
   let adjusted = vec3f(
@@ -280,16 +281,19 @@ fn brightness_pass(color: vec4f, intensity: f32) -> vec4f {
 }
 
 fn contrast_pass(color: vec4f, intensity: f32) -> vec4f {
+  if (abs(intensity) < 0.001) { return color; }
   let k = intensity * 0.3;
   return vec4f(clamp(0.5 + (1.0 + k) * (color.rgb - 0.5), vec3f(0.0), vec3f(1.0)), color.a);
 }
 
 fn saturation_pass(color: vec4f, intensity: f32) -> vec4f {
+  if (abs(intensity) < 0.001) { return color; }
   let gray = vec3f(luminance(color.rgb));
   return vec4f(mix(gray, color.rgb, 1.0 + intensity), color.a);
 }
 
 fn warmth_pass(color: vec4f, intensity: f32) -> vec4f {
+  if (abs(intensity) < 0.001) { return color; }
   let shift = select(-vec3f(0.0588, 0.1569, -0.1255), vec3f(0.1765, -0.1255, 0.0902), intensity > 0.0);
   var yuv = to_yuv(color.rgb);
   let curve = sin(yuv.r * 3.14159);
@@ -298,6 +302,7 @@ fn warmth_pass(color: vec4f, intensity: f32) -> vec4f {
 }
 
 fn fade_pass(color: vec4f, intensity: f32) -> vec4f {
+  if (abs(intensity) < 0.001) { return color; }
   let c1 = vec3f(-0.9772); let c2 = vec3f(1.708);
   let c3 = vec3f(-0.1603); let c4 = vec3f(0.2878);
   let curve = c1 * pow(color.rgb, vec3f(3.0)) + c2 * pow(color.rgb, vec3f(2.0)) + c3 * color.rgb + c4;
@@ -306,6 +311,7 @@ fn fade_pass(color: vec4f, intensity: f32) -> vec4f {
 }
 
 fn highlights_shadows_pass(color: vec4f, hi: f32, sh: f32) -> vec4f {
+  if (abs(hi - 1.0) + abs(sh - 1.0) < 0.001) { return color; }
   let lum = dot(color.rgb, HS_BLEND_WEIGHT);
 
   let shadow_adj = clamp(
@@ -327,6 +333,7 @@ fn highlights_shadows_pass(color: vec4f, hi: f32, sh: f32) -> vec4f {
 }
 
 fn vignette_pass(color: vec4f, intensity: f32, uv: vec2f) -> vec4f {
+  if (abs(intensity) < 0.001) { return color; }
   let dist = length(uv - 0.5) / sqrt(0.5);
   let falloff = sigmoid_ease(dist * 0.7, 0.62) * intensity * 0.645;
   let darkened = mix(pow(color.rgb, vec3f(1.0 / (1.0 - falloff))), vec3f(0.0), falloff * falloff);
@@ -343,7 +350,8 @@ fn grain_pass(color: vec4f, intensity: f32, uv: vec2f) -> vec4f {
 }
 
 fn sharpen_pass(intensity: f32, uv: vec2f) -> vec4f {
-  let texel = 1.0 / p.viewport;
+  if (abs(intensity) < 0.001) { return sample_src(uv); }
+  let texel = 1.0 / p.source_dimensions;
   let d = texel * 1.5;
   let s_a = sample_src(uv + vec2f(-d.x, -d.y)).rgb;
   let s_b = sample_src(uv + vec2f( d.x, -d.y)).rgb;
@@ -363,7 +371,7 @@ fn tilt_shift_pass(color: vec4f, intensity: f32, uv: vec2f) -> vec4f {
   let focus_width = 0.2;
   let dist_from_focus = abs(uv.y - focus_center);
   let blur_amount = smoothstep(focus_width * 0.5, focus_width, dist_from_focus) * intensity;
-  let texel = 1.0 / p.viewport;
+  let texel = 1.0 / p.source_dimensions;
   let r = blur_amount * 6.0;
   // Premultiplied, alpha included: a blurred edge fades out instead of darkening.
   var acc = color;

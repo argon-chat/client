@@ -1,3 +1,5 @@
+import { sourceToCanvas } from '../mask/maskMath';
+import { fitToAspectRatio, mix } from '../geometry';
 import type { Vec2 } from '../types';
 import type { DrawingParameters } from './draw';
 
@@ -12,6 +14,7 @@ export interface GizmoDrawInput {
   mediaSize: Vec2;
   cropOffset: { left: number; top: number; width: number; height: number };
   currentImageRatio: number;
+  cropProgress?: number;
   params: DrawingParameters;
 }
 
@@ -20,6 +23,7 @@ let gizmoCtx: CanvasRenderingContext2D | null = null;
 
 export function ensureGizmoCanvas(container: HTMLElement): HTMLCanvasElement {
   if (gizmoCanvas && gizmoCanvas.parentElement === container) return gizmoCanvas;
+  removeGizmoCanvas();
 
   gizmoCanvas = document.createElement('canvas');
   gizmoCanvas.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:9999';
@@ -31,6 +35,7 @@ export function ensureGizmoCanvas(container: HTMLElement): HTMLCanvasElement {
 export function removeGizmoCanvas() {
   if (gizmoCanvas) {
     gizmoCanvas.remove();
+    gizmoCanvas.width = gizmoCanvas.height = 0;
     gizmoCanvas = null;
     gizmoCtx = null;
   }
@@ -58,62 +63,32 @@ export function drawGizmos(input: GizmoDrawInput): void {
   // Work in CSS pixel space (scale up for DPR)
   ctx.scale(dpr, dpr);
 
-  // Center of the viewport
-  const cx = cw / 2;
-  const cy = ch / 2;
-
-  // ── Draw image boundary (green) ──────────────────────────────────
-  // finalTransform.scale = userZoom * pixelRatio * snappedImageScale * toCropScale * fromCroppedScale
-  // In display pixels we just divide by pixelRatio.
   const [imgW, imgH] = mediaSize;
-  const displayScale = params.scale / dpr;
-  const halfDisplayW = (imgW * displayScale) / 2;
-  const halfDisplayH = (imgH * displayScale) / 2;
-
-  // Translation in display pixels
-  const tx = params.translation[0] / dpr;
-  const ty = params.translation[1] / dpr;
-
-  // Image corners before rotation (centered at 0,0)
-  const imgCorners: Vec2[] = [
-    [-halfDisplayW, -halfDisplayH],
-    [ halfDisplayW, -halfDisplayH],
-    [ halfDisplayW,  halfDisplayH],
-    [-halfDisplayW,  halfDisplayH],
-  ];
-
-  // Apply flip + rotation + translation
-  ctx.translate(cx + tx, cy + ty);
-  ctx.rotate(params.rotation); // shader double-negates: writeUniforms negates, then matrix inverts
-  ctx.scale(params.flip[0], params.flip[1]);
-
-  // Image outline
-  ctx.strokeStyle = '#00ff00';
-  ctx.lineWidth = 2;
-  ctx.setLineDash([6, 4]);
-  ctx.beginPath();
-  ctx.moveTo(imgCorners[0][0], imgCorners[0][1]);
-  for (let i = 1; i < 4; i++) ctx.lineTo(imgCorners[i][0], imgCorners[i][1]);
-  ctx.closePath();
-  ctx.stroke();
-
-  // Image center crosshair
-  ctx.setLineDash([]);
-  ctx.strokeStyle = '#00ff0088';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(-12, 0); ctx.lineTo(12, 0);
-  ctx.moveTo(0, -12); ctx.lineTo(0, 12);
-  ctx.stroke();
+  const tx = params.translation[0] / dpr, ty = params.translation[1] / dpr;
+  const transform = { ...params, perspective: params.perspective };
+  const screen = (point: Vec2): Vec2 => {
+    const p = sourceToCanvas(point, transform, [targetW, targetH], mediaSize);
+    return [p[0] / dpr, p[1] / dpr];
+  };
+  const corners = ([ [0, 0], [imgW, 0], [imgW, imgH], [0, imgH] ] as Vec2[]).map(screen);
+  ctx.strokeStyle = '#00ff00'; ctx.lineWidth = 2; ctx.setLineDash([6, 4]); ctx.beginPath();
+  ctx.moveTo(...corners[0]); for (const point of corners.slice(1)) ctx.lineTo(...point); ctx.closePath(); ctx.stroke();
+  const center = screen([imgW / 2, imgH / 2]);
+  ctx.setLineDash([]); ctx.strokeStyle = '#00ff0088'; ctx.lineWidth = 1; ctx.beginPath();
+  ctx.moveTo(center[0] - 12, center[1]); ctx.lineTo(center[0] + 12, center[1]);
+  ctx.moveTo(center[0], center[1] - 12); ctx.lineTo(center[0], center[1] + 12); ctx.stroke();
 
   ctx.restore();
   ctx.save();
   ctx.scale(dpr, dpr);
 
   // ── Draw crop boundary (red) ─────────────────────────────────────
-  const cropCenterX = cropOffset.left + cropOffset.width / 2;
-  const cropCenterY = cropOffset.top + cropOffset.height / 2;
-  const [cropFitW, cropFitH] = fitToRatio(currentImageRatio, cropOffset.width, cropOffset.height);
+  const progress = input.cropProgress ?? 1;
+  const cropCenterX = mix(cw / 2, cropOffset.left + cropOffset.width / 2, progress);
+  const cropCenterY = mix(ch / 2, cropOffset.top + cropOffset.height / 2, progress);
+  const crop = fitToAspectRatio(currentImageRatio, cropOffset.width, cropOffset.height);
+  const normal = fitToAspectRatio(currentImageRatio, cw, ch);
+  const cropFitW = mix(normal[0], crop[0], progress), cropFitH = mix(normal[1], crop[1], progress);
 
   ctx.strokeStyle = '#ff3333';
   ctx.lineWidth = 2;
@@ -149,10 +124,5 @@ export function drawGizmos(input: GizmoDrawInput): void {
   }
 
   ctx.restore();
-}
-
-function fitToRatio(ratio: number, vw: number, vh: number): Vec2 {
-  if (vw / ratio > vh) return [vh * ratio, vh];
-  return [vw, vw / ratio];
 }
 

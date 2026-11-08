@@ -1,11 +1,21 @@
 import type { EditorLayer, FontInfo, FontKey, TextStyle } from './types';
 import { DEFAULT_TEXT_STYLE, FONT_REGISTRY, TEXT_PLACEHOLDER } from './constants';
 
-const STYLESHEET_ID = 'media-editor-fonts';
-const STYLESHEET_URL = 'https://fonts.googleapis.com/css2?family=Chewy&family=Courier+Prime:wght@400;700&family=Fugaz+One&family=Playwrite+BE+VLG&family=Roboto:wght@400;500;700&family=Rubik+Bubbles&family=Sedan&family=Suez+One&display=swap';
-const EXPORT_FONT_TIMEOUT = 5000;
+import robotoUrl from './assets/fonts/roboto/Roboto-Medium.ttf?url';
+import suezUrl from './assets/fonts/suezone/SuezOne-Regular.ttf?url';
+import bubblesUrl from './assets/fonts/rubikbubbles/RubikBubbles-Regular.ttf?url';
+import playwriteUrl from './assets/fonts/playwritebevlg/PlaywriteBEVLG[wght].ttf?url';
+import chewyUrl from './assets/fonts/chewy/Chewy-Regular.ttf?url';
+import courierUrl from './assets/fonts/courierprime/CourierPrime-Bold.ttf?url';
+import fugazUrl from './assets/fonts/fugazone/FugazOne-Regular.ttf?url';
+import sedanUrl from './assets/fonts/sedan/Sedan-Regular.ttf?url';
 
-const stylesheets = new WeakMap<HTMLLinkElement, Promise<void>>();
+const FONT_URLS: Record<FontKey, string> = {
+  roboto: robotoUrl, suez: suezUrl, bubbles: bubblesUrl, playwrite: playwriteUrl,
+  chewy: chewyUrl, courier: courierUrl, fugaz: fugazUrl, sedan: sedanUrl,
+};
+const EXPORT_FONT_TIMEOUT = 5000;
+let editorFonts: Promise<void> | undefined;
 
 /** An unknown key (a state saved by another version) gets the default font rather than no text. */
 export function fontInfo(key: FontKey): FontInfo {
@@ -22,31 +32,22 @@ export function layerText(info?: TextStyle): string {
   return info?.content || TEXT_PLACEHOLDER;
 }
 
-/** Adds the fonts' stylesheet once; resolves when it is in, or has failed and the text falls back. */
+/** Local faces work identically offline, in browsers and in the native host. */
 export function loadEditorFonts(): Promise<void> {
-  let link = document.getElementById(STYLESHEET_ID) as HTMLLinkElement | null;
-  if (!link) {
-    link = Object.assign(document.createElement('link'), { id: STYLESHEET_ID, rel: 'stylesheet', href: STYLESHEET_URL });
-    document.head.appendChild(link);
+  if (!editorFonts) {
+    editorFonts = Promise.all(Object.entries(FONT_URLS).map(async ([key, url]) => {
+      const info = fontInfo(key as FontKey);
+      const family = info.fontFamily.replace(/['"]/g, '');
+      const face = new FontFace(family, `url("${url}")`, { weight: String(info.fontWeight), style: 'normal' });
+      try {
+        await face.load();
+        document.fonts.add(face);
+      } catch (error) {
+        console.warn(`[media-editor] bundled font ${family} did not load; using the fallback face`, error);
+      }
+    })).then(() => undefined);
   }
-  let loaded = stylesheets.get(link);
-  if (!loaded) {
-    loaded = link.sheet ? Promise.resolve() : whenLoaded(link);
-    stylesheets.set(link, loaded);
-  }
-  return loaded;
-}
-
-function whenLoaded(link: HTMLLinkElement): Promise<void> {
-  return new Promise((resolve) => {
-    link.addEventListener('load', () => resolve(), { once: true });
-    link.addEventListener('error', () => {
-      console.warn('[media-editor] the font stylesheet did not load; text falls back to the default font');
-      // The next open adds it again.
-      link.remove();
-      resolve();
-    }, { once: true });
-  });
+  return editorFonts;
 }
 
 /**

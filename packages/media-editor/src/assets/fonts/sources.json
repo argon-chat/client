@@ -1,0 +1,86 @@
+[
+  {
+    "path": "ofl/suezone/OFL.txt",
+    "sha": "f9d784d418c69d92279723f472fe98442144578e",
+    "size": 4446,
+    "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/suezone/OFL.txt"
+  },
+  {
+    "path": "ofl/suezone/SuezOne-Regular.ttf",
+    "sha": "ad67cc006febae3935f267bea5390b0315246865",
+    "size": 70856,
+    "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/suezone/SuezOne-Regular.ttf"
+  },
+  {
+    "path": "ofl/rubikbubbles/OFL.txt",
+    "sha": "1e2235d7815818ef7bddbb86da9727aa22c3b40f",
+    "size": 4406,
+    "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/rubikbubbles/OFL.txt"
+  },
+  {
+    "path": "ofl/rubikbubbles/RubikBubbles-Regular.ttf",
+    "sha": "dbfaaa72f262144e200642ac9245a7fe714f0f58",
+    "size": 219564,
+    "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/rubikbubbles/RubikBubbles-Regular.ttf"
+  },
+  {
+    "path": "ofl/playwritebevlg/OFL.txt",
+    "sha": "1efea058d1f0a4b42bfb660f2077256bc43d6079",
+    "size": 4393,
+    "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/playwritebevlg/OFL.txt"
+  },
+  {
+    "path": "ofl/playwritebevlg/PlaywriteBEVLG[wght].ttf",
+    "sha": "1e5dcfed0a747fc7851a0a6b922686279e1627db",
+    "size": 352560,
+    "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/playwritebevlg/PlaywriteBEVLG%5Bwght%5D.ttf"
+  },
+  {
+    "path": "apache/chewy/Chewy-Regular.ttf",
+    "sha": "609eeb393c167df58d434d3d007364944a727894",
+    "size": 41248,
+    "url": "https://raw.githubusercontent.com/google/fonts/main/apache/chewy/Chewy-Regular.ttf"
+  },
+  {
+    "path": "apache/chewy/LICENSE.txt",
+    "sha": "d645695673349e3947e8e5ae42332d0ac3164cd7",
+    "size": 11358,
+    "url": "https://raw.githubusercontent.com/google/fonts/main/apache/chewy/LICENSE.txt"
+  },
+  {
+    "path": "ofl/courierprime/CourierPrime-Bold.ttf",
+    "sha": "d27ce71916d55b584c51854e9d57a303de6af9f0",
+    "size": 72856,
+    "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/courierprime/CourierPrime-Bold.ttf"
+  },
+  {
+    "path": "ofl/courierprime/OFL.txt",
+    "sha": "7cdc333cb7318c5ce83e53f1b86f23604dafa72c",
+    "size": 4403,
+    "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/courierprime/OFL.txt"
+  },
+  {
+    "path": "ofl/fugazone/FugazOne-Regular.ttf",
+    "sha": "326a09875cf0b6e897751135ae0ea94cc6199959",
+    "size": 27868,
+    "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/fugazone/FugazOne-Regular.ttf"
+  },
+  {
+    "path": "ofl/fugazone/OFL.txt",
+    "sha": "2f41a6fbc3b6c807acf5ca65016548cc01919a58",
+    "size": 4409,
+    "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/fugazone/OFL.txt"
+  },
+  {
+    "path": "ofl/sedan/OFL.txt",
+    "sha": "eec8c3523f827cbf675ce4fe2cf590b6151e9a4a",
+    "size": 4384,
+    "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/sedan/OFL.txt"
+  },
+  {
+    "path": "ofl/sedan/Sedan-Regular.ttf",
+    "sha": "ec224a30be03d6f28dfe2de63e537caaa5912448",
+    "size": 116096,
+    "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/sedan/Sedan-Regular.ttf"
+  }
+]

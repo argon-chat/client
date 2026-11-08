@@ -1,5 +1,5 @@
 <template>
-  <div class="relative isolate bg-black flex-1 overflow-hidden" ref="containerEl">
+  <div class="relative isolate bg-black flex-1 overflow-hidden select-none" ref="containerEl">
     <ImageCanvas ref="imageCanvasRef" />
     <BrushCanvas ref="brushCanvasRef" />
     <TextLayers />
@@ -53,7 +53,8 @@ onBeforeUnmount(() => {
 function updateCanvasSize() {
   if (!containerEl.value) return;
   const rect = containerEl.value.getBoundingClientRect();
-  store.uiState.canvasSize = [rect.width, rect.height];
+  const size = store.uiState.canvasSize;
+  if (!size || size[0] !== rect.width || size[1] !== rect.height) store.uiState.canvasSize = [rect.width, rect.height];
   store.uiState.pixelRatio = window.devicePixelRatio;
 }
 </script>

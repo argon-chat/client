@@ -33,7 +33,9 @@ export default function drawTextLayer(ctx: CanvasRenderingContext2D, layer: Edit
   // `white-space: pre` makes no line of a trailing break.
   const lines = layerText(info).replace(/\n$/, '').split('\n');
   const widths = lines.map((line) => ctx.measureText(line).width);
-  const { fontBoundingBoxAscent: ascent, fontBoundingBoxDescent: descent } = ctx.measureText(' ');
+  const metrics = ctx.measureText(' ');
+  const ascent = metrics.fontBoundingBoxAscent ?? info.size * 0.8;
+  const descent = metrics.fontBoundingBoxDescent ?? info.size * 0.2;
   const lineHeight = info.size * TEXT_LINE_HEIGHT;
   const baseline = (lineHeight - (ascent + descent)) / 2 + ascent;
   const [padX, padY] = info.style === 'background' ? TEXT_BACKGROUND_PADDING : [0, 0];
@@ -42,6 +44,7 @@ export default function drawTextLayer(ctx: CanvasRenderingContext2D, layer: Edit
   const boxH = Math.max(TEXT_BOX_MIN_SIZE[1], blockH + 2 * TEXT_BOX_INSET);
 
   ctx.translate(layer.position[0], layer.position[1]);
+  if(layer.basis) ctx.transform(...layer.basis,0,0);
   ctx.rotate(layer.rotation);
   ctx.scale(layer.scale, layer.scale);
   ctx.translate(-blockW / 2, -boxH / 2 + TEXT_BOX_INSET);

@@ -11,6 +11,9 @@ export type EditorLayer = {
   scale: number;
   textInfo?: TextStyle;
   stickerSrc?: string;
+  coordinateSpace?: 'source';
+  /** Local font/sticker pixels to source pixels, preserving orientation at insertion. */
+  basis?: [number,number,number,number];
 };
 
 export type FontKey = 'roboto' | 'suez' | 'bubbles' | 'playwrite' | 'chewy' | 'courier' | 'fugaz' | 'sedan';
@@ -31,6 +34,7 @@ export type FontInfo = {
 };
 
 export type RenderTransform = {
+  perspective?: Vec2;
   flip: Vec2;
   rotation: number;
   scale: number;

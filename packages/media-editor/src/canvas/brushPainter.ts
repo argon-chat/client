@@ -1,11 +1,12 @@
 import type { Vec2 } from '../types';
 import { pointDistance } from '../geometry';
 import { hexToRgbaTuple } from '../color';
-import { tween } from '../animation';
+import { tween, type TweenHandle } from '../animation';
 
 // ─── Types ─────────────────────────────────────────────────────────
 
 export type BrushDrawnLine = {
+  coordinateSpace?: 'source';
   color: string;
   brush: string;
   size: number;
@@ -31,6 +32,8 @@ export interface BrushPainterAPI {
   /** Drops the line being previewed: back to what is committed. */
   discard(): void;
   clear(): void;
+  invalidateSource(): void;
+  dispose(): void;
   animateArrow(line: BrushDrawnLine): Promise<void>;
 }
 
@@ -142,13 +145,17 @@ const blurBrush: BrushRenderer = {
 
     blurredLineCtx.clearRect(0, 0, w, h);
 
-    const xs = line.points.map(p => p[0]);
-    const ys = line.points.map(p => p[1]);
-    const pad = line.size;
-    const x0 = Math.max(Math.min(...xs) - pad, 0);
-    const x1 = Math.max(...xs) + pad;
-    const y0 = Math.max(Math.min(...ys) - pad, 0);
-    const y1 = Math.max(...ys) + pad;
+    if (!line.points.length) return;
+    let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
+    for (const [x, y] of line.points) {
+      left = Math.min(left, x); top = Math.min(top, y);
+      right = Math.max(right, x); bottom = Math.max(bottom, y);
+    }
+    const x0 = Math.max(Math.floor(left - line.size), 0);
+    const y0 = Math.max(Math.floor(top - line.size), 0);
+    const x1 = Math.min(Math.ceil(right + line.size), w);
+    const y1 = Math.min(Math.ceil(bottom + line.size), h);
+    if (x1 <= x0 || y1 <= y0) return;
 
     blurredLineCtx.strokeStyle = 'white';
     helpers.traceSmoothPath(blurredLineCtx, line);
@@ -156,7 +163,7 @@ const blurBrush: BrushRenderer = {
     blurredLineCtx.globalCompositeOperation = 'source-in';
     blurredLineCtx.drawImage(blurredImageCanvas, 0, 0);
 
-    ctx.drawImage(blurredLineCanvas, x0, y0, x1, y1, x0, y0, x1, y1);
+    ctx.drawImage(blurredLineCanvas, x0, y0, x1 - x0, y1 - y0, x0, y0, x1 - x0, y1 - y0);
     blurredLineCtx.globalCompositeOperation = 'source-over';
   }
 };
@@ -166,7 +173,6 @@ const eraserBrush: BrushRenderer = {
     ctx.strokeStyle = 'white';
     ctx.globalCompositeOperation = 'destination-out';
     helpers.traceSmoothPath(ctx, line);
-    ctx.stroke();
     ctx.globalCompositeOperation = 'source-over';
   }
 };
@@ -185,7 +191,7 @@ const BRUSH_REGISTRY: Record<string, BrushRenderer> = {
 
 export interface CreateBrushPainterOptions {
   targetCanvas: HTMLCanvasElement;
-  imageCanvas: HTMLCanvasElement;
+  imageCanvas: HTMLCanvasElement | (() => HTMLCanvasElement);
   blurRadius?: number;
 }
 
@@ -202,44 +208,73 @@ export function createBrushPainter(opts: CreateBrushPainterOptions): BrushPainte
 
   const targetCtx = targetCanvas.getContext('2d', { willReadFrequently: true })!;
 
-  // Internal offscreen canvases
-  const cacheCanvas = Object.assign(document.createElement('canvas'), { width, height });
-  const blurredImageCanvas = Object.assign(document.createElement('canvas'), { width, height });
-  const blurredLineCanvas = Object.assign(document.createElement('canvas'), { width, height });
+  const makeCanvas = () => Object.assign(document.createElement('canvas'), { width, height });
+  const cacheCanvas = makeCanvas();
+  const cacheCtx = cacheCanvas.getContext('2d')!;
+  let helpers: PaintHelpers | undefined;
+  let blurDirty = true;
+  let disposed = false;
+  let animation: { handle: TweenHandle; resolve: () => void } | undefined;
 
-  const cacheCtx = cacheCanvas.getContext('2d', { willReadFrequently: true })!;
-  const blurredImageCtx = blurredImageCanvas.getContext('2d', { willReadFrequently: true })!;
-  const blurredLineCtx = blurredLineCanvas.getContext('2d', { willReadFrequently: true })!;
-
-  const helpers: PaintHelpers = {
-    traceSmoothPath,
-    blurredImageCanvas,
-    blurredLineCtx,
-    blurredLineCanvas,
-  };
+  function getHelpers(needsBlur: boolean): PaintHelpers {
+    if (needsBlur && !helpers) {
+      const blurredImageCanvas = makeCanvas();
+      const blurredLineCanvas = makeCanvas();
+      helpers = {
+        traceSmoothPath, blurredImageCanvas, blurredLineCanvas,
+        blurredLineCtx: blurredLineCanvas.getContext('2d')!,
+      };
+    }
+    // Non-blur brushes only use the path helper; no full-sized blur buffers.
+    return helpers ?? { traceSmoothPath } as PaintHelpers;
+  }
 
   function refreshBlurSource() {
-    blurredImageCtx.clearRect(0, 0, width, height);
-    blurredImageCtx.filter = `blur(${blurRadius}px)`;
-    blurredImageCtx.drawImage(imageCanvas, 0, 0, width, height);
-    blurredImageCtx.drawImage(cacheCanvas, 0, 0);
+    if (!blurDirty) return;
+    const { blurredImageCanvas } = getHelpers(true);
+    const ctx = blurredImageCanvas.getContext('2d')!;
+    const source = typeof imageCanvas === 'function' ? imageCanvas() : imageCanvas;
+    // Blur the composited source, rather than blurring each translucent layer separately.
+    ctx.filter = 'none';
+    ctx.clearRect(0, 0, width, height);
+    ctx.drawImage(source, 0, 0, width, height);
+    ctx.drawImage(cacheCanvas, 0, 0);
+    ctx.filter = `blur(${blurRadius}px)`;
+    ctx.globalCompositeOperation = 'copy';
+    ctx.drawImage(blurredImageCanvas, 0, 0);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.filter = 'none';
+    blurDirty = false;
+  }
+
+  function render(ctx: CanvasRenderingContext2D, line: BrushDrawnLine, finish: boolean) {
+    const renderer = BRUSH_REGISTRY[line.brush];
+    if (!renderer || !line.points.length) return;
+    if (line.brush === 'blur') refreshBlurSource();
+    ctx.save();
+    renderer.render(ctx, line, getHelpers(line.brush === 'blur'), finish);
+    ctx.restore();
+  }
+
+  function stopAnimation() {
+    if (!animation) return;
+    animation.handle.cancel();
+    animation.resolve();
+    animation = undefined;
   }
 
   function preview(line: BrushDrawnLine, finish = false) {
-    const renderer = BRUSH_REGISTRY[line.brush];
-    if (!renderer) return;
-
-    targetCtx.clearRect(0, 0, width, height);
-    targetCtx.drawImage(cacheCanvas, 0, 0);
-    targetCtx.save();
-    renderer.render(targetCtx, line, helpers, finish);
-    targetCtx.restore();
+    if (disposed) return;
+    stopAnimation();
+    discard();
+    render(targetCtx, line, finish);
   }
 
   function commit() {
+    if (disposed) return;
     cacheCtx.clearRect(0, 0, width, height);
     cacheCtx.drawImage(targetCanvas, 0, 0);
-    refreshBlurSource();
+    blurDirty = true;
   }
 
   function commitLine(line: BrushDrawnLine) {
@@ -248,34 +283,63 @@ export function createBrushPainter(opts: CreateBrushPainterOptions): BrushPainte
   }
 
   function redrawAll(lines: BrushDrawnLine[]) {
+    if (disposed) return;
     clear();
-    for (const line of lines) commitLine(line);
+    // Replay directly into the committed plane. Only blur strokes need a source
+    // snapshot; a normal history replay never copies the base GPU image.
+    for (const line of lines) {
+      render(cacheCtx, line, true);
+      blurDirty = true;
+    }
+    discard();
   }
 
   function discard() {
+    if (disposed) return;
     targetCtx.clearRect(0, 0, width, height);
     targetCtx.drawImage(cacheCanvas, 0, 0);
   }
 
   function clear() {
+    if (disposed) return;
+    stopAnimation();
     targetCtx.clearRect(0, 0, width, height);
     cacheCtx.clearRect(0, 0, width, height);
+    blurDirty = true;
+  }
+
+  function invalidateSource() { blurDirty = true; }
+
+  function dispose() {
+    if (disposed) return;
+    disposed = true;
+    stopAnimation();
+    cacheCanvas.width = cacheCanvas.height = 0;
+    if (helpers) {
+      helpers.blurredImageCanvas.width = helpers.blurredImageCanvas.height = 0;
+      helpers.blurredLineCanvas.width = helpers.blurredLineCanvas.height = 0;
+      helpers = undefined;
+    }
   }
 
   function animateArrow(line: BrushDrawnLine): Promise<void> {
-    if (line.points.length < 2) return Promise.resolve();
+    if (disposed || line.points.length < 2) return Promise.resolve();
+    stopAnimation();
     const maxLen = computeArrowLength(line.size);
     return new Promise<void>(resolve => {
-      tween({
-        from: 0.1,
-        to: maxLen,
-        duration: 120,
-        easing: t => t, // linear for short animations
-        onUpdate: (len: number) => renderArrowHead(targetCtx, line, len),
-        onComplete: resolve,
+      const handle = tween({
+        from: 0.1, to: maxLen, duration: 120, easing: t => t,
+        onUpdate: (len: number) => {
+          if (disposed) return;
+          discard();
+          render(targetCtx, { ...line, brush: 'pen' }, false);
+          renderArrowHead(targetCtx, line, len);
+        },
+        onComplete: () => { animation = undefined; resolve(); },
       });
+      animation = { handle, resolve };
     });
   }
 
-  return { preview, commit, commitLine, redrawAll, discard, clear, animateArrow };
+  return { preview, commit, commitLine, redrawAll, discard, clear, animateArrow, invalidateSource, dispose };
 }
