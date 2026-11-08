@@ -117,8 +117,8 @@ try {
     Start-Sleep -Milliseconds 100
     $handshake=if(Test-Path -LiteralPath ($out+'/dist/devtools.json')){Get-Content -LiteralPath ($out+'/dist/devtools.json') -Raw|ConvertFrom-Json}else{$null}
   }until($handshake -and $handshake.pid -eq $child.Id)
-  if($expectShared -and (Get-Content -LiteralPath ($out+'/stderr.log') -Raw) -notmatch 'WebGPU/GPUI share the same physical device via D3D11On12'){throw 'Host did not confirm shared native GPU identity'}
   $initial=Wait-Ready
+  if($expectShared -and (Get-Content -LiteralPath ($out+'/stderr.log') -Raw) -notmatch 'WebGPU/GPUI share the same physical device via D3D11On12|WebGPU lazily joined native D3D12 renderer generation'){throw 'Host did not confirm shared native GPU identity'}
   if(@($initial.fontFaces|Where-Object {$_.status -eq 'loaded'}).Count -lt 8){throw 'Bundled editor fonts did not all load'}
   $initial|ConvertTo-Json -Depth 8|Set-Content -LiteralPath ($out+'/initial-state.json') -Encoding utf8
   $geometry=Eval-Probe 'JSON.stringify(__nativeEditorProbe.geometry())'
