@@ -149,7 +149,7 @@
       <!-- Normal content -->
       <template v-else>
         <ContextMenu @update:open="(o: boolean) => o && (used.menu = true)">
-          <ContextMenuTrigger>
+          <ContextMenuTrigger as-child>
             <!-- Announcements: who has read it sits beside the bubble -->
             <div data-row-body class="flex items-end gap-1.5" :class="isRight ? 'flex-row-reverse' : ''" @contextmenu.capture="rememberContextTarget">
             <div

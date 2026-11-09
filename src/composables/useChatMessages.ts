@@ -58,7 +58,8 @@ function revised(page: readonly ArgonMessage[], shown: readonly ChatMessage[]): 
   return page.map((m) => {
     const prev = byId.get(m.messageId);
     if (!prev) return m;
-    return signature(prev) === signature(m) ? { ...m, _rev: prev._rev } : { ...m, _rev: (prev._rev ?? 0) + 1 };
+    // Preserve unchanged row identity so keyed memo and ResizeObserver stay quiet.
+    return signature(prev) === signature(m) ? prev : { ...m, _rev: (prev._rev ?? 0) + 1 };
   });
 }
 

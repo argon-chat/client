@@ -23,7 +23,7 @@ vi.mock("@/components/MessageItem.vue", async () => {
   return {
     default: defineComponent({
       name: "MessageItem",
-      props: ["message", "canEdit", "channelType", "announcement", "canReply", "canDeleteAny"],
+      props: ["message", "canEdit", "channelType", "announcement", "canReply", "canDeleteAny", "canDeleteOwn", "twoSided", "getMsgById", "toggleReaction", "toggleCustomReaction", "isGrouped"],
       setup(props) {
         return () => {
           const id = String(props.message.messageId);
@@ -51,8 +51,9 @@ const card = (reactions = true) => ({
 
 const frame = () => new Promise((r) => requestAnimationFrame(() => r(null)));
 
-async function list(props: Record<string, unknown> = {}) {
-  const messages = shallowRef([{ messageId: 1n, text: "hello", entities: [], sender: "u1", timeSent: { toDate: () => new Date() } }] as any[]);
+const sent = (id: bigint) => ({ messageId: id, text: `m${id}`, entities: [], sender: "u1", timeSent: { toDate: () => new Date() } });
+
+async function list(props: Record<string, unknown> = {}, messages = shallowRef([sent(1n)] as any[])) {
   const w = mount(ChatMessageList, {
     props: {
       source: () => messages,
@@ -83,6 +84,97 @@ describe("announcementMemoKey", () => {
 });
 
 describe("a row of the chat list", () => {
+  test("the measured row is the list's direct child and still memoises its content", async () => {
+    const w = await list();
+    const row = w.get('[data-msg-key="1"]');
+
+    expect(row.element.parentElement).toBe(w.get(".chat-scrollbar").element);
+    expect(row.attributes("data-index")).toBe("0");
+    const drawn = h.renders.get("1");
+
+    await w.setProps({ isLoadingOlder: true });
+    await nextTick();
+    expect(h.renders.get("1")).toBe(drawn);
+    w.unmount();
+  });
+
+  test("a payload removed before the scroller's next frame removes its measured box at once", async () => {
+    const messages = shallowRef([sent(1n), sent(2n)] as any[]);
+    const w = await list({}, messages);
+    const removed = w.get('[data-msg-key="2"]').element;
+
+    messages.value = [messages.value[0]];
+    // Vue's patch is complete, but the scroller's queued requestAnimationFrame has not run.
+    await nextTick();
+    expect(w.find('[data-msg-key="2"]').exists()).toBe(false);
+    expect(removed.isConnected).toBe(false);
+    expect(w.get('[data-msg-key="1"]').element.parentElement).toBe(w.get(".chat-scrollbar").element);
+    w.unmount();
+  });
+
+  test("prepending keeps the row and its highlight on the message key, with a current index", async () => {
+    const messages = shallowRef([sent(1n), sent(2n)] as any[]);
+    const group = { isFirstInGroup: true, isLastInGroup: true, showDate: false, showUnread: false };
+    const w = await list({ groupingMap: [group, group, group] }, messages);
+    const before = w.get('[data-msg-key="2"]').element;
+    (w.vm as unknown as { scrollToMessage(id: bigint): void }).scrollToMessage(2n);
+    await nextTick();
+    expect(w.get('[data-msg-key="2"]').classes()).toContain("highlight-flash");
+
+    messages.value = [sent(0n), ...messages.value];
+    for (let i = 0; i < 3; i++) {
+      await frame();
+      await flushPromises();
+    }
+
+    const after = w.get('[data-msg-key="2"]');
+    expect(after.element).toBe(before);
+    expect(after.attributes("data-index")).toBe("2");
+    expect(after.classes()).toContain("highlight-flash");
+    expect(w.get('[data-msg-key="1"]').classes()).not.toContain("highlight-flash");
+    w.unmount();
+  });
+
+  test("several keyed rows keep their own memo on unrelated parent updates", async () => {
+    const messages = shallowRef([sent(1n), sent(2n), sent(3n)] as any[]);
+    const w = await list({}, messages);
+    const drawn = new Map(h.renders);
+    await w.setProps({ isLoadingOlder: true });
+    for (const id of ["1", "2", "3"]) expect(h.renders.get(id)).toBe(drawn.get(id));
+    w.unmount();
+  });
+
+  test("replacement reactions and entities update only their row even at the same length", async () => {
+    const one = { ...sent(1n), reactions: [{ emoji: "a", count: 1 }], entities: [{ type: "mention", userId: "old" }] };
+    const messages = shallowRef([one, sent(2n)] as any[]);
+    const w = await list({}, messages);
+    const drawnOther = h.renders.get("2");
+    messages.value = [{ ...one, reactions: [{ emoji: "a", count: 2 }], entities: [{ type: "mention", userId: "new" }] }, messages.value[1]];
+    await nextTick();
+    expect(h.lastProps.get("1").message.reactions[0].count).toBe(2);
+    expect(h.lastProps.get("1").message.entities[0].userId).toBe("new");
+    expect(h.renders.get("2")).toBe(drawnOther);
+    w.unmount();
+  });
+
+  test("live DM layout, own-delete permission, grouping and callbacks invalidate the row", async () => {
+    const w = await list({ twoSided: false, canDeleteOwn: false });
+    const getMsgById = () => ({}) as any;
+    const toggleReaction = vi.fn();
+    const toggleCustomReaction = vi.fn();
+    await w.setProps({ twoSided: true, canDeleteOwn: true, getMessageById: getMsgById, toggleReaction, toggleCustomReaction,
+      groupingMap: [{ isGrouped: true, isFirstInGroup: true, isLastInGroup: true, showDate: false, showUnread: false }] as any });
+    const rendered = h.lastProps.get("1");
+    expect(rendered.twoSided).toBe(true);
+    expect(rendered.canDeleteOwn).toBe(true);
+    expect(rendered.isGrouped).toBe(true);
+    expect(rendered.getMsgById).toBe(getMsgById);
+    rendered.toggleReaction(1n, "x"); rendered.toggleCustomReaction(1n, "custom");
+    expect(toggleReaction).toHaveBeenCalledWith(1n, "x");
+    expect(toggleCustomReaction).toHaveBeenCalledWith(1n, "custom");
+    w.unmount();
+  });
+
   test("is not drawn again when the channel row is rewritten with the same card context", async () => {
     h.renders.clear();
     const w = await list({ announcement: card(), channelType: "announcement" });

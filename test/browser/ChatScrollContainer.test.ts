@@ -285,6 +285,42 @@ afterEach(() => {
 });
 
 describe("the chat scroll container", () => {
+  test("the measured box is the row's full fractional-width box and leaves with its virtual row", async () => {
+    const c = await open();
+    (wrapper!.element as HTMLElement).style.width = "741.5px";
+    await settle();
+
+    const checkBoxes = () => {
+      const rows = [...c.box.querySelectorAll<HTMLElement>("[data-msg-key]")];
+      expect(rows.length).toBeGreaterThan(0);
+      for (const row of rows) {
+        expect(row.parentElement).toBe(c.box);
+        const body = row.querySelector<HTMLElement>(".row")!;
+        const measured = row.getBoundingClientRect();
+        const content = body.getBoundingClientRect();
+        // Real Chromium layout: no mocked bounding boxes, including fractional CSS widths.
+        expect(measured.x).toBeCloseTo(content.x, 2);
+        expect(measured.width).toBeCloseTo(content.width, 2);
+        expect(measured.height).toBeCloseTo(content.height, 2);
+      }
+      return rows;
+    };
+
+    const oldRows = checkBoxes();
+    await c.vm.nav.jumpToMessage(100n);
+    await settle();
+
+    expect(oldRows.every((row) => !row.isConnected)).toBe(true);
+    checkBoxes();
+    expect(c.visible()).toContain(100n);
+    const reading = c.visible()[1];
+    const before = c.onScreen(reading);
+    const above = c.aboveView();
+    expect(above.length).toBeGreaterThan(0);
+    await c.loaded([[above[0], 300]]);
+    expect(c.onScreen(reading)).toBe(before);
+  });
+
   test("opens a channel on its newest messages, at the bottom", async () => {
     const c = await open();
 

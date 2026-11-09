@@ -169,6 +169,19 @@ async function render(sent: never, isFirstInGroup = true) {
 }
 
 describe("the author's look on a message", () => {
+  test("the bubble row itself is the context-menu trigger, without an inline span wrapper", async () => {
+    h.users.author = { userId: "author", displayName: "Ada" };
+    await render(message());
+    const wrapper = mounted.at(-1)!;
+    const body = wrapper.get("[data-row-body]");
+
+    // Reka's state/trigger attributes must be merged onto the existing div by as-child.
+    expect(body.element.tagName).toBe("DIV");
+    expect(body.attributes("data-state")).toBe("closed");
+    expect(body.element.parentElement?.tagName).not.toBe("SPAN");
+    expect(wrapper.findComponent({ name: "ContextMenuTrigger" }).props("asChild")).toBe(true);
+  });
+
   test("is asked for in the message's own space, not the open one", async () => {
     h.users.author = { userId: "author", displayName: "Ada" };
 

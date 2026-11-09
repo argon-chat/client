@@ -126,13 +126,20 @@ describe("opening a channel", () => {
 
   test("an edited message shows the server's text and is redrawn", async () => {
     await useMessageStore().cacheMessages([msg(1n), msg(2n, "typo")]);
-    h.query.mockImplementation(serverHolding([1n, 2n], { "2": "fixed" }));
+    let cachedShown: any[] = [];
+    const server = serverHolding([1n, 2n], { "2": "fixed" });
+    h.query.mockImplementation(async (...args: any[]) => {
+      cachedShown = [...chat.messages.value];
+      return server(...(args as [string, string, bigint | null, number]));
+    });
 
     const chat = useChatMessages(() => "c1", () => "s1");
     await chat.loadInitialMessages(() => {});
 
     const [first, second] = chat.messages.value;
     expect(second.text).toBe("fixed");
+    expect(first).toBe(cachedShown[0]);
+    expect(second).not.toBe(cachedShown[1]);
     // The list memoises rows on _rev: the changed row gets a new one, the unchanged keeps its own.
     expect(second._rev).toBe(1);
     expect(first._rev).toBeUndefined();

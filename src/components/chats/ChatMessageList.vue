@@ -14,77 +14,82 @@
 
       <!-- Rendered items in normal flow -->
       <div
-        v-for="item in renderedItems"
+        v-for="item in measuredItems"
         :key="String(item.key)"
+        :ref="(el) => measureElement(el as HTMLElement, item.key)"
+        :data-msg-key="String(item.key)"
+        :data-index="item.index"
         class="w-full"
-        :class="highlightedIdx === item.index ? 'highlight-flash' : ''"
+        :class="highlightedKey === String(item.key) ? 'highlight-flash' : ''"
+        v-memo="[
+          item.key,
+          item.index,
+          messages[item.index],
+          highlightedKey === String(item.key),
+          messages[item.index]?._failed,
+          messages[item.index]?._optimistic,
+          messages[item.index]?._rev,
+          messages[item.index]?.text,
+          messages[item.index]?.entities?.length,
+          messages[item.index]?.reactions?.length,
+          messages[item.index]?.controls?.length,
+          twoSided ?? false,
+          canDeleteOwn,
+          getMessageById,
+          toggleReaction,
+          toggleCustomReaction,
+          canPublishAny,
+          groupingMap[item.index]?.isGrouped ?? false,
+          groupingMap[item.index]?.isFirstInGroup,
+          groupingMap[item.index]?.isLastInGroup,
+          groupingMap[item.index]?.showDate,
+          groupingMap[item.index]?.showUnread,
+          canPin,
+          announcementKey,
+          canReact,
+          canReply,
+          canEdit,
+          canDeleteAny,
+          channelType,
+          readCountsKey,
+          narrow,
+        ]"
       >
-        <div
-          v-if="messages[item.index]"
-          :ref="(el) => measureElement(el as HTMLElement, item.key)"
-          :data-msg-key="String(item.key)"
-          :data-index="item.index"
-          v-memo="[
-            item.key,
-            messages[item.index]?._failed,
-            messages[item.index]?._optimistic,
-            messages[item.index]?._rev,
-            messages[item.index]?.text,
-            messages[item.index]?.entities?.length,
-            messages[item.index]?.reactions?.length,
-            messages[item.index]?.controls?.length,
-            canPublishAny,
-            groupingMap[item.index]?.isFirstInGroup,
-            groupingMap[item.index]?.isLastInGroup,
-            groupingMap[item.index]?.showDate,
-            groupingMap[item.index]?.showUnread,
-            canPin,
-            announcementKey,
-            canReact,
-            canReply,
-            canEdit,
-            canDeleteAny,
-            channelType,
-            readCountsKey,
-            narrow,
-          ]"
-        >
-          <DateSeparator
-            v-if="groupingMap[item.index]?.showDate"
-            :date="messages[item.index].timeSent.toDate()"
-          />
-          <UnreadSeparator v-if="groupingMap[item.index]?.showUnread" />
+        <DateSeparator
+          v-if="groupingMap[item.index]?.showDate"
+          :date="messages[item.index].timeSent.toDate()"
+        />
+        <UnreadSeparator v-if="groupingMap[item.index]?.showUnread" />
 
-          <MessageItem
-            :message="messages[item.index]"
-            :get-msg-by-id="getMessageById"
-            :two-sided="twoSided ?? false"
-            :is-grouped="groupingMap[item.index]?.isGrouped ?? false"
-            :is-first-in-group="groupingMap[item.index]?.isFirstInGroup ?? true"
-            :is-last-in-group="groupingMap[item.index]?.isLastInGroup ?? true"
-            :can-react="canReact"
-            :can-reply="canReply"
-            :can-edit="canEdit"
-            :can-delete-own="canDeleteOwn"
-            :can-delete-any="canDeleteAny"
-            :can-pin="canPin"
-            :announcement="announcement"
-            :read-counts="readCounts"
-            :channel-type="channelType"
-            :can-publish-any="canPublishAny"
-            :toggle-reaction="toggleReaction"
-            :toggle-custom-reaction="toggleCustomReaction"
-            :narrow="narrow"
-            @dblclick="() => canReply && emit('select-reply', messages[item.index])"
-            @reply="(msg) => emit('select-reply', msg)"
-            @edit="(msg) => emit('select-edit', msg)"
-            @delete="(msg, skip) => emit('delete-message', msg, skip)"
-            @publish="(msg) => emit('publish', msg)"
-            @retry="(msg) => emit('retry', msg)"
-            @open-lightbox="(images, index, time) => onOpenLightbox(images, index, time, messages[item.index]?.messageId ?? null)"
-            @scroll-to-message="onJumpRequest"
-          />
-        </div>
+        <MessageItem
+          :message="messages[item.index]"
+          :get-msg-by-id="getMessageById"
+          :two-sided="twoSided ?? false"
+          :is-grouped="groupingMap[item.index]?.isGrouped ?? false"
+          :is-first-in-group="groupingMap[item.index]?.isFirstInGroup ?? true"
+          :is-last-in-group="groupingMap[item.index]?.isLastInGroup ?? true"
+          :can-react="canReact"
+          :can-reply="canReply"
+          :can-edit="canEdit"
+          :can-delete-own="canDeleteOwn"
+          :can-delete-any="canDeleteAny"
+          :can-pin="canPin"
+          :announcement="announcement"
+          :read-counts="readCounts"
+          :channel-type="channelType"
+          :can-publish-any="canPublishAny"
+          :toggle-reaction="toggleReaction"
+          :toggle-custom-reaction="toggleCustomReaction"
+          :narrow="narrow"
+          @dblclick="() => canReply && emit('select-reply', messages[item.index])"
+          @reply="(msg) => emit('select-reply', msg)"
+          @edit="(msg) => emit('select-edit', msg)"
+          @delete="(msg, skip) => emit('delete-message', msg, skip)"
+          @publish="(msg) => emit('publish', msg)"
+          @retry="(msg) => emit('retry', msg)"
+          @open-lightbox="(images, index, time) => onOpenLightbox(images, index, time, messages[item.index]?.messageId ?? null)"
+          @scroll-to-message="onJumpRequest"
+        />
       </div>
 
       <!-- Bottom spacer -->
@@ -254,6 +259,10 @@ const {
 /** Stickers are drawn smaller in a narrow column. */
 const narrow = computed(() => chatWidth.value > 0 && chatWidth.value < 600);
 
+// A list update can reach the template before the scroller's next pass. Keep absent payloads
+// out of the measured DOM altogether: a retained, empty row would report a false height to RO.
+const measuredItems = computed(() => renderedItems.value.filter(item => !!messages.value[item.index]));
+
 // History paged in below the reader must not drag the view down with it.
 watch(() => props.detached, (detached) => setFollowBottom(!detached), { immediate: true });
 
@@ -284,16 +293,16 @@ function onOpenLightbox(images: ChatMediaItem[], index: number, timeSent: Date |
 
 // ── Reply-scroll highlight ──
 
-const highlightedIdx = ref<number | null>(null);
+const highlightedKey = ref<string | null>(null);
 let hlTimer: ReturnType<typeof setTimeout> | null = null;
 
 function scrollToMessage(messageId: bigint) {
   const idx = messages.value.findIndex((m) => m.messageId === messageId);
   if (idx < 0) return;
   scrollToIndex(idx, "center");
-  highlightedIdx.value = idx;
+  highlightedKey.value = messageId.toString();
   if (hlTimer) clearTimeout(hlTimer);
-  hlTimer = setTimeout(() => (highlightedIdx.value = null), 1500);
+  hlTimer = setTimeout(() => (highlightedKey.value = null), 1500);
 }
 
 function onJumpRequest(messageId: bigint) {

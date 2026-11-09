@@ -81,10 +81,10 @@ const customEmoji = (name: string, offset: number) =>
 
 const mounted: VueWrapper[] = [];
 
-async function render(msg: any) {
+async function render(msg: any, props: Record<string, unknown> = {}) {
   const w = mount(MessageItem, {
     attachTo: document.body,
-    props: { message: msg, getMsgById: () => ({}) as any, isFirstInGroup: true },
+    props: { message: msg, getMsgById: () => ({}) as any, isFirstInGroup: true, ...props },
   });
   mounted.push(w);
   await nextTick();
@@ -110,6 +110,50 @@ afterEach(() => {
   getSelection()?.removeAllRanges();
   for (const w of mounted.splice(0)) w.unmount();
   document.body.innerHTML = "";
+});
+
+describe("the message's context-menu trigger box", () => {
+  test.each([
+    { width: 360.5, right: false, text: "short text" },
+    { width: 360.5, right: true, text: "short text" },
+    { width: 741.5, right: false, text: "a long message with spaces and emoji 😀 ".repeat(8) },
+    { width: 741.5, right: true, text: "a long message with spaces and emoji 😀 ".repeat(8) },
+    { width: 360.5, right: false, text: "x".repeat(180) + "\nsecond line" },
+  ])("matches the old wrapper's real geometry at $width px, right=$right", async ({ width, right, text }) => {
+    const w = await render({ ...message(text), sender: right ? "me" : "author" }, { twoSided: right });
+    (w.element as HTMLElement).style.width = `${width}px`;
+    await nextTick();
+    await document.fonts.ready;
+
+    const body = w.get("[data-row-body]").element;
+    const bubble = w.get(".whitespace-pre-wrap").element;
+    const wrap = w.get(".msg-bubble-wrap").element;
+    expect(body.getAttribute("data-state")).toBe("closed");
+    const geometry = () => {
+      const range = document.createRange();
+      range.selectNodeContents(bubble);
+      return [body, wrap, bubble].map(box).concat([...range.getClientRects()]);
+    };
+    const direct = geometry();
+
+    // Recreate the old ContextMenuTrigger DOM around the same real content. This compares
+    // Chromium's actual line wrapping, intrinsic sizing and right alignment with shipped CSS.
+    const legacy = document.createElement("span");
+    legacy.style.pointerEvents = "auto";
+    body.before(legacy);
+    legacy.append(body);
+    try {
+      const wrapped = geometry();
+      expect(wrapped).toHaveLength(direct.length);
+      for (let i = 0; i < direct.length; i++) {
+        for (const key of ["x", "y", "width", "height"] as const) {
+          expect(direct[i]![key]).toBeCloseTo(wrapped[i]![key], 2);
+        }
+      }
+    } finally {
+      legacy.replaceWith(body);
+    }
+  });
 });
 
 describe("unicode emoji in a message", () => {
