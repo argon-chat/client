@@ -3,7 +3,6 @@
   <ContextMenuTrigger as-child :disabled="!pex.has('ManageChannels')">
   <div class="chat-list flex flex-col" v-bind="$attrs">
     <div ref="scrollEl" class="chat-list-scroll">
-      <BroadcastConnectors :container="scrollEl" :links="broadcastLinks" :revision="layoutRevision" />
       <Transition name="panel-swap" mode="out-in">
       <!-- Loading skeletons -->
       <div v-if="channelsLoading && channelLists.length === 0" key="loading">
@@ -27,7 +26,8 @@
         </button>
       </div>
 
-      <div v-else-if="channelLists.length > 0" key="channels">
+      <div v-else-if="channelLists.length > 0" key="channels" ref="contentEl" class="chat-list-content">
+        <BroadcastConnectors :container="scrollEl" :content="contentEl" :links="broadcastLinks" :revision="layoutRevision" />
         <!-- Ungrouped channels -->
         <TransitionGroup name="channel-list" tag="div">
           <ChannelItem
@@ -260,6 +260,7 @@ const voiceChannels = computed(() =>
 // ── Broadcast connectors: each broadcast channel to the rows that hear it ──
 
 const scrollEl = ref<HTMLElement | null>(null);
+const contentEl = ref<HTMLElement | null>(null);
 
 const broadcastLinks = computed<BroadcastLink[]>(() =>
   voiceChannels.value
@@ -405,6 +406,10 @@ const kickMember = async (userId: string, channelId: string, spaceId: string) =>
   background-color: transparent;
   overflow: hidden;
   min-height: 0;
+}
+
+.chat-list-content {
+  position: relative; /* connector coordinates share the rows' natural-flow origin */
 }
 
 /* Scrollbar fully hidden — no arrows, no reserved pixels, no layout jitter. */

@@ -35,6 +35,8 @@ export interface BroadcastLink {
 const props = defineProps<{
   /** The scroll container holding the `.channel-item[data-channel-id]` rows. */
   container: HTMLElement | null;
+  /** The natural-flow channel content, excluding this connector overlay. */
+  content: HTMLElement | null;
   links: readonly BroadcastLink[];
   /** Bumped by the parent when the list or the group state changed. */
   revision?: number;
@@ -54,16 +56,17 @@ function rowCenter(container: HTMLElement, base: DOMRect, channelId: string): nu
   if (!row) return null;
   const rect = row.getBoundingClientRect();
   if (rect.height === 0) return null;
-  return Math.round(rect.top + rect.height / 2 - base.top + container.scrollTop) + 0.5;
+  return Math.round(rect.top + rect.height / 2 - base.top) + 0.5;
 }
 
 function measure() {
   const container = props.container;
-  if (!container || props.links.length === 0) {
+  const content = props.content;
+  if (!container || !content || props.links.length === 0) {
     paths.value = [];
     return;
   }
-  const base = container.getBoundingClientRect();
+  const base = content.getBoundingClientRect();
   const next: { from: string; d: string }[] = [];
 
   props.links.forEach((link, index) => {
@@ -81,7 +84,9 @@ function measure() {
     next.push({ from: link.from, d });
   });
 
-  height.value = container.scrollHeight;
+  // scrollHeight includes this absolute SVG and the scroller's padding.
+  // Reading it back into the SVG height grows the scroll range on every measure.
+  height.value = base.height;
   paths.value = next;
 }
 
@@ -105,7 +110,7 @@ let resize: ResizeObserver | null = null;
 let mutations: MutationObserver | null = null;
 let observed: HTMLElement | null = null;
 
-function observe(container: HTMLElement | null) {
+function observe(container: HTMLElement | null, content: HTMLElement | null) {
   if (observed) {
     observed.removeEventListener("scroll", schedule);
     resize?.disconnect();
@@ -120,6 +125,7 @@ function observe(container: HTMLElement | null) {
   if (typeof ResizeObserver !== "undefined") {
     resize = new ResizeObserver(schedule);
     resize.observe(container);
+    if (content) resize.observe(content);
   }
   if (typeof MutationObserver !== "undefined") {
     mutations = new MutationObserver(schedule);
@@ -128,12 +134,12 @@ function observe(container: HTMLElement | null) {
   schedule();
 }
 
-watch(() => props.container, observe);
+watch(() => [props.container, props.content] as const, ([container, content]) => observe(container, content));
 watch(() => [props.links, props.revision] as const, schedule, { deep: true });
 
-onMounted(() => observe(props.container));
+onMounted(() => observe(props.container, props.content));
 onUnmounted(() => {
-  observe(null);
+  observe(null, null);
   if (frame) cancelAnimationFrame(frame);
   if (settle) clearTimeout(settle);
 });
