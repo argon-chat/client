@@ -18,13 +18,19 @@ import Counter from './motionCounter/Counter.vue';
 import { computedAsync } from '@vueuse/core';
 import { openDevtools } from "@/lib/shell/desktop";
 import { appWindow } from "@/lib/vn/window";
+import { shell } from '@/lib/shell/host';
 
 const { t } = useLocale();
 const route = useRoute();
 const router = useRouter();
 const pool = usePoolStore();
 const isMaximized = ref(false);
-const isMac = computed(() => navigator.userAgent.includes('Mac'));
+const isFullscreen = ref(false);
+// Native window chrome follows the host OS, even when an app overrides its UA.
+const isMac = computed(() => {
+  const platform = shell?.system.info().platform;
+  return platform ? platform === 'macos' || platform === 'darwin' : navigator.userAgent.includes('Mac');
+});
 const { needsUpdate, doUpdate } = useVersionChecker();
 const linux = useLinuxUpdateChecker();
 const ntf = useNotificationStore();
@@ -36,6 +42,7 @@ const hasRuntimeErrors = computed(() => runtimeErrorCount.value > 0);
 
 const onMaximized = () => { isMaximized.value = true; };
 const onUnmaximized = () => { isMaximized.value = false; };
+const onFullscreenChanged = () => { isFullscreen.value = appWindow?.isFullscreen() ?? false; };
 function onRuntimeError() {
   runtimeErrorCount.value++;
 }
@@ -47,11 +54,14 @@ onMounted(() => {
   // Sync the maximize/restore icon with the real window state: initial value
   // (covers a restored-maximized launch) + OS-driven changes (snap, double-click).
   isMaximized.value = appWindow?.isMaximized() ?? false;
+  onFullscreenChanged();
+  appWindow?.addEventListener("fullscreenchange", onFullscreenChanged);
   appWindow?.addEventListener("maximize", onMaximized);
   appWindow?.addEventListener("unmaximize", onUnmaximized);
 });
 
 onBeforeUnmount(() => {
+  appWindow?.removeEventListener('fullscreenchange', onFullscreenChanged);
   appWindow?.removeEventListener('maximize', onMaximized);
   appWindow?.removeEventListener('unmaximize', onUnmaximized);
   window.removeEventListener('error', onRuntimeError);
@@ -137,28 +147,9 @@ const onTitlebarDblClick = (e: MouseEvent) => {
 
 <template>
   <div class="app-titlebar" :class="{ 'app-titlebar--mac': isMac }" @dblclick="onTitlebarDblClick">
-    <!-- Mac: traffic lights on the left -->
-    <!-- Desktop only: a tab has no window to close, and the buttons would be lies. Everything else
-         on this bar — home, the breadcrumb, the unread badge — is the app and stays. -->
-    <div v-if="isMac && !isWeb" class="titlebar-controls titlebar-controls--mac">
-      <button class="mac-btn mac-close" @click="windowClose" title="Close">
-        <svg width="6" height="6" viewBox="0 0 6 6">
-          <line x1="0" y1="0" x2="6" y2="6" stroke="currentColor" stroke-width="1.2" />
-          <line x1="6" y1="0" x2="0" y2="6" stroke="currentColor" stroke-width="1.2" />
-        </svg>
-      </button>
-      <button class="mac-btn mac-minimize" @click="windowMinimize" title="Minimize">
-        <svg width="8" height="1" viewBox="0 0 8 1">
-          <rect width="8" height="1" fill="currentColor" />
-        </svg>
-      </button>
-      <button class="mac-btn mac-maximize" @click="windowMaximize" :title="isMaximized ? 'Restore' : 'Maximize'">
-        <svg width="6" height="6" viewBox="0 0 6 6">
-          <polygon v-if="!isMaximized" points="0,3 3,0 6,3 3,6" fill="currentColor" />
-          <rect v-else x="0.5" y="0.5" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1" />
-        </svg>
-      </button>
-    </div>
+    <!-- AppKit owns the actual traffic lights and their fullscreen/hover behavior.
+         Reserve their native area rather than painting a second button cluster. -->
+    <div v-if="isMac && !isWeb && !isFullscreen" class="titlebar-native-controls" aria-hidden="true"></div>
 
     <!-- App icon (home) + breadcrumb -->
     <button class="titlebar-brand" @click="goHome" :title="t('dashboard')">
@@ -580,51 +571,13 @@ const onTitlebarDblClick = (e: MouseEvent) => {
   background: #bf0f1d;
 }
 
-/* ---- Mac controls ---- */
-.app-titlebar--mac {
-  flex-direction: row;
-}
-
-.titlebar-controls--mac {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 8px;
+/* Native AppKit buttons occupy x=12..66, centered in the 38px titlebar.
+   The remaining 12px separates them from the first application action. */
+.titlebar-native-controls {
+  width: 74px;
+  height: 100%;
+  flex-shrink: 0;
   -webkit-app-region: no-drag;
-}
-
-.mac-btn {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  border: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: transparent;
-  transition: color 0.1s ease;
-  -webkit-app-region: no-drag;
-}
-
-.mac-close {
-  background: #ff5f57;
-}
-
-.mac-minimize {
-  background: #febc2e;
-}
-
-.mac-maximize {
-  background: #28c840;
-}
-
-.titlebar-controls--mac:hover .mac-btn {
-  color: rgba(0, 0, 0, 0.6);
-}
-
-.mac-btn:active {
-  filter: brightness(0.8);
 }
 
 /* ---- DevTools indicator ---- */

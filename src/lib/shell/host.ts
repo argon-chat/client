@@ -22,7 +22,7 @@ type Unsubscribe = () => void;
 export interface NativeHotkeyStatus { running: boolean; platform: string; accessibilityGranted: boolean; error: string | null; restarts: number }
 export interface NativeHotkeyBinding { id: string; chord: { buttons: { device: number; code: number }[] } }
 export interface NativeHotkeys {
-  setBindings(bindings: NativeHotkeyBinding[]): boolean; status(): NativeHotkeyStatus; restart(): boolean;
+  setBindings(bindings: NativeHotkeyBinding[]): boolean; status(): NativeHotkeyStatus; restart(): boolean; requestAccessibility(): boolean;
   captureOnce(): Promise<{ buttons: { device: number; code: number }[] }>; cancelCapture(): void;
   onFired(fn: (event: { id: string; phase: "down" | "up" }) => void): Unsubscribe;
 }

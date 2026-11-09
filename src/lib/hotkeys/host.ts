@@ -28,6 +28,12 @@ export const hotkeyHost = {
   },
   async toggleMainWindow(): Promise<boolean> { return isVn ? shell.system.window.toggle() : false; },
   async showMainWindow(): Promise<boolean> { return isVn ? shell.system.window.show() : false; },
-  async isAccessibilityGranted(): Promise<boolean> { return true; },
-  async requestAccessibility(): Promise<boolean> { return true; },
+  async isAccessibilityGranted(): Promise<boolean> { return service()?.status().accessibilityGranted ?? false; },
+  async requestAccessibility(): Promise<boolean> {
+    const hotkeys = service();
+    if (!hotkeys) return false;
+    const granted = hotkeys.requestAccessibility();
+    if (granted && !hotkeys.status().running) hotkeys.restart();
+    return granted;
+  },
 };
