@@ -235,7 +235,7 @@ function txIconClass(tx: UltimaTransaction): string {
   font-weight: 600;
   letter-spacing: 0.15em;
   color: hsl(0 0% 100% / 0.85);
-  font-family: "Courier New", monospace;
+  font-family: ui-monospace, "Courier New", "DejaVu Sans Mono", monospace;
 }
 
 .payment-card-expiry {

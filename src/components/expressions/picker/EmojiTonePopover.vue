@@ -136,6 +136,6 @@ onBeforeUnmount(() => document.removeEventListener("pointerdown", onOutside, tru
 .xp-tones__emoji {
   font-size: 26px;
   line-height: 1;
-  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+  font-family: emoji, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
 }
 </style>

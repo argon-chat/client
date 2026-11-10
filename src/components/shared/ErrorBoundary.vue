@@ -217,7 +217,7 @@ async function copyReport() {
   margin: 0;
   padding: 10px 12px 34px;
   overflow: auto;
-  font-family: "Cascadia Mono", Consolas, ui-monospace, monospace;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, "DejaVu Sans Mono", monospace;
   font-size: 0.75rem;
   line-height: 1.5;
   color: hsl(var(--foreground) / 0.85);

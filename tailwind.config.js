@@ -39,7 +39,7 @@ export default {
     },
     extend: {
       fontFamily: {
-        mono: ['Fira Code', 'monospace'],
+        mono: ['ui-monospace', 'Fira Code', 'Cascadia Mono', 'Consolas', 'Menlo', 'DejaVu Sans Mono', 'monospace'],
       },
       colors: {
         border: "hsl(var(--border))",

@@ -216,7 +216,7 @@ const getSeverityClass = (duration: number) => {
   border: 2px solid #a855f7;
   border-radius: 6px;
   padding: 14px;
-  font-family: 'Courier New', monospace;
+  font-family: ui-monospace, 'Courier New', 'DejaVu Sans Mono', monospace;
   font-size: 11px;
   color: #d8b4fe;
   z-index: 99999;
