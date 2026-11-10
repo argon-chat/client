@@ -213,9 +213,10 @@ export function applyAtLaunch(): void {
 
 /**
  * The page is transparent over the window's material. While the SDK draws none of it — a macOS window
- * in fullscreen, whose Space has nothing behind it to blend — `html.backdrop-suspended` gives the page
- * the theme's own background, and drops it again the frame the material returns. Windows keeps its
- * material in fullscreen, so the class never appears there.
+ * in fullscreen that could not put the desktop picture under its glass — `backdrop-suspended` on the
+ * root gives the page the theme's own background, and drops it again the frame the material returns.
+ * With the picture shown, and on Windows, `effectiveBackdrop` equals `backdrop` and the class never
+ * appears.
  */
 function followEffectiveBackdrop(): void {
   const win = appWindow;

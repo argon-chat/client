@@ -212,19 +212,28 @@ describe("a material the window cannot draw", () => {
 
   afterEach(() => document.documentElement.classList.remove("backdrop-suspended"));
 
-  test("macOS fullscreen: the page takes the theme background, and gives it back on leaving", async () => {
+  test("macOS fullscreen without a desktop picture: the page takes the theme background, and gives it back on leaving", async () => {
     const win = liveWindow("acrylic");
     await launch(win);
     const suspended = () => document.documentElement.classList.contains("backdrop-suspended");
     expect(suspended()).toBe(false);
     for (let i = 0; i < 3; i++) {
-      win.effectiveBackdrop = "none"; // entering fullscreen
+      win.effectiveBackdrop = "none"; // entering fullscreen, the picture unreadable
       win.dispatchEvent(new Event("backdropchange"));
       expect(suspended()).toBe(true);
       win.effectiveBackdrop = "acrylic"; // leaving it
       win.dispatchEvent(new Event("backdropchange"));
       expect(suspended()).toBe(false);
     }
+  });
+
+  test("macOS fullscreen with the desktop picture under the glass keeps the page transparent", async () => {
+    const win = liveWindow("acrylic");
+    await launch(win);
+    // The SDK keeps drawing the glass, so `effectiveBackdrop` stays `backdrop`.
+    win.dispatchEvent(new Event("fullscreenchange"));
+    win.dispatchEvent(new Event("backdropchange"));
+    expect(document.documentElement.classList.contains("backdrop-suspended")).toBe(false);
   });
 
   test("solid is not a suspended material, and an SDK without effectiveBackdrop changes nothing", async () => {
