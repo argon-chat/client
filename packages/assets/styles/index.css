@@ -238,6 +238,13 @@
     background: #000000 !important;
   }
 
+  /* The window's material is suspended: macOS draws none behind a fullscreen window, whose Space has
+     nothing behind it to blend, so the transparent body would sit on black. The flat theme
+     background stands in until the material returns (src/lib/shell/config.ts, `followEffectiveBackdrop`). */
+  html.backdrop-suspended body:not(.oled-theme) {
+    background: hsl(var(--background)) !important;
+  }
+
   /* Emulated mica for the browser build.
      On the desktop the window is transparent and Windows paints acrylic or mica behind it; in a tab
      there is nothing behind the page but the browser, so a transparent body would show through to

@@ -10,4 +10,5 @@ export interface ConfigUpdate {
   key: string; section: string; valueB: boolean | null; valueStr: string | null;
   valueNum: bigint | null; valueEnum: string | null; valueF: number | null;
 }
-export interface ConfigResult { value: ConfigKey | null }
+/** `value` is null when the update was refused; `error` then says what was refused and why. */
+export interface ConfigResult { value: ConfigKey | null; error?: string }

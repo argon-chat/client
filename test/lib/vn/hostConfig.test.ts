@@ -110,13 +110,30 @@ describe("application preference updates", () => {
     expect(seen).toEqual(["light", "system", "dark", "dark"]);
   });
 
-  test("an unknown key, an unknown section and a value outside the variants fail, as in Electron", async () => {
+  test("an unknown key, an unknown section and a value outside the variants fail, as in Electron, and say why", async () => {
     const win: Win = { backdrop: "mica", theme: "system" };
     const bridge = await launch(win);
-    expect(await set(bridge, req("appearance", "Zoom", { valueF: 1.5 }))).toEqual({ value: null });
-    expect(await set(bridge, req("audio", "DevMode", { valueB: true }))).toEqual({ value: null });
-    expect(await set(bridge, req("appearance", "WindowMaterial", { valueEnum: "glass" }))).toEqual({ value: null });
+    expect(await set(bridge, req("appearance", "Zoom", { valueF: 1.5 }))).toEqual({
+      value: null,
+      error: "appearance.Zoom is not a config key",
+    });
+    expect(await set(bridge, req("audio", "DevMode", { valueB: true }))).toEqual({
+      value: null,
+      error: "audio.DevMode is not a config key",
+    });
+    expect(await set(bridge, req("appearance", "WindowMaterial", { valueEnum: "glass" }))).toEqual({
+      value: null,
+      error: 'appearance.WindowMaterial cannot be "glass" here; it takes acrylic, mica, solid',
+    });
     expect(win.backdrop).toBe("mica");
+  });
+
+  test("a refused update does not block the next one", async () => {
+    const win: Win = { backdrop: "mica", theme: "system" };
+    const bridge = await launch(win);
+    expect((await set(bridge, req("appearance", "WindowMaterial", { valueEnum: "glass" }))).value).toBeNull();
+    expect((await set(bridge, req("appearance", "WindowMaterial", { valueEnum: "acrylic" }))).value?.valueEnum).toBe("acrylic");
+    expect(win.backdrop).toBe("acrylic");
   });
 
   test("a host without appWindow.theme stores Theme, reports it back, and says once that it cannot apply it", async () => {
@@ -126,6 +143,100 @@ describe("application preference updates", () => {
     await set(bridge, req("appearance", "Theme", { valueStr: "Dark" }));
     expect(warn).toHaveBeenCalledTimes(1);
     expect(String(warn.mock.calls[0][0])).toContain("appearance.Theme");
+  });
+});
+
+describe("macOS: one material, glass", () => {
+  const MAC_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)";
+  beforeEach(() => {
+    vi.spyOn(navigator, "userAgent", "get").mockReturnValue(MAC_UA);
+  });
+
+  test("glass and solid are the variants, and vn.config.json's acrylic window reads as glass", async () => {
+    const bridge = await launch({ backdrop: "acrylic", theme: "system" });
+    const material = ((await bridge.desktopConfig.read()) as ConfigSection[]).flatMap((s) => s.keys)[2];
+    expect([material.valueEnum, material.valueEnumVariants]).toEqual(["glass", ["glass", "solid"]]);
+  });
+
+  /**
+   * The reported sequence, as AppearanceSettings drives it: `applyMaterial` applies through
+   * `setWindowMaterial`, then saves through WindowMaterial. Light, dark, OLED (which forces solid),
+   * then theme and material flips. Glass used to map to `none` and to be refused as a variant, so
+   * the first OLED left the window solid for good and every later glass logged "Config update failed".
+   */
+  test("light → dark → OLED → back, then flips: every step applies and saves", async () => {
+    const win: Win = { backdrop: "acrylic", theme: "system" };
+    const bridge = await launch(win);
+    const applyMaterial = async (mat: string) => {
+      await bridge.setWindowMaterial(mat === "solid" ? "none" : mat);
+      return set(bridge, req("appearance", "WindowMaterial", { valueEnum: mat }));
+    };
+    await set(bridge, req("appearance", "Theme", { valueStr: "White" }));
+    await set(bridge, req("appearance", "Theme", { valueStr: "Dark" }));
+    const steps: [string, string][] = [
+      ["solid", "none"], // OLED forces solid
+      ["glass", "acrylic"], // leaving OLED restores the saved choice
+      ["solid", "none"],
+      ["glass", "acrylic"],
+      ["glass", "acrylic"], // the same value again is not a failure
+      ["solid", "none"],
+      ["glass", "acrylic"],
+    ];
+    for (const [mat, backdrop] of steps) {
+      expect((await applyMaterial(mat)).value?.valueEnum).toBe(mat);
+      expect(win.backdrop).toBe(backdrop);
+    }
+
+    // And the last choice is the one the next launch opens with.
+    const next: Win = { backdrop: "acrylic", theme: "system" };
+    await launch(next);
+    expect(next).toEqual({ backdrop: "acrylic", theme: "dark" });
+  });
+
+  test("the store's error names what was refused", async () => {
+    await launch({ backdrop: "acrylic", theme: "system" });
+    const { setActivePinia, createPinia } = await import("pinia");
+    setActivePinia(createPinia());
+    const { useConfigStore } = await import("@/store/ui/configStore");
+    await expect(useConfigStore().setWindowMaterial("mica")).rejects.toThrow(
+      'Config update failed: appearance.WindowMaterial cannot be "mica" here; it takes glass, solid',
+    );
+    await expect(useConfigStore().setWindowMaterial("glass")).resolves.toBeUndefined();
+  });
+});
+
+describe("a material the window cannot draw", () => {
+  type LiveWin = EventTarget & Win & { effectiveBackdrop: string };
+  const liveWindow = (backdrop: string): LiveWin =>
+    Object.assign(new EventTarget(), { backdrop, effectiveBackdrop: backdrop, theme: "system" });
+
+  afterEach(() => document.documentElement.classList.remove("backdrop-suspended"));
+
+  test("macOS fullscreen: the page takes the theme background, and gives it back on leaving", async () => {
+    const win = liveWindow("acrylic");
+    await launch(win);
+    const suspended = () => document.documentElement.classList.contains("backdrop-suspended");
+    expect(suspended()).toBe(false);
+    for (let i = 0; i < 3; i++) {
+      win.effectiveBackdrop = "none"; // entering fullscreen
+      win.dispatchEvent(new Event("backdropchange"));
+      expect(suspended()).toBe(true);
+      win.effectiveBackdrop = "acrylic"; // leaving it
+      win.dispatchEvent(new Event("backdropchange"));
+      expect(suspended()).toBe(false);
+    }
+  });
+
+  test("solid is not a suspended material, and an SDK without effectiveBackdrop changes nothing", async () => {
+    const solid = liveWindow("none");
+    await launch(solid);
+    solid.dispatchEvent(new Event("backdropchange"));
+    expect(document.documentElement.classList.contains("backdrop-suspended")).toBe(false);
+
+    const old = Object.assign(new EventTarget(), { backdrop: "acrylic", theme: "system" });
+    await launch(old);
+    old.dispatchEvent(new Event("backdropchange"));
+    expect(document.documentElement.classList.contains("backdrop-suspended")).toBe(false);
   });
 });
 

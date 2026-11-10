@@ -9,6 +9,13 @@ import {
 import { desktopConfig } from "@/lib/shell/desktop";
 import { isDesktop } from "@/lib/platform";
 
+/** What was refused, and the host's reason when it gave one. */
+function updateFailed(req: ConfigUpdate, reason: string | undefined): Error {
+  const value = req.valueB ?? req.valueStr ?? req.valueEnum ?? req.valueF ?? req.valueNum;
+  const asked = `${req.section}.${req.key} = ${typeof value === "bigint" ? value.toString() : JSON.stringify(value)}`;
+  return new Error(`Config update failed: ${reason ?? `the host refused ${asked}`}`);
+}
+
 export const useConfigStore = defineStore("nativeConfig", () => {
   const sections = ref<ConfigSection[]>([]);
   const requiresRestart = ref(new Set<string>());
@@ -98,11 +105,8 @@ export const useConfigStore = defineStore("nativeConfig", () => {
   };
 
   const setValue_raw = async (req: ConfigUpdate) => {
-    // @ts-ignore
     const updated = await desktopConfig.update(req);
-    if (!updated?.value) {
-      throw new Error("Config update failed");
-    }
+    if (!updated?.value) throw updateFailed(req, updated?.error);
 
     return updated.value;
   };
@@ -140,11 +144,8 @@ export const useConfigStore = defineStore("nativeConfig", () => {
         break;
     }
 
-    // @ts-ignore
     const updated = await desktopConfig.update(req);
-    if (!updated?.value) {
-      throw new Error("Config update failed");
-    }
+    if (!updated?.value) throw updateFailed(req, updated?.error);
 
     Object.assign(key, updated.value);
 
