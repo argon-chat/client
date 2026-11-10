@@ -2612,5 +2612,14 @@
   "mute_space": "Mute Space",
   "unmute_space": "Unmute Space",
   "copy_space_id": "Copy Space ID",
-  "inventory_redeem_action": "Redeem code"
+  "inventory_redeem_action": "Redeem code",
+  "error_boundary_title": "Something went wrong",
+  "error_boundary_body": "This part of the app could not be shown. You can carry on, or reload the app.",
+  "error_boundary_native_title": "The app has stopped",
+  "error_boundary_native_body": "An internal error stopped the app. Use the dialog in front of this window to restart it.",
+  "error_boundary_reload": "Reload",
+  "error_boundary_continue": "Continue",
+  "error_boundary_details": "Details",
+  "error_boundary_copy": "Copy",
+  "error_boundary_copied": "Copied"
 }

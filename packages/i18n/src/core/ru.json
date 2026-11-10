@@ -2612,5 +2612,14 @@
   "mute_space": "Отключить уведомления спейса",
   "unmute_space": "Включить уведомления спейса",
   "copy_space_id": "Копировать ID спейса",
-  "inventory_redeem_action": "Активировать код"
+  "inventory_redeem_action": "Активировать код",
+  "error_boundary_title": "Что-то пошло не так",
+  "error_boundary_body": "Эту часть приложения не удалось показать. Можно продолжить работу или перезагрузить приложение.",
+  "error_boundary_native_title": "Приложение остановлено",
+  "error_boundary_native_body": "Внутренняя ошибка остановила приложение. Перезапустите его в окне поверх этого.",
+  "error_boundary_reload": "Перезагрузить",
+  "error_boundary_continue": "Продолжить",
+  "error_boundary_details": "Подробности",
+  "error_boundary_copy": "Скопировать",
+  "error_boundary_copied": "Скопировано"
 }
