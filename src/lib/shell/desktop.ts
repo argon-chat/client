@@ -8,6 +8,8 @@ import type { ScreenSource } from "@/composables/useScreenShareSources";
 interface CaptureApi {
   getSources(types: string[], options?: Record<string, unknown>): Promise<ScreenSource[]>;
   setPendingSource(sourceId: string, includeAudio: boolean): boolean;
+  /** Absent on hosts older than the macOS screen-recording gate. */
+  requestPermission?(source: "camera" | "screen_share"): Promise<string>;
 }
 const capture = () => {
   const api = (globalThis as { __VN_CAPTURE__?: CaptureApi }).__VN_CAPTURE__;
@@ -30,6 +32,14 @@ export function openDevtools(): void {
 export async function setWindowMaterial(material: string): Promise<boolean> { return applyMaterial(material); }
 export async function screenSources(types: string[], options?: Record<string, unknown>): Promise<ScreenSource[]> {
   return capture().getSources(types, options);
+}
+/**
+ * Asks for screen recording (macOS shows its prompt once, then opens the Settings pane); resolves
+ * to the permission state. Hosts without a gate answer "granted" so the caller simply retries.
+ */
+export async function requestScreenCapture(): Promise<string> {
+  const api = capture();
+  return api.requestPermission ? api.requestPermission("screen_share") : "granted";
 }
 export async function selectCaptureSource(sourceId: string, includeAudio: boolean): Promise<void> {
   if (!isVn) return; // The browser's display-media picker selects its own source.

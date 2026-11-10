@@ -2,10 +2,23 @@ import { afterEach, expect, test, vi } from "vitest";
 import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import { nextTick } from "vue";
 
-vi.mock("@/lib/shell/desktop", () => ({ screenSources: async () => [
-  { id: "screen:7", name: "Display", thumbnailDataUrl: "", appIconDataUrl: null, displayId: "7" },
-  { id: "window:42", name: "Music player", thumbnailDataUrl: "", appIconDataUrl: null, displayId: "7" },
-] }));
+const desktop = vi.hoisted(() => ({
+  refusals: 0,
+  requestScreenCapture: async () => "granted",
+}));
+vi.mock("@/lib/shell/desktop", () => ({
+  screenSources: async () => {
+    if (desktop.refusals > 0) {
+      desktop.refusals--;
+      throw Object.assign(new Error("Permission denied by system."), { name: "NotAllowedError" });
+    }
+    return [
+      { id: "screen:7", name: "Display", thumbnailDataUrl: "", appIconDataUrl: null, displayId: "7" },
+      { id: "window:42", name: "Music player", thumbnailDataUrl: "", appIconDataUrl: null, displayId: "7" },
+    ];
+  },
+  requestScreenCapture: () => desktop.requestScreenCapture(),
+}));
 vi.mock("@/lib/platform", () => ({ isWeb: false }));
 vi.mock("@/store/system/localeStore", () => ({ useLocale: () => ({ t: (key: string) => key }) }));
 vi.mock("@/store/auth/meStore", () => ({ useMe: () => ({ isPremium: false }) }));
@@ -39,4 +52,21 @@ test("the picker describes each audio scope and emits the selected window with a
   await wrapper.get(".sp-audio").trigger("click");
   await wrapper.get(".sp-card").trigger("dblclick");
   expect(wrapper.emitted("start")?.[0]?.[0]).toMatchObject({ deviceId: "window:42", systemAudio: "include" });
+});
+
+test("a refused screen recording permission is explained and can be granted from the picker", async () => {
+  desktop.refusals = 1;
+  const request = vi.spyOn(desktop, "requestScreenCapture");
+  wrapper = mount(ScreenSharePicker);
+  (wrapper.vm as unknown as { request(): void }).request();
+  await flushPromises();
+  expect(wrapper.get(".sp-state-text").text()).toBe("screencast_permission_title");
+  expect(wrapper.get(".sp-state-hint").text()).toBe("screencast_permission_hint");
+  expect(wrapper.find(".sp-card").exists()).toBe(false);
+  const grant = wrapper.findAll("button").find((b) => b.text() === "screencast_open_settings");
+  await grant!.trigger("click");
+  await flushPromises();
+  expect(request).toHaveBeenCalledOnce();
+  expect(wrapper.find(".sp-state-hint").exists()).toBe(false);
+  expect(wrapper.findAll(".sp-card")).toHaveLength(1);
 });

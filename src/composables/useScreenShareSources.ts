@@ -1,5 +1,12 @@
 import { ref, watch, onBeforeUnmount } from "vue";
-import { screenSources as readScreenSources } from "@/lib/shell/desktop";
+import { screenSources as readScreenSources, requestScreenCapture } from "@/lib/shell/desktop";
+
+/** Why the source list is empty when it could not be read. */
+export interface SourcesError {
+  /** The OS refused screen recording (macOS): the user can grant it in System Settings. */
+  permission: boolean;
+  message: string;
+}
 
 export interface ScreenSource {
   id: string;
@@ -45,6 +52,7 @@ export function useScreenShareSources() {
   const quality = ref("1080p");
   const fps = ref("30");
   const sourcesLoading = ref(false);
+  const sourcesError = ref<SourcesError | null>(null);
   const selectedSourceId = ref<string | null>(null);
 
   const screenSources = ref<ScreenSource[]>([]);
@@ -91,6 +99,7 @@ export function useScreenShareSources() {
   async function loadSources() {
     const requestGeneration = ++generation;
     sourcesLoading.value = true;
+    sourcesError.value = null;
     selectedSourceId.value = null;
     stopThumbnailRefresh();
     try {
@@ -109,12 +118,28 @@ export function useScreenShareSources() {
       console.error("Failed to load screen sources:", e);
       screenSources.value = [];
       windowSources.value = [];
+      const error = e as { name?: string; message?: string } | null;
+      sourcesError.value = {
+        permission: error?.name === "NotAllowedError",
+        message: error?.message ?? String(e),
+      };
     } finally {
       if (generation === requestGeneration) {
         sourcesLoading.value = false;
-        if (openShareSettings.value) startThumbnailRefresh();
+        // Nothing to refresh until the list can be read.
+        if (openShareSettings.value && !sourcesError.value) startThumbnailRefresh();
       }
     }
+  }
+
+  /** Asks for screen recording again, then rereads the list. */
+  async function grantAccess() {
+    try {
+      await requestScreenCapture();
+    } catch (e) {
+      console.error("Failed to request screen recording:", e);
+    }
+    if (openShareSettings.value) await loadSources();
   }
 
   watch(openShareSettings, (isOpen) => {
@@ -123,6 +148,7 @@ export function useScreenShareSources() {
     } else {
       generation++;
       sourcesLoading.value = false;
+      sourcesError.value = null;
       screenSources.value = [];
       windowSources.value = [];
       selectedSourceId.value = null;
@@ -152,9 +178,12 @@ export function useScreenShareSources() {
     quality,
     fps,
     sourcesLoading,
+    sourcesError,
     selectedSourceId,
     screenSources,
     windowSources,
     getSelectedPreset,
+    retrySources: loadSources,
+    grantAccess,
   };
 }

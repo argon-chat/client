@@ -31,6 +31,22 @@
                         <Loader2 class="w-6 h-6 animate-spin text-muted-foreground" />
                     </div>
 
+                    <div v-else-if="sourcesError" class="sp-state">
+                        <EmptyStateArt name="no-screens" :size="128" />
+                        <span class="sp-state-text">
+                            {{ sourcesError.permission ? t("screencast_permission_title") : t("screencast_sources_failed") }}
+                        </span>
+                        <span class="sp-state-hint">
+                            {{ sourcesError.permission ? t("screencast_permission_hint") : sourcesError.message }}
+                        </span>
+                        <Button v-if="sourcesError.permission" variant="secondary" class="h-9" @click="grantAccess">
+                            {{ t("screencast_open_settings") }}
+                        </Button>
+                        <Button v-else variant="secondary" class="h-9" @click="retrySources">
+                            {{ t("try_again") }}
+                        </Button>
+                    </div>
+
                     <div
                         v-else-if="currentSources.length > 0"
                         class="sp-grid"
@@ -181,10 +197,13 @@ const {
     quality,
     fps,
     sourcesLoading,
+    sourcesError,
     selectedSourceId,
     screenSources,
     windowSources,
     getSelectedPreset,
+    retrySources,
+    grantAccess,
 } = useScreenShareSources();
 
 const currentSources = computed(() =>
@@ -356,6 +375,15 @@ function onStart() {
 .sp-state-text {
     font-size: 12px;
     color: hsl(var(--muted-foreground));
+}
+
+.sp-state-hint {
+    max-width: 360px;
+    margin: 6px 0 12px;
+    font-size: 11px;
+    line-height: 1.4;
+    text-align: center;
+    color: hsl(var(--muted-foreground) / 0.8);
 }
 
 /* minmax(0, 1fr) lets columns shrink below their content so long window
