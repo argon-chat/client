@@ -1,0 +1,19 @@
+/*
+ * Decorative motion, paused — `decor-paused` on <html>, put there by lib/decorativeMotion.ts while the
+ * window is unfocused, the page hidden or power saving on.
+ *
+ * Paused rather than removed: the drift holds where it was and carries on from there, instead of
+ * snapping back to its start every time the window is left. Only the looping cosmetics are named (a
+ * worn name's treatment, a profile frame's parts, a treatment's sample in the picker; the nickname
+ * editor pauses its own previews) —
+ * a blanket rule would also hold one-shot animations (an enter transition, a spinner the user is
+ * waiting on) whose `animationend` something is listening for.
+ *
+ * `!important` because every one of these animations is an inline style. `:root.x .y` and not
+ * `html.x body .y`: in vue-native the root is both, and the latter never matches there.
+ */
+:root.decor-paused .cosmetic-text-style,
+:root.decor-paused .cosmetic-frame-paint,
+:root.decor-paused .effect-chip {
+  animation-play-state: paused !important;
+}

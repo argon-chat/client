@@ -24,6 +24,7 @@ import LegalUpdateGate from "./components/modals/LegalUpdateGate.vue";
 import InvitePreviewModal from "./components/modals/InvitePreviewModal.vue";
 import { initDeepLinks } from "@/lib/deeplink";
 import { initPowerSaver } from "@/lib/powerSaver";
+import { initDecorativeMotion } from "@/lib/decorativeMotion";
 import { useTheme } from "@/composables/useTheme";
 import { useOverlayPublisher } from "@/composables/useOverlayPublisher";
 import { useOverlayChatPublisher } from "@/composables/useOverlayChatPublisher";
@@ -71,6 +72,8 @@ onMounted(() => {
   applyAppearanceSettings();
   // A low battery or a running game takes the animations down; see lib/powerSaver.ts.
   initPowerSaver();
+  // So does a window nobody is looking at, for the looping cosmetics; see lib/decorativeMotion.ts.
+  initDecorativeMotion();
   initDeepLinks();
   initHotkeyActions();
   // The browser build has no global hotkeys: the radio key is a focused-window key instead.

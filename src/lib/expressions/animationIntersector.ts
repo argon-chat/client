@@ -1,4 +1,5 @@
 import { watch, type Ref, type WatchStopHandle } from "vue";
+import { userAway } from "@/lib/decorativeMotion";
 import { animationsEnabled as globalAnimationsEnabled, pickerAutoplay } from "./settings";
 
 /** Something that can be played and paused: a Lottie player, a video, a shared emoji clock. */
@@ -32,6 +33,8 @@ export interface AnimationIntersectorOptions {
   IntersectionObserver?: typeof IntersectionObserver | null;
   document?: HiddenSource | null;
   animationsEnabled?: Ref<boolean>;
+  /** True while nobody is looking (window unfocused, page hidden): nothing plays. Default: lib/decorativeMotion.ts. */
+  away?: Readonly<Ref<boolean>>;
   /** Per group: false stops that group's autoplay (a hover or click still plays). Default: the picker's setting. */
   groupAutoplay?: Readonly<Record<string, Ref<boolean>>>;
   rootMargin?: string;
@@ -49,7 +52,8 @@ interface Entry {
 /**
  * Decides which animations play (ported from tweb's animationIntersector). An item plays when all hold:
  * - it is visible (its element intersects the viewport, or `setVisible(true)` for hand-driven ones);
- * - the page is not hidden;
+ * - the page is not hidden, and the user is not away (the window unfocused) — a hover does not
+ *   override either: an animation in a window nobody is looking at still redraws it every frame;
  * - it was asked to (`play()`), or autoplays with animations enabled (and its group's autoplay on),
  *   and it was not `pause()`d;
  * - no "only playable group" is set, or it is in that group;
@@ -65,6 +69,7 @@ export class AnimationIntersector {
   private hidden: boolean;
   private readonly doc: HiddenSource | null;
   private readonly enabled: Ref<boolean>;
+  private readonly away: Readonly<Ref<boolean>>;
   private readonly groupAutoplay: Readonly<Record<string, Ref<boolean>>>;
   private readonly stopWatch: WatchStopHandle;
 
@@ -82,8 +87,11 @@ export class AnimationIntersector {
     this.doc?.addEventListener("visibilitychange", this.onVisibilityChange);
 
     this.enabled = options.animationsEnabled ?? globalAnimationsEnabled;
+    this.away = options.away ?? userAway;
     this.groupAutoplay = options.groupAutoplay ?? { picker: pickerAutoplay };
-    this.stopWatch = watch([this.enabled, ...Object.values(this.groupAutoplay)], () => this.refresh(), { flush: "sync" });
+    this.stopWatch = watch([this.enabled, this.away, ...Object.values(this.groupAutoplay)], () => this.refresh(), {
+      flush: "sync",
+    });
   }
 
   add(item: AnimatedItem): AnimationControl {
@@ -196,7 +204,7 @@ export class AnimationIntersector {
   }
 
   private shouldPlay(entry: Entry): boolean {
-    if (entry.removed || entry.ended || !entry.visible || this.hidden) return false;
+    if (entry.removed || entry.ended || !entry.visible || this.hidden || this.away.value) return false;
     if (this.onlyGroup !== null && entry.item.group !== this.onlyGroup) return false;
     const autoplays = entry.item.autoplay && this.enabled.value && (this.groupAutoplay[entry.item.group]?.value ?? true);
     const wants = entry.user === "play" || (entry.user === null && autoplays);

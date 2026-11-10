@@ -3,7 +3,8 @@ import { videoAutoplayActive } from "@/lib/video/playerSettings";
 
 /**
  * Chat videos play through an intersector of their own: like stickers they play only while on
- * screen and while the tab is visible, but under the video switch instead of the sticker one.
+ * screen and while the tab is visible and the window focused, but under the video switch instead
+ * of the sticker one.
  * It is made for the first autoplaying video and destroyed with the last, so with autoplay off
  * nothing observes anything and no listener is left on the document.
  */

@@ -1156,6 +1156,12 @@ function setSpacing(event: Event): void {
   50%      { opacity: 0.35; }
 }
 
+/* Held while the window is left, as the names themselves are (styles/decor-paused.css). */
+:root.decor-paused .ribbon-sheen,
+:root.decor-paused .live-dot {
+  animation-play-state: paused;
+}
+
 .live:disabled {
   opacity: 0.45;
 }

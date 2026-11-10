@@ -5,7 +5,7 @@ import { prefersReducedMotion } from "@/lib/expressions/settings";
 /**
  * vue-native only: the `play` attribute of a `<vn-sticker>`, from the same AnimationIntersector policy
  * the browser players follow (groups and their locks, the picker's autoplay setting, animations off,
- * the page hidden, a hover or click that plays). The item has no element: vue-native knows what is on
+ * the page hidden or the window left, a hover or click that plays). The item has no element: vue-native knows what is on
  * screen and plays only that, so the intersector sees it as always visible.
  */
 export function useVnStickerPlay(options: { group: () => string; autoplay: () => boolean | undefined }) {

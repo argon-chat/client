@@ -122,7 +122,8 @@ const style = computed(() => {
     css.color = stops[0];
   }
 
-  // Motion is the treatment's, but whether it runs is the viewer's.
+  // Motion is the treatment's, but whether it runs is the viewer's. Left alone it is only paused,
+  // while the window is (styles/decor-paused.css).
   if (reduceMotion.value) {
     css.animation = "none";
   }

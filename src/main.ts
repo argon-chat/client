@@ -8,6 +8,7 @@ import "@argon/assets/styles";
 import "@argon-chat/emojix/style.css";
 import "./styles/reduced-motion.css";
 import "./styles/power-save.css";
+import "./styles/decor-paused.css";
 import "./styles/icon-motion.css";
 import "./styles/ultrawide.css";
 
