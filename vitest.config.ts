@@ -74,6 +74,8 @@ export default defineConfig({
           // The page has no process.env: a test reads this as import.meta.env.CI (timing budgets).
           env: { CI: process.env.CI ?? "" },
           include: ["test/browser/**/*.test.ts"],
+          // The page counts as focused (test/browser/setup.ts).
+          setupFiles: ["test/browser/setup.ts"],
           globals: false,
           restoreMocks: true,
           browser: {
