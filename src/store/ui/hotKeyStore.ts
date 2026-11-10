@@ -187,25 +187,44 @@ export const useHotkeys = defineStore("hotkeys", () => {
     }
   }
 
+  /** Set for the whole of a restart, so the status read it ends with can't start another. */
+  let restarting = false;
+
   async function refreshStatus(): Promise<HotkeyHostStatus | null> {
     if (!hotkeyHost.available) return null;
+    // Compared against what's stored when the answer lands, so overlapping reads see one flip.
+    let before: HotkeyHostStatus | null = null;
     try {
-      hostStatus.value = await hotkeyHost.status();
+      const next = await hotkeyHost.status();
+      before = hostStatus.value;
+      hostStatus.value = next;
     } catch (e) {
       logger.warn("[hotkeys] status unavailable:", e);
+    }
+    const after = hostStatus.value;
+    // Accessibility just granted in System Settings (macOS): the hook that failed without it
+    // won't come back by itself, so start it now rather than wait for the Restart button.
+    if (!restarting && before && !before.accessibilityGranted && after?.accessibilityGranted && !after.running) {
+      logger.info("[hotkeys] accessibility granted, restarting the host");
+      await restartHost();
     }
     return hostStatus.value;
   }
 
   async function restartHost(): Promise<void> {
     if (!hotkeyHost.available) return;
+    restarting = true;
     try {
-      await hotkeyHost.restart();
-      await sync();
-    } catch (e) {
-      logger.error("[hotkeys] restart failed:", e);
+      try {
+        await hotkeyHost.restart();
+        await sync();
+      } catch (e) {
+        logger.error("[hotkeys] restart failed:", e);
+      }
+      await refreshStatus();
+    } finally {
+      restarting = false;
     }
-    await refreshStatus();
   }
 
   // ── Recording ────────────────────────────────────────────────────

@@ -1592,7 +1592,7 @@ export function createCallManager(config: CallManagerConfig) {
     joinedRoomName = r.name || null;
 
     try {
-      // Prompt for mic access before capturing (macOS native host only — elsewhere a no-op).
+      // Reads the host's mic permission before capturing (never prompts; capture asks from `prompt`).
       await ensureMediaPermission("microphone");
 
       // Use virtual input stream from AudioManager - it already handles:
@@ -2229,7 +2229,7 @@ export function createCallManager(config: CallManagerConfig) {
     try {
       await cameraDevicesState.refresh();
       if (!current() || cameraDevicesState.unavailable.value) return;
-      // Prompt for camera access before capturing (macOS native host only — elsewhere a no-op).
+      // Reads the host's camera permission before capturing (never prompts; capture asks from `prompt`).
       await ensureMediaPermission("camera");
       if (!current()) return;
 

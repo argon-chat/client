@@ -47,16 +47,16 @@
                 <h3 class="text-lg font-semibold">{{ t("select_microphone") }}</h3>
             </div>
 
-            <!-- Microphone Permission Banner (macOS) -->
+            <!-- Microphone Permission Banner (desktop host) -->
             <WarningBanner
                 v-if="needsMicPermission"
                 class="mb-4"
                 :title="t('mic_permission_required')"
-                :description="micPermissionBlocked ? t('mic_permission_blocked_description') : t('mic_permission_description')">
+                :description="t(permissionDescriptionKey('mic', micPermission))">
                 <template #icon><ShieldAlertIcon /></template>
                 <template #action>
-                    <Button size="sm" variant="outline" @click="grantMicPermission">
-                        {{ micPermissionBlocked ? t("open_system_settings") : t("grant_access") }}
+                    <Button size="sm" variant="outline" :disabled="micPermissionRequesting" @click="grantMicPermission">
+                        {{ micPermission.deniedBySystem ? t("open_system_settings") : t("grant_access") }}
                     </Button>
                 </template>
             </WarningBanner>
@@ -276,16 +276,16 @@
                 <h3 class="text-lg font-semibold">{{ t("select_camera") }}</h3>
             </div>
 
-            <!-- Camera Permission Banner (macOS) -->
+            <!-- Camera Permission Banner (desktop host) -->
             <WarningBanner
                 v-if="needsCameraPermission"
                 class="mb-4"
                 :title="t('camera_permission_required')"
-                :description="cameraPermissionBlocked ? t('camera_permission_blocked_description') : t('camera_permission_description')">
+                :description="t(permissionDescriptionKey('camera', cameraPermission))">
                 <template #icon><ShieldAlertIcon /></template>
                 <template #action>
-                    <Button size="sm" variant="outline" @click="grantCameraPermission">
-                        {{ cameraPermissionBlocked ? t("open_system_settings") : t("grant_access") }}
+                    <Button size="sm" variant="outline" :disabled="cameraPermissionRequesting" @click="grantCameraPermission">
+                        {{ cameraPermission.deniedBySystem ? t("open_system_settings") : t("grant_access") }}
                     </Button>
                 </template>
             </WarningBanner>
@@ -383,10 +383,14 @@ import {
 import { audio } from "@/lib/audio/AudioManager";
 import type { NoiseSuppressionMode } from "@/lib/audio/AudioManager";
 import {
-    ensureMediaPermission,
-    isMediaPermissionGranted,
+    isPermissionGranted,
     needsMediaPermissionGate,
+    needsPermissionBanner,
+    readMediaPermission,
+    requestMediaPermission,
+    watchMediaPermission,
 } from "@/lib/mediaPermissions";
+import type { MediaPermissionStatus } from "@/lib/mediaPermissions";
 import { worklets } from "@/lib/audio/WorkletBase";
 import { DisposableBag, logger } from "@argon/core";
 import { useLocale } from "@/store/system/localeStore";
@@ -460,26 +464,63 @@ const videoActive = ref(false);
 const loaded = ref(false);
 const isPlayingSound = ref(false);
 
-// macOS media permissions. Default to granted so non-mac hosts never show the banners.
-const micPermissionGranted = ref(true);
-const cameraPermissionGranted = ref(true);
-// "blocked" = the OS denied it. macOS won't show the prompt again, so the only path back is
-// System Settings + a restart. We learn this after a request attempt comes back false.
-const micPermissionBlocked = ref(false);
-const cameraPermissionBlocked = ref(false);
-const needsMicPermission = computed(() => needsMediaPermissionGate() && !micPermissionGranted.value);
-const needsCameraPermission = computed(() => needsMediaPermissionGate() && !cameraPermissionGranted.value);
+// Media permissions as the desktop host keeps them. Default to granted so hosts without the
+// permission API (and the browser) never show the banners.
+const GRANTED_STATUS: MediaPermissionStatus = { state: "granted", canRequest: false, deniedBySystem: false };
+const micPermission = ref<MediaPermissionStatus>(GRANTED_STATUS);
+const cameraPermission = ref<MediaPermissionStatus>(GRANTED_STATUS);
+const micPermissionGranted = computed(() => isPermissionGranted(micPermission.value));
+const needsMicPermission = computed(() => needsPermissionBanner(micPermission.value));
+const needsCameraPermission = computed(() => needsPermissionBanner(cameraPermission.value));
+// A request from a system denial waits for the user in the OS settings (up to minutes).
+const micPermissionRequesting = ref(false);
+const cameraPermissionRequesting = ref(false);
+const stopPermissionWatches: (() => void)[] = [];
+
+/** Not asked yet; blocked by the user in the app's prompt; or blocked by the OS privacy settings. */
+function permissionDescriptionKey(kind: "mic" | "camera", status: MediaPermissionStatus): string {
+    if (kind === "mic") {
+        if (status.state === "prompt") return "mic_permission_description";
+        return status.deniedBySystem ? "mic_permission_blocked_description" : "mic_permission_denied_description";
+    }
+    if (status.state === "prompt") return "camera_permission_description";
+    return status.deniedBySystem ? "camera_permission_blocked_description" : "camera_permission_denied_description";
+}
+
+async function applyMicPermission(status: MediaPermissionStatus) {
+    const was = micPermissionGranted.value;
+    micPermission.value = status;
+    // Allowed while the panel is open: start the level meter the closed permission held back.
+    if (!was && micPermissionGranted.value && loaded.value && windows.settingsOpen && !isInputVUEnabled.value) {
+        await startInputMonitoring();
+    }
+}
+
+/** Only reads: its callers (mount, the window opening) start the monitor themselves. */
+function readPermissions() {
+    if (!needsMediaPermissionGate()) return;
+    micPermission.value = readMediaPermission("microphone");
+    cameraPermission.value = readMediaPermission("camera");
+}
 
 async function grantMicPermission() {
-    // Prompts if undecided; deep-links to System Settings if previously denied.
-    micPermissionGranted.value = await ensureMediaPermission("microphone");
-    micPermissionBlocked.value = !micPermissionGranted.value;
-    if (micPermissionGranted.value) await startInputMonitoring();
+    if (micPermissionRequesting.value) return;
+    micPermissionRequesting.value = true;
+    try {
+        await applyMicPermission(await requestMediaPermission("microphone"));
+    } finally {
+        micPermissionRequesting.value = false;
+    }
 }
 
 async function grantCameraPermission() {
-    cameraPermissionGranted.value = await ensureMediaPermission("camera");
-    cameraPermissionBlocked.value = !cameraPermissionGranted.value;
+    if (cameraPermissionRequesting.value) return;
+    cameraPermissionRequesting.value = true;
+    try {
+        cameraPermission.value = await requestMediaPermission("camera");
+    } finally {
+        cameraPermissionRequesting.value = false;
+    }
 }
 
 // Sound level
@@ -628,8 +669,8 @@ async function startInputMonitoring() {
         return;
     }
 
-    // On macOS the OS gates mic access — don't try to capture until it's granted
-    // (the permission banner drives the request).
+    // Don't capture until the mic is granted: from `prompt` capture would ask by itself, and
+    // opening settings must never prompt (the permission banner drives the request).
     if (!micPermissionGranted.value) return;
 
     try {
@@ -868,11 +909,14 @@ onMounted(async () => {
         }),
     );
 
-    // On macOS, read (don't prompt) the current grant state up front so the banners can
-    // show. The banner buttons drive the actual prompt; we never auto-prompt on open.
+    // Read (don't prompt) the current state up front so the banners can show, and follow it as
+    // it changes. The banner buttons drive the actual request; we never auto-prompt on open.
     if (needsMediaPermissionGate()) {
-        micPermissionGranted.value = await isMediaPermissionGranted("microphone");
-        cameraPermissionGranted.value = await isMediaPermissionGranted("camera");
+        readPermissions();
+        stopPermissionWatches.push(
+            watchMediaPermission("microphone", (status) => void applyMicPermission(status)),
+            watchMediaPermission("camera", (status) => { cameraPermission.value = status; }),
+        );
     }
 
     loaded.value = true;
@@ -887,6 +931,8 @@ onMounted(async () => {
 watch(() => windows.settingsOpen, (open) => {
     if (!loaded.value) return;
     if (open) {
+        // Changed in the OS settings while the window was closed: the change event may not cover it.
+        readPermissions();
         if (!isInputVUEnabled.value) startInputMonitoring();
         startOutputMonitoring();
     } else {
@@ -911,6 +957,8 @@ onUnmounted(() => {
     gateStateSub = null;
     deviceSubscriptions.forEach(sub => sub.unsubscribe());
     deviceSubscriptions.length = 0;
+    stopPermissionWatches.forEach(stop => stop());
+    stopPermissionWatches.length = 0;
 });
 </script>
 

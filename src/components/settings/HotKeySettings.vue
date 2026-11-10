@@ -82,7 +82,8 @@ let statusTimer: ReturnType<typeof setInterval> | null = null;
 onMounted(() => {
   if (!desktop) return;
   void hotkeys.refreshStatus();
-  // Permission granted in System Settings, or a hook coming back: cheap to keep looking.
+  // Permission granted in System Settings (the store then restarts the host), or a hook coming
+  // back: cheap to keep looking.
   statusTimer = setInterval(() => {
     if (!hotkeys.hostStatus?.running) void hotkeys.refreshStatus();
   }, 3000);

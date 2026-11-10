@@ -8,7 +8,7 @@
  * cancelled recording that leaves the field stuck in "recording".
  */
 
-import { describe, test, expect, beforeEach, vi } from "vitest";
+import { describe, test, expect, beforeEach, afterEach, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
 import { nextTick } from "vue";
 import superjson from "superjson";
@@ -270,5 +270,43 @@ describe("native capture lifecycle", () => {
     store.$dispose();
     expect(off).toHaveBeenCalledTimes(1);
     expect(host.cancelCapture).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("accessibility granted while the host is down", () => {
+  const macStatus = (accessibilityGranted: boolean, running: boolean) =>
+    ({ running, platform: "darwin", accessibilityGranted, error: null, restarts: 0 });
+  let current = macStatus(false, false);
+  const defaultStatus = host.status.getMockImplementation()!;
+  beforeEach(() => { host.status.mockImplementation(async () => current); });
+  afterEach(() => { host.status.mockImplementation(defaultStatus); });
+
+  /** A store whose first status read has landed. */
+  const settled = async (initial: ReturnType<typeof macStatus>) => {
+    current = initial;
+    const store = useHotkeys();
+    await store.refreshStatus();
+    host.restart.mockClear();
+    return store;
+  };
+
+  test("the flip to granted restarts the host exactly once", async () => {
+    const store = await settled(macStatus(false, false));
+    current = macStatus(true, false);
+    await Promise.all([store.refreshStatus(), store.refreshStatus()]);
+    await store.refreshStatus();
+    expect(host.restart).toHaveBeenCalledTimes(1);
+  });
+
+  test("a host that was already granted, or is running, is left alone", async () => {
+    const granted = await settled(macStatus(true, false));
+    await granted.refreshStatus();
+    expect(host.restart).not.toHaveBeenCalled();
+
+    setActivePinia(createPinia());
+    const running = await settled(macStatus(false, false));
+    current = macStatus(true, true);
+    await running.refreshStatus();
+    expect(host.restart).not.toHaveBeenCalled();
   });
 });
