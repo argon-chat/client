@@ -1,24 +1,34 @@
 import { ref, onMounted, onUnmounted, computed } from "vue";
 import { logger } from "@argon/core";
 import { isVn } from "@/lib/vn";
-import { shell } from "@/lib/shell/host";
+import { shell, type UpdateStatus } from "@/lib/shell/host";
 
 const UPDATE_CHECK_URL = "https://updates.argon.gl/runtime/core-linux/latest.linux";
 const DOWNLOAD_BASE_URL = "https://updates.argon.gl";
 const CHECK_INTERVAL = 10 * 60 * 1000; // 10 minutes
 
+/**
+ * Linux updates. The native app is an AppImage that updates itself (`argon.update`): this only
+ * offers the restart once the new version is in place. Elsewhere on Linux (the older .deb desktop
+ * app) it checks the .deb channel and offers the install command.
+ */
 export function useLinuxUpdateChecker() {
   const isLinux = navigator.userAgent.includes("Linux") && !navigator.userAgent.includes("Android");
+  const native = isVn && !!shell.update;
+  const nativeStatus = ref<UpdateStatus | null>(null);
   const latestVersion = ref<string | null>(null);
   const latestDebPath = ref<string | null>(null);
-  const hasUpdate = ref(false);
+  const debUpdate = ref(false);
   const showModal = ref(false);
 
   let timer: ReturnType<typeof setInterval> | null = null;
+  let unsubscribe: (() => void) | null = null;
 
   const currentVersion = computed(() => {
     return isVn ? shell.system.info().appVersion : undefined;
   });
+
+  const hasUpdate = computed(() => (native ? nativeStatus.value?.phase === "ready" : debUpdate.value));
 
   const downloadUrl = computed(() => {
     if (!latestDebPath.value) return null;
@@ -67,7 +77,7 @@ export function useLinuxUpdateChecker() {
 
       const local = currentVersion.value;
       if (local && local !== remoteVersion) {
-        hasUpdate.value = true;
+        debUpdate.value = true;
         logger.info(`Linux update available: ${local} → ${remoteVersion}`);
       }
     } catch (e) {
@@ -75,23 +85,47 @@ export function useLinuxUpdateChecker() {
     }
   }
 
+  function onNativeStatus(status: UpdateStatus) {
+    nativeStatus.value = status;
+    if (status.phase === "ready") latestVersion.value = status.version ?? null;
+    if (status.phase === "failed") logger.warn(`Update failed: ${status.error}`);
+  }
+
+  /** The update button: restart into the new version, or show how to install the .deb. */
+  function apply() {
+    if (!native) {
+      showModal.value = true;
+      return;
+    }
+    if (!shell.update!.restart()) logger.warn("No update is ready to restart into");
+  }
+
   onMounted(() => {
-    if (!isLinux) return;
+    if (native) {
+      const update = shell.update!;
+      onNativeStatus(update.state());
+      unsubscribe = update.onChanged(onNativeStatus);
+      return;
+    }
+    if (isVn || !isLinux) return;
     check();
     timer = setInterval(check, CHECK_INTERVAL);
   });
 
   onUnmounted(() => {
     if (timer) clearInterval(timer);
+    unsubscribe?.();
   });
 
   return {
     isLinux,
+    native,
     hasUpdate,
     latestVersion,
     downloadUrl,
     downloadCommand,
     showModal,
     currentVersion,
+    apply,
   };
 }

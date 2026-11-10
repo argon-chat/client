@@ -207,7 +207,7 @@ const onTitlebarDblClick = (e: MouseEvent) => {
       </Transition>
 
       <Transition name="update-pop">
-        <button v-if="linux.hasUpdate.value" class="update-btn linux-update-btn icon-motion icon-motion--lift" @click="linux.showModal.value = true" :title="t('linux_update_available')">
+        <button v-if="linux.hasUpdate.value" class="update-btn linux-update-btn icon-motion icon-motion--lift" @click="linux.apply()" :title="linux.latestVersion.value ? `${t('linux_update_available')}: ${linux.latestVersion.value}` : t('linux_update_available')">
           <IconDownload class="w-3.5 h-3.5" />
           <span class="update-label">{{ t("linux_update_available") }}</span>
         </button>
