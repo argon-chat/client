@@ -50,10 +50,12 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* The overlay window's box, not 100vw/100vh: in a native pop-out those are the MAIN window's
+   viewport, which drew the strokes shrunk into a corner, and nowhere once it was minimised. */
 .screencast-canvas {
   display: block;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   background: transparent;
 }
 </style>

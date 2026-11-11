@@ -20,12 +20,15 @@ import {
 
 /** How long an unfinished stroke may go without new points before it is treated as finished. */
 const STALE_STROKE_MS = 10_000;
+/** How long a frame waits for an animation frame before a timer paints it instead. */
+const FRAME_FALLBACK_MS = 50;
 
 export class StrokeCanvas {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private strokes = new Map<string, LiveStroke>();
   private raf: number | null = null;
+  private timer: ReturnType<typeof setTimeout> | null = null;
   /** Wall-clock provider (injectable for tests); defaults to performance.now via Date. */
   private now: () => number;
 
@@ -104,22 +107,32 @@ export class StrokeCanvas {
 
   /** Start the decay/redraw loop (no-op if already running). */
   kick(): void {
-    if (this.raf != null) return;
+    if (this.raf != null || this.timer != null) return;
+    this.schedule();
+  }
+
+  /**
+   * The next frame: an animation frame, or a timer when none comes. In the native app animation
+   * frames follow the main window, and the streamer's overlay is up exactly while that window is
+   * minimised or covered by what they share; its timers still run, so the strokes still paint.
+   */
+  private schedule(): void {
     const tick = () => {
-      const alive = this.paintFrame();
-      if (alive) {
-        this.raf = requestAnimationFrame(tick);
-      } else {
-        this.raf = null;
-      }
+      this.stop();
+      if (this.paintFrame()) this.schedule();
     };
     this.raf = requestAnimationFrame(tick);
+    this.timer = setTimeout(tick, FRAME_FALLBACK_MS);
   }
 
   stop(): void {
     if (this.raf != null) {
       cancelAnimationFrame(this.raf);
       this.raf = null;
+    }
+    if (this.timer != null) {
+      clearTimeout(this.timer);
+      this.timer = null;
     }
   }
 
