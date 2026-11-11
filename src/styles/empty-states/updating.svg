@@ -8,7 +8,7 @@
 @keyframes es-fl{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
 @keyframes es-glow{0%,100%{opacity:.7}50%{opacity:1}}
 .es-svg .rot{animation:es-rot 4s cubic-bezier(.5,0,.5,1) .9s infinite}
-.es-svg .rng{animation:es-rng 4s cubic-bezier(.4,0,.2,1) .9s infinite,rgc 4s steps(1,end) .9s infinite}
+.es-svg .rng{animation:es-rng 4s cubic-bezier(.4,0,.2,1) .9s infinite,es-rgc 4s steps(1,end) .9s infinite}
 .es-svg .aro{animation:es-aro 4s steps(1,end) .9s infinite}
 .es-svg .ok{animation:es-ok 4s cubic-bezier(.2,.9,.3,1.3) .9s infinite}
 .es-svg .bst{animation:es-bst 4s ease-out .9s infinite;opacity:0}

@@ -3,7 +3,7 @@
 
   The SVGs under src/styles/empty-states carry their own <style> block, so they have to be inlined
   (an <img>/background would isolate them from the page and freeze their colours). Inlining means
-  two things are handled inside the files themselves, by scripts/theme-empty-states.mjs:
+  two things are handled inside the files themselves, by scripts/theme-empty-states.ts:
 
     * every selector is scoped under .es-svg and every @keyframes is prefixed with es-, because a
       <style> inside an inlined SVG applies to the whole document;
@@ -14,9 +14,22 @@
   The palette below is the only place the artwork meets the theme: the accent follows --primary
   (i.e. the accent colour picked in Appearance settings) and the neutrals follow the usual surface
   tokens, so dark / light / OLED all work without a second set of files.
+
+  vue-native runs no CSS animation inside an inlined SVG, so the native app plays the same artwork
+  as Lottie instead (EmptyStateLottie.vue), themed from the same palette. Only the build it belongs
+  to carries each: the web build has no Lottie files, the native one no SVGs.
 -->
 <template>
   <div
+    v-if="Lottie"
+    class="es-art"
+    :style="{ width: px, height: px }"
+    aria-hidden="true"
+  >
+    <component :is="Lottie" :name="name" />
+  </div>
+  <div
+    v-else
     class="es-art"
     :class="{ 'es-art--still': reduceMotion }"
     :style="{ width: px, height: px }"
@@ -58,7 +71,7 @@ export type EmptyStateArtName =
 </script>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, defineAsyncComponent } from "vue";
 import { reduceMotion } from "@/composables/useReducedMotion";
 
 import callFailed from "@/styles/empty-states/call-failed.svg?raw";
@@ -90,7 +103,9 @@ import noTextChannel from "@/styles/empty-states/no-text-channel.svg?raw";
 import notFound from "@/styles/empty-states/not-found.svg?raw";
 import selectRole from "@/styles/empty-states/select-role.svg?raw";
 
-const ART: Record<EmptyStateArtName, string> = {
+const Lottie = import.meta.env.VN ? defineAsyncComponent(() => import("./EmptyStateLottie.vue")) : null;
+
+const ART: Record<EmptyStateArtName, string> | null = import.meta.env.VN ? null : {
   "call-failed": callFailed,
   "error-generic": errorGeneric,
   forbidden,
@@ -130,7 +145,7 @@ const props = withDefaults(
   { size: 140 },
 );
 
-const markup = computed(() => ART[props.name]);
+const markup = computed(() => ART?.[props.name] ?? "");
 const px = computed(() => `${props.size}px`);
 
 // The OS setting is neutralised globally by styles/reduced-motion.css; this is the in-app toggle.

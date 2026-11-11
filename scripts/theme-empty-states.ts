@@ -111,10 +111,11 @@ function transformStyle(css: string): string {
     }
   }
 
-  for (const n of names) {
-    out = out.replace(new RegExp(`(animation(?:-name)?\\s*:\\s*)${n}\\b`, "g"), `$1es-${n}`);
-  }
-  return out;
+  // Every name in the declaration, not just the first: `animation:pb 5s …,pbc 5s …` names two.
+  return out.replace(/(animation(?:-name)?\s*:\s*)([^;}]*)/g, (_, prop: string, value: string) =>
+    prop + value.replace(/(^|,)(\s*)([\w-]+)/g, (m, sep: string, ws: string, n: string) =>
+      names.has(n) ? `${sep}${ws}es-${n}` : m),
+  );
 }
 
 function transformMarkup(markup: string): string {

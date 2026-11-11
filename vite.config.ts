@@ -65,8 +65,8 @@ export default defineConfig(({ mode }) => {
       vue({
         template: {
           compilerOptions: {
-            // vn-*: vue-native's own elements (<vn-sticker>), only ever rendered under `isVn`.
-            isCustomElement: (tag) => tag.startsWith("psdk-") || tag.startsWith("vn-"),
+            // vn-* and <lottie>: vue-native's own elements (<vn-sticker>), only ever rendered under `isVn`.
+            isCustomElement: (tag) => tag.startsWith("psdk-") || tag.startsWith("vn-") || tag === "lottie",
           },
         },
       }),

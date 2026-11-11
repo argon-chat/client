@@ -9,7 +9,7 @@
 @keyframes es-glow{0%,100%{opacity:.7}50%{opacity:1}}
 .es-svg .dl{animation:es-dl 5s cubic-bezier(.4,0,.2,1) .9s infinite}
 .es-svg .bx{animation:es-bx 5s cubic-bezier(.4,0,.2,1) .9s infinite}
-.es-svg .pb{animation:es-pb 5s cubic-bezier(.4,0,.2,1) .9s infinite,pbc 5s steps(1,end) .9s infinite;transform-origin:60px 134px}
+.es-svg .pb{animation:es-pb 5s cubic-bezier(.4,0,.2,1) .9s infinite,es-pbc 5s steps(1,end) .9s infinite;transform-origin:60px 134px}
 .es-svg .shm{animation:es-shm 1.1s linear .9s infinite}
 .es-svg .shw{animation:es-shw 5s steps(1,end) .9s infinite}
 .es-svg .t1{animation:es-t1 5s steps(1,end) .9s infinite}
