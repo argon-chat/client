@@ -280,7 +280,8 @@ async function redeemCode(code: string, verifier: string, target: AegisTarget): 
   const data = await res.json().catch(() => null);
   if (!data?.access_token) {
     lastError = "no_token";
-    logger.error("[web-auth] token response carried no access_token", data);
+    // Its keys, not its values: the rest of it can be a refresh or id token.
+    logger.error("[web-auth] token response carried no access_token", Object.keys(data ?? {}));
     return null;
   }
 
@@ -329,7 +330,7 @@ async function openSession(apiBase: string, aegisToken: string): Promise<string 
   const data = await res.json().catch(() => null);
   if (!data?.accessToken) {
     lastError = "no_session_token";
-    logger.error("[web-auth] session response carried no accessToken", data);
+    logger.error("[web-auth] session response carried no accessToken", Object.keys(data ?? {}));
     return null;
   }
 

@@ -84,7 +84,6 @@ export const useAuthStore = defineStore("auth", () => {
   };
   const register = async (data: NewUserCredentialsInput) => {
     const api = useApi();
-    logger.warn(data);
     const r = await withDeviceProof(() => api.identityInteraction.Registration(data));
     metrics.count("auth.register", {
       result: r.isSuccessRegistration() ? "ok" : "failed",
@@ -275,7 +274,7 @@ export const useAuthStore = defineStore("auth", () => {
 
     const savedToken = localStorage.getItem("token");
     metrics.count("auth.session.restore", { method: "stored", result: savedToken ? "ok" : "none" });
-    logger.info(`restored session, ${savedToken}`);
+    logger.info(savedToken ? "restored session" : "no stored session");
     if (savedToken) {
       _token.value = savedToken as string;
       isAuthenticated.value = true;

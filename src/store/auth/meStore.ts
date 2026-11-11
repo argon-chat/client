@@ -233,7 +233,8 @@ export const useMe = defineStore("me", () => {
         )
       );
 
-      logger.info("GetMyAuthorization", result);
+      // The kind only: a good status carries the session token.
+      logger.info("GetMyAuthorization", result.UnionKey);
 
       metrics.count("auth.session.check", {
         result: result.isGoodAuthStatus()

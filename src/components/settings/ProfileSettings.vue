@@ -1499,12 +1499,9 @@ const toggleOTP = async () => {
     try {
       const result = await api.securityInteraction.EnableOTP();
 
-      console.log("EnableOTP result:", result);
-
       if (result.isSuccessEnableOTP()) {
         otpQrUrl.value = result.qrCodeUrl!;
         showOTPDialog.value = true;
-        console.log("Dialog should be open, showOTPDialog:", showOTPDialog.value);
       } else {
         if (result.isFailedEnableOTP()) {
           logger.error("EnableOTP failed with reason:", OTPError[result.error]);
