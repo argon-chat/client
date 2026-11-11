@@ -49,7 +49,7 @@ export const useFeatureFlags = defineStore("featureFlags", () => {
     [FeatureFlagKeys.SPLIT_VIEW_ACTIVE]: false,
     [FeatureFlagKeys.UI_DENSITY_ACTIVE]: false,
     [FeatureFlagKeys.OVERLAY_GAMES_ENABLED]: false,
-    [FeatureFlagKeys.SCREENCAST_DRAWING]: false,
+    [FeatureFlagKeys.SCREENCAST_DRAWING]: true,
     [FeatureFlagKeys.CHAT_GIFS_SELECTOR]: false,
     [FeatureFlagKeys.STICKERS_AND_EMOJI]: false,
   });
