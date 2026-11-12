@@ -9,7 +9,9 @@ import { computed, type HTMLAttributes } from "vue";
  * `checked` (legacy) and `modelValue`, and emits BOTH update events — so every
  * existing call site keeps working without changes.
  */
-const props = defineProps<{
+// Explicit undefined defaults: Vue casts an absent boolean prop to false, which would make an
+// unbound `checked` shadow `modelValue` and pin a `:model-value` switch to off.
+const props = withDefaults(defineProps<{
   class?: HTMLAttributes["class"];
   /** Native reka binding (v-model). */
   modelValue?: boolean;
@@ -21,7 +23,11 @@ const props = defineProps<{
   name?: string;
   required?: boolean;
   value?: string;
-}>();
+}>(), {
+  modelValue: undefined,
+  checked: undefined,
+  defaultValue: undefined,
+});
 
 const emit = defineEmits<{
   "update:modelValue": [value: boolean];
