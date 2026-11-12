@@ -164,6 +164,7 @@
           </DialogTitle>
         </DialogHeader>
 
+        <form class="grid gap-4" novalidate @submit.prevent="confirmDeleteServer">
         <div class="space-y-4">
           <p class="text-sm">{{ t("delete_server_confirmation", { serverName: currentSpace?.name }) }}</p>
           <p class="text-sm text-muted-foreground">{{ t("delete_server_warning") }}</p>
@@ -174,15 +175,16 @@
         </div>
 
         <DialogFooter>
-          <Button @click="showDeleteServerDialog = false" variant="outline">{{ t("cancel") }}</Button>
+          <Button type="button" @click="showDeleteServerDialog = false" variant="outline">{{ t("cancel") }}</Button>
           <Button
-            @click="confirmDeleteServer"
+            type="submit"
             variant="destructive"
             :disabled="deleteConfirmationName !== currentSpace?.name || isDeletingServer"
           >
             {{ t("delete_server") }}
           </Button>
         </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   </div>
@@ -338,7 +340,7 @@ function copyServerId() {
 }
 
 async function confirmDeleteServer() {
-  if (!currentSpace.value || deleteConfirmationName.value !== currentSpace.value.name) return;
+  if (isDeletingServer.value || !currentSpace.value || deleteConfirmationName.value !== currentSpace.value.name) return;
   isDeletingServer.value = true;
   try {
     const result = await api.serverInteraction.RequestDeleteSpace(currentSpace.value.spaceId);

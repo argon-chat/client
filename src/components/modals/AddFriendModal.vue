@@ -16,7 +16,7 @@
                 </DialogDescription>
             </div>
 
-            <div class="relative space-y-3">
+            <form class="relative space-y-3" novalidate @submit.prevent="submit">
 
                 <InputWithError v-model="username" :placeholder="t('username_placeholder')" :error="errorMessage" 
                     :success="successMessage" @clear-error="clearStatus">
@@ -28,15 +28,15 @@
                     </template>
                 </InputWithError>
 
-                <Button @click="submit" :disabled="isLoading"
+                <Button type="submit" :disabled="isLoading"
                     class="w-full font-semibold rounded-xl transition-all">
                     <span v-if="isLoading" class="animate-spin i-lucide-loader-2 mr-2"></span>
                     <span v-else class="i-lucide-send mr-2"></span>
                     {{ t('send_request') }}
                 </Button>
-            </div>
+            </form>
             <DialogFooter class="relative flex justify-center pt-2">
-                <Button variant="ghost" @click="open = false">
+                <Button type="button" variant="ghost" @click="open = false">
                     {{ t('close') }}
                 </Button>
             </DialogFooter>
@@ -88,6 +88,7 @@ function clearStatus() {
 }
 
 async function submit() {
+    if (isLoading.value) return;
     clearStatus();
     const name = username.value.trim();
     if (!name) {

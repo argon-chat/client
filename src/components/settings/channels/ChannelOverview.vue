@@ -125,6 +125,7 @@
           </DialogTitle>
         </DialogHeader>
 
+        <form class="grid gap-4" novalidate @submit.prevent="confirmDelete">
         <div class="space-y-4">
           <p class="text-sm">{{ t("delete_channel_confirmation", { name: channel.name }) }}</p>
           <div class="space-y-2">
@@ -134,14 +135,15 @@
         </div>
 
         <DialogFooter>
-          <Button variant="outline" @click="showDeleteDialog = false">{{ t("cancel") }}</Button>
+          <Button type="button" variant="outline" @click="showDeleteDialog = false">{{ t("cancel") }}</Button>
           <Button
+            type="submit"
             variant="destructive"
-            :disabled="deleteConfirmationName !== channel.name || deleting"
-            @click="confirmDelete">
+            :disabled="deleteConfirmationName !== channel.name || deleting">
             {{ t("delete_channel") }}
           </Button>
         </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   </div>
@@ -372,7 +374,7 @@ watch(showDeleteDialog, (open) => {
 });
 
 async function confirmDelete() {
-  if (deleting.value || !canManageChannels.value) return;
+  if (deleting.value || !canManageChannels.value || deleteConfirmationName.value !== props.channel.name) return;
   deleting.value = true;
   try {
     const refused = await servers.deleteChannel(props.channel.channelId, props.channel.spaceId);

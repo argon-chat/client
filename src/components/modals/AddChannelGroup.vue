@@ -12,8 +12,9 @@
           {{ t("add_category_channels") }}
         </DialogTitle>
       </div>
+      <form class="relative space-y-8" novalidate @submit.prevent="addGroup(close)">
       <div class="relative space-y-3">
-        <InputWithError 
+        <InputWithError
           v-model="groupName" 
           :error="addGroupError" 
           @clear-error="addGroupError = ''" 
@@ -42,7 +43,7 @@
       </div>
       <div class="relative space-y-3">
         <Button
-          @click="addGroup(close)"
+          type="submit"
           :disabled="isLoading"
           class="w-full font-semibold rounded-xl transition-all"
         >
@@ -51,6 +52,7 @@
           {{ t("create_category") }}
         </Button>
       </div>
+      </form>
     </DialogContent>
     </template>
   </Dialog>
@@ -86,6 +88,7 @@ const selectedSpaceId = defineModel<string>("selectedSpace", {
 });
 
 const addGroup = async (close: () => void) => {
+  if (isLoading.value) return;
   if (!groupName.value.trim()) {
     logger.warn("Group name cannot be empty");
     addGroupError.value = t('group_name_required');

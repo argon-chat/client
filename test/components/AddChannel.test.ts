@@ -7,8 +7,8 @@
  * A creation the server refuses is a toast, and the dialog stays open.
  */
 
-import { describe, test, expect, vi, beforeEach } from "vitest";
-import { mount } from "@vue/test-utils";
+import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
+import { mount, type VueWrapper } from "@vue/test-utils";
 import { nextTick } from "vue";
 
 const h = await vi.hoisted(async () => {
@@ -88,6 +88,7 @@ vi.mock("@/components/shared/InputWithError.vue", async () => {
 
 import { ArgonEntitlement, ChannelLayoutError, ChannelType, SetBroadcastSettingsError } from "@argon/glue";
 import AddChannel from "@/components/modals/AddChannel.vue";
+import { pressEnter } from "./support/pressEnter";
 
 const flush = async () => {
   await nextTick();
@@ -95,8 +96,19 @@ const flush = async () => {
   await nextTick();
 };
 
+let mounted: VueWrapper[] = [];
+
+afterEach(() => {
+  for (const w of mounted) w.unmount();
+  mounted = [];
+  document.body.innerHTML = "";
+});
+
+// Attached: a detached form is never submitted.
 function render() {
-  return mount(AddChannel, { props: { open: true, selectedSpace: "s1", groupId: null } });
+  const w = mount(AddChannel, { attachTo: document.body, props: { open: true, selectedSpace: "s1", groupId: null } });
+  mounted.push(w);
+  return w;
 }
 
 const typeButton = (w: ReturnType<typeof render>, key: string) =>
@@ -223,6 +235,21 @@ describe("an ordinary channel", () => {
 
     expect(h.addBroadcast).not.toHaveBeenCalled();
     expect(w.find("[data-error]").text()).toBe("channel_name_required");
+  });
+});
+
+describe("Enter in the name box", () => {
+  test("creates the channel; picking a type does not", async () => {
+    const w = render();
+    await fillAndPick(w, "Party", "channel_type_voice");
+    await flush();
+    expect(h.addChannel).not.toHaveBeenCalled();
+
+    pressEnter(w.find("[data-name]").element);
+    await flush();
+    expect(h.addChannel).toHaveBeenCalledTimes(1);
+    expect(h.addChannel).toHaveBeenCalledWith("s1", "Party", ChannelType.Voice, null);
+    expect(h.close).toHaveBeenCalledTimes(1);
   });
 });
 

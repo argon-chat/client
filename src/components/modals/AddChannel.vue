@@ -13,10 +13,11 @@
           {{ t("add_channel") }}
         </DialogTitle>
       </div>
-      
+
+      <form class="relative space-y-6" novalidate @submit.prevent="addChannel(close)">
       <div class="relative space-y-3">
-        <InputWithError 
-          v-model="channelName" 
+        <InputWithError
+          v-model="channelName"
           :error="addChannelError" 
           @clear-error="addChannelError = ''" 
           :placeholder="t('channel_name')"
@@ -111,7 +112,7 @@
       
       <div class="relative pt-2">
         <Button
-          @click="addChannel(close)"
+          type="submit"
           :disabled="isLoading"
           class="w-full h-12 font-semibold rounded-xl transition-all text-base"
         >
@@ -120,6 +121,7 @@
           {{ t("add_channel") }}
         </Button>
       </div>
+      </form>
     </DialogContent>
     </template>
   </Dialog>
@@ -249,6 +251,7 @@ const channelTypes = computed(() => [
 ]);
 
 const addChannel = async (close: () => void) => {
+  if (isLoading.value) return;
   if (!channelName.value.trim()) {
     logger.warn("Channel name cannot be empty");
     addChannelError.value = t('channel_name_required')

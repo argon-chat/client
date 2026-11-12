@@ -16,7 +16,7 @@
                 </DialogDescription>
             </div>
 
-            <div class="relative space-y-8">
+            <form class="relative space-y-8" novalidate @submit.prevent="createServerCmd">
 
                 <InputWithError v-model="spaceName" placeholder="e.g., Cool Space" :error="createError"
                     :maxlength="MAX_SPACE_NAME_LENGTH" @clear-error="createError = ''">
@@ -27,13 +27,13 @@
                         </Label>
                     </template>
                 </InputWithError>
-                <Button @click="createServerCmd" :disabled="createLoading"
+                <Button type="submit" :disabled="createLoading"
                     class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl transition-all">
                     <span v-if="createLoading" class="animate-spin i-lucide-loader-2 mr-2"></span>
                     <span v-else class="i-lucide-rocket mr-2"></span>
                     {{ t('create_new_server') }}
                 </Button>
-            </div>
+            </form>
  
             <div class="relative flex items-center gap-2 text-muted-foreground">
                 <div class="flex-1 h-px bg-gradient-to-r from-transparent via-border to-transparent"></div>
@@ -41,7 +41,7 @@
                 <div class="flex-1 h-px bg-gradient-to-r from-transparent via-border to-transparent"></div>
             </div>
 
-            <div class="relative space-y-8">
+            <form class="relative space-y-8" novalidate @submit.prevent="join(inviteCode)">
 
                 <InputWithError id="invite-code" v-model="inviteCode" placeholder="e.g., XDq2-17jS-KJj2" :error="joinError"
                     @clear-error="joinError = ''">
@@ -54,13 +54,13 @@
                 </InputWithError>
                 <br/>
 
-                <Button @click="join(inviteCode)" :disabled="isLoading"
+                <Button type="submit" :disabled="isLoading"
                     class="w-full bg-purple-600 hover:bg-purple-500 text-white font-semibold rounded-xl transition-all">
                     <span v-if="isLoading" class="animate-spin i-lucide-loader-2 mr-2"></span>
                     <span v-else class="i-lucide-log-in mr-2"></span>
                     {{ t('join_to_server') }}
                 </Button>
-            </div>
+            </form>
         </DialogContent>
     </Dialog>
 </template>
@@ -77,6 +77,7 @@ import InputWithError from '../shared/InputWithError.vue'
 import { logger } from '@argon/core'
 import { usePoolStore } from '@/store/data/poolStore'
 import { useWindow } from '@/store/ui/windowStore'
+import { useBus } from '@/store/realtime/busStore'
 
 const { t } = useLocale()
 
@@ -97,6 +98,7 @@ const MAX_SPACE_NAME_LENGTH = 64
 const emit = defineEmits<{ (e: 'join', name: string): void }>()
 
 async function createServerCmd() {
+    if (createLoading.value) return
     createError.value = ''
     const name = spaceName.value.trim()
     if (!name) {
@@ -121,6 +123,7 @@ async function createServerCmd() {
         spaceName.value = ''
         open.value = false
 
+        if (res.isSuccessCreateSpace()) useBus().subscribeToSpace(res.space.spaceId)
         await poolStore.refershDatas()
     } catch (e) {
         logger.error("failed to create space", e);

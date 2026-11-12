@@ -11,6 +11,7 @@ import { nextTick } from "vue";
 const h = vi.hoisted(() => ({
   createSpace: vi.fn(),
   refresh: vi.fn(),
+  openInvitePreview: vi.fn(),
 }));
 
 vi.mock("@/store/system/apiStore", () => ({
@@ -20,10 +21,12 @@ vi.mock("@/store/system/localeStore", () => ({
   useLocale: () => ({ t: (k: string, p?: Record<string, unknown>) => (p ? `${k}:${JSON.stringify(p)}` : k) }),
 }));
 vi.mock("@/store/data/poolStore", () => ({ usePoolStore: () => ({ refershDatas: h.refresh }) }));
-vi.mock("@/store/ui/windowStore", () => ({ useWindow: () => ({ openInvitePreview: vi.fn() }) }));
+vi.mock("@/store/ui/windowStore", () => ({ useWindow: () => ({ openInvitePreview: h.openInvitePreview }) }));
+vi.mock("@/store/realtime/busStore", () => ({ useBus: () => ({ subscribeToSpace: vi.fn() }) }));
 
 import { CreateSpaceError, FailedCreateSpace, SuccessCreateSpace } from "@argon/glue";
 import CreateOrJoinSpace from "@/components/modals/CreateOrJoinSpace.vue";
+import { pressEnter } from "./support/pressEnter";
 
 let mounted: VueWrapper[] = [];
 
@@ -36,6 +39,7 @@ afterEach(() => {
 beforeEach(() => {
   h.createSpace.mockReset();
   h.refresh.mockReset();
+  h.openInvitePreview.mockReset();
 });
 
 const flush = async () => {
@@ -124,5 +128,40 @@ describe("CreateOrJoinSpace", () => {
     expect(h.refresh).toHaveBeenCalled();
     expect(w.emitted("update:open")?.at(-1)).toEqual([false]);
     expect(errorBadge()).toBeNull();
+  });
+});
+
+describe("Enter", () => {
+  const inviteBox = () => document.body.querySelector<HTMLInputElement>("#invite-code")!;
+
+  test("in the name box creates the space once, and not again while it is being created", async () => {
+    let resolve!: (r: unknown) => void;
+    h.createSpace.mockImplementation(() => new Promise((r) => (resolve = r)));
+    await render();
+    await typeName("My space");
+
+    pressEnter(nameBox());
+    await flush();
+    pressEnter(nameBox());
+    await flush();
+    expect(h.createSpace).toHaveBeenCalledTimes(1);
+    expect(h.openInvitePreview).not.toHaveBeenCalled();
+
+    resolve(new SuccessCreateSpace({} as any));
+    await flush();
+    expect(h.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  test("in the invite box joins, without creating a space", async () => {
+    await render();
+    await typeName("My space");
+    inviteBox().value = " XDq2-17jS-KJj2 ";
+    inviteBox().dispatchEvent(new Event("input", { bubbles: true }));
+    await flush();
+
+    pressEnter(inviteBox());
+    await flush();
+    expect(h.openInvitePreview).toHaveBeenCalledWith("XDq2-17jS-KJj2");
+    expect(h.createSpace).not.toHaveBeenCalled();
   });
 });

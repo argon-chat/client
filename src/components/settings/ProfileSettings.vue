@@ -472,6 +472,7 @@
         <DialogHeader>
           <DialogTitle>{{ t("add_passkey") }}</DialogTitle>
         </DialogHeader>
+        <form class="grid gap-4" novalidate @submit.prevent="addPasskey">
         <div class="space-y-4">
           <div>
             <label class="text-sm font-medium">{{ t("passkey_name") }}</label>
@@ -483,14 +484,15 @@
           </div>
         </div>
         <DialogFooter>
-          <Button @click="showAddPasskeyDialog = false" variant="outline" :disabled="isAddingPasskey">
+          <Button type="button" @click="showAddPasskeyDialog = false" variant="outline" :disabled="isAddingPasskey">
             {{ t("cancel") }}
           </Button>
-          <Button @click="addPasskey" :disabled="!newPasskeyName.trim() || isAddingPasskey">
+          <Button type="submit" :disabled="!newPasskeyName.trim() || isAddingPasskey">
             <Loader2 v-if="isAddingPasskey" class="w-4 h-4 animate-spin mr-2" />
             {{ t("add") }}
           </Button>
         </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
 
@@ -576,6 +578,7 @@
         <DialogHeader>
           <DialogTitle>{{ t("change_password") }}</DialogTitle>
         </DialogHeader>
+        <form class="grid gap-4" novalidate @submit.prevent="changePassword">
         <div class="space-y-4">
           <div class="text-sm text-muted-foreground">
             {{ t("password_requirements") }}
@@ -602,14 +605,15 @@
           </InputWithError>
         </div>
         <DialogFooter>
-          <Button @click="showChangePasswordDialog = false" variant="outline">
+          <Button type="button" @click="showChangePasswordDialog = false" variant="outline">
             {{ t("cancel") }}
           </Button>
-          <Button @click="changePassword"
+          <Button type="submit"
             :disabled="isChangingPassword || !!validateNewPassword || !!validateConfirmPassword">
             {{ isChangingPassword ? t("updating") : t("update_password") }}
           </Button>
         </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
 
@@ -621,6 +625,7 @@
         <DialogHeader>
           <DialogTitle>{{ userPhone ? t("change_phone") : t("add_phone") }}</DialogTitle>
         </DialogHeader>
+        <form class="grid gap-4" novalidate @submit.prevent="requestPhoneChange">
         <div class="space-y-4">
           <div class="text-sm text-muted-foreground">
             {{ t("change_phone_instructions") }}
@@ -639,13 +644,14 @@
           </InputWithError>
         </div>
         <DialogFooter>
-          <Button @click="showChangePhoneDialog = false" variant="outline">
+          <Button type="button" @click="showChangePhoneDialog = false" variant="outline">
             {{ t("cancel") }}
           </Button>
-          <Button @click="requestPhoneChange" :disabled="isChangingPhone || !!validatePhone">
+          <Button type="submit" :disabled="isChangingPhone || !!validatePhone">
             {{ isChangingPhone ? t("sending") : t("send_code") }}
           </Button>
         </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
 
@@ -655,6 +661,7 @@
         <DialogHeader>
           <DialogTitle>{{ t("verify_phone") }}</DialogTitle>
         </DialogHeader>
+        <form class="grid gap-4" novalidate @submit.prevent="confirmPhoneChange">
         <div class="space-y-4">
           <div class="text-sm text-muted-foreground">
             {{ t("verification_code_sent_to_phone") }} <strong>{{ newPhone }}</strong>
@@ -666,13 +673,14 @@
           </div>
         </div>
         <DialogFooter>
-          <Button @click="showPhoneVerificationDialog = false" variant="outline">
+          <Button type="button" @click="showPhoneVerificationDialog = false" variant="outline">
             {{ t("cancel") }}
           </Button>
-          <Button @click="confirmPhoneChange" :disabled="isChangingPhone">
+          <Button type="submit" :disabled="isChangingPhone">
             {{ isChangingPhone ? t("verifying") : t("verify") }}
           </Button>
         </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
 
@@ -682,6 +690,7 @@
         <DialogHeader>
           <DialogTitle>{{ t("remove_phone") }}</DialogTitle>
         </DialogHeader>
+        <form class="grid gap-4" novalidate @submit.prevent="confirmRemovePhone">
         <div class="space-y-4">
           <div class="text-sm text-muted-foreground">
             {{ t("remove_phone_instructions") }}
@@ -694,13 +703,14 @@
           </InputWithError>
         </div>
         <DialogFooter>
-          <Button @click="showRemovePhoneDialog = false" variant="outline">
+          <Button type="button" @click="showRemovePhoneDialog = false" variant="outline">
             {{ t("cancel") }}
           </Button>
-          <Button @click="confirmRemovePhone" :disabled="isRemovingPhone" variant="destructive">
+          <Button type="submit" :disabled="isRemovingPhone" variant="destructive">
             {{ isRemovingPhone ? t("removing") : t("remove") }}
           </Button>
         </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
 
@@ -1342,6 +1352,7 @@ const updateAutoDeletePeriod = async (value: string | number | bigint | Record<s
 };
 
 const requestPhoneChange = async () => {
+  if (isChangingPhone.value) return;
   // Clear previous errors
   phoneErrors.password = null;
 
@@ -1405,6 +1416,7 @@ const requestPhoneChange = async () => {
 };
 
 const confirmPhoneChange = async () => {
+  if (isChangingPhone.value) return;
   if (!phoneVerificationCode.value) {
     toast({
       title: t("error"),
@@ -1449,6 +1461,7 @@ const confirmPhoneChange = async () => {
 };
 
 const confirmRemovePhone = async () => {
+  if (isRemovingPhone.value) return;
   if (!removePhonePassword.value) {
     toast({
       title: t("error"),
@@ -1772,6 +1785,7 @@ const testPasskey = async (id: string) => {
 };
 
 const changePassword = async () => {
+  if (isChangingPassword.value) return;
   // Validate all fields
   if (!currentPassword.value || !newPassword.value || !confirmPassword.value) {
     toast({
