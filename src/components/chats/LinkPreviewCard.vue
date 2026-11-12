@@ -30,7 +30,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { openExternalUrl } from "@/lib/linkPreview/openExternal";
+import { openLink } from "@/lib/linkPreview/openExternal";
 
 interface PreviewLike {
   url: string;
@@ -71,8 +71,8 @@ function onImageLoad(e: Event) {
   layout.value = w >= LARGE_MIN_WIDTH && h > 0 && w / h >= LARGE_MIN_RATIO ? "large" : "thumb";
 }
 
-function open() {
-  openExternalUrl(props.preview.url);
+function open(e: MouseEvent) {
+  openLink(props.preview.url, e);
 }
 </script>
 

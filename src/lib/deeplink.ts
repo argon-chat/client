@@ -62,6 +62,24 @@ export function handleDeepLink(rawUrl: string): boolean {
   return false;
 }
 
+const INVITE_HOSTS = new Set(["argon.gl", "www.argon.gl"]);
+
+/** `https://argon.gl/i/{code}` or `/v/{code}` as the matching `argon://` link; null for anything else. */
+export function inviteDeepLink(url: string): string | null {
+  let parsed: URL;
+  try { parsed = new URL((url ?? "").trim()); } catch { return null; }
+  if (!/^https?:$/.test(parsed.protocol) || !INVITE_HOSTS.has(parsed.hostname.toLowerCase())) return null;
+  const [route, code, ...rest] = parsed.pathname.split("/").filter(Boolean);
+  if (!code || rest.length || !/^[iv]$/i.test(route)) return null;
+  return `argon://${route.toLowerCase()}/${code}`;
+}
+
+/** Opens an argon.gl invite link inside the app. Returns false for any other address. */
+export function handleInAppLink(url: string): boolean {
+  const link = inviteDeepLink(url);
+  return !!link && handleDeepLink(link);
+}
+
 let initialized = false;
 
 /** Delivers OS launch URLs through the SDK and browser-local app events. */

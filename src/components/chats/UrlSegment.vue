@@ -9,7 +9,7 @@
 <script setup lang="ts" generic="T extends MessageEntityUrl">
 import { computed } from "vue";
 import { MessageEntityUrl } from "@argon/glue";
-import { openExternalUrl } from "@/lib/linkPreview/openExternal";
+import { openLink } from "@/lib/linkPreview/openExternal";
 
 const props = defineProps<{
   entity: T;
@@ -24,5 +24,5 @@ const href = computed(() => {
   return `https://${props.entity.domain}${props.entity.path || "/"}`;
 });
 
-const onClickUrl = () => openExternalUrl(href.value);
+const onClickUrl = (e: MouseEvent) => openLink(href.value, e);
 </script>

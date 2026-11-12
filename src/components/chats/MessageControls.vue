@@ -12,7 +12,7 @@
           }"
           :style="buttonStyle(ctrl)"
           :disabled="ctrl.disabled || isControlLoading(ctrl)"
-          @click="onButtonClick(ctrl)"
+          @click="onButtonClick(ctrl, $event)"
         >
           <Loader2Icon v-if="isControlLoading(ctrl)" class="w-3.5 h-3.5 animate-spin" />
           <span v-else>{{ ctrl.label }}</span>
@@ -57,6 +57,7 @@ import {
 } from "@argon/ui/select";
 import { Loader2Icon, ExternalLinkIcon } from "lucide-vue-next";
 import { useBotInteraction } from "@/composables/useBotInteraction";
+import { openLink } from "@/lib/linkPreview/openExternal";
 import { useLocale } from "@/store/system/localeStore";
 import { ControlType, ButtonVariant, type BotControl, type ControlRow } from "@argon/glue";
 import type { Guid } from "@argon-chat/ion.webcore";
@@ -102,20 +103,11 @@ function buttonStyle(ctrl: BotControl) {
   };
 }
 
-function onButtonClick(ctrl: BotControl) {
+function onButtonClick(ctrl: BotControl, e?: MouseEvent) {
   if (ctrl.disabled) return;
 
   if (ctrl.variant === ButtonVariant.Link) {
-    if (ctrl.url) {
-      try {
-        const parsed = new URL(ctrl.url);
-        if (parsed.protocol === "https:" || parsed.protocol === "http:") {
-          window.open(ctrl.url, "_blank", "noopener,noreferrer");
-        }
-      } catch {
-        // Invalid URL, ignore
-      }
-    }
+    if (ctrl.url) openLink(ctrl.url, e);
     return;
   }
 
