@@ -218,6 +218,16 @@ describe("publishing", () => {
   });
 });
 
+// Same harness, different feature: ARGON-CLIENT-365 sent `undefined` to QueryMessagesAround.
+describe("a reply whose original is not loaded", () => {
+  test("jumps by the reply's own id", async () => {
+    h.users.author = { userId: "author", displayName: "Ada" };
+    const w = await render(message({ replyId: 42n }));
+    await w.findComponent({ name: "ReplyPreview" }).trigger("click");
+    expect(w.emitted("scroll-to-message")?.[0]).toEqual([42n]);
+  });
+});
+
 describe("a native post in an announcement channel", () => {
   const settings = { reactions: true, postAsSpace: false, showAuthor: true };
   const space = { name: "Argon HQ", avatarFileId: null };

@@ -31,6 +31,7 @@ import { isWeb } from "./lib/platform";
 import { isVn } from "./lib/vn";
 import { initMediaCache } from "./lib/webMediaCache";
 import { installWebSocketStreamShim } from "./lib/shims/webSocketStream";
+import { installTranslatedDomGuard } from "./lib/shims/translatedDom";
 import { installStaleBuildRecovery } from "./lib/staleBuild";
 
 // From __ARGON_BUILD__, not package.json. The placeholders in package.json are only rewritten by
@@ -52,6 +53,9 @@ installWebSocketStreamShim();
 // its first lazy route, and it should recover by reloading rather than by showing a MIME-type error
 // nobody can act on. Installed early so the very first navigation after a deploy is covered.
 installStaleBuildRecovery(isWeb);
+
+// Browser translation rewrites text nodes under Vue; without this the next list insert crashes.
+if (isWeb) installTranslatedDomGuard();
 
 // Whether this page is allowed to run the app at all — an old browser or a phone gets a screen of
 // its own instead. Decided here, before any of the work below, because none of it would help.

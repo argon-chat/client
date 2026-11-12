@@ -165,7 +165,7 @@
                   v-if="replyMessage"
                   :reply-message="replyMessage"
                   :reply-user="replyUser"
-                  @click="emit('scroll-to-message', replyMessage!.messageId)"
+                  @click="emit('scroll-to-message', message.replyId!)"
                 />
                 <component
                   :is="textContainer.is"
@@ -192,7 +192,7 @@
                   v-if="replyMessage"
                   :reply-message="replyMessage"
                   :reply-user="replyUser"
-                  @click="emit('scroll-to-message', replyMessage!.messageId)"
+                  @click="emit('scroll-to-message', message.replyId!)"
                 />
                 <ExpressionInfoPopover
                   v-for="(s, si) in stickerEntities"
@@ -283,7 +283,7 @@
                     v-if="replyMessage"
                     :reply-message="replyMessage"
                     :reply-user="replyUser"
-                    @click="emit('scroll-to-message', replyMessage!.messageId)"
+                    @click="emit('scroll-to-message', message.replyId!)"
                   />
 
                   <!-- Text (custom emoji in it are drawn by one overlay per message) -->
