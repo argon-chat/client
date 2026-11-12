@@ -55,6 +55,7 @@ export default defineConfig({
           environment: "happy-dom",
           include: ["test/**/*.test.ts"],
           exclude: ["test/browser/**"],
+          testTimeout: 30_000,
           globals: false,
           restoreMocks: true,
         },

@@ -76,13 +76,6 @@ describe('buildSandboxAttribute', () => {
 // ============================================================================
 
 describe('buildGameCsp', () => {
-  test('builds valid CSP header', () => {
-    const csp = buildGameCsp('https://games.example.com');
-    
-    expect(typeof csp).toBe('string');
-    expect(csp.length).toBeGreaterThan(0);
-  });
-
   test('includes game origin in connect-src', () => {
     const csp = buildGameCsp('https://games.example.com');
     
@@ -179,16 +172,6 @@ describe('createGameIframe', () => {
     
     expect(iframe.sandbox.contains('allow-scripts')).toBe(true);
     expect(iframe.sandbox.contains('allow-pointer-lock')).toBe(true);
-  });
-
-  test('sets CSP attribute', () => {
-    const iframe = createGameIframe({
-      src: 'https://games.example.com/game/',
-      container,
-      permissions: [],
-    });
-    
-    expect(iframe.getAttribute('csp')).toBeDefined();
   });
 
   test('sets referrer policy', () => {

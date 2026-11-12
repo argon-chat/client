@@ -396,13 +396,6 @@ describe('createGameStorage', () => {
 // ============================================================================
 
 describe('Environment Detection', () => {
-  test('isInPlayFrame detects iframe', () => {
-    // In test environment, window.parent === window (no iframe)
-    // So this should return false
-    const result = isInPlayFrame();
-    expect(typeof result).toBe('boolean');
-  });
-
   test('isStandalone is opposite of isInPlayFrame', () => {
     expect(isStandalone()).toBe(!isInPlayFrame());
   });

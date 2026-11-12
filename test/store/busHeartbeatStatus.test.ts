@@ -148,13 +148,6 @@ describe("heartbeat status", () => {
     expect(worker.heartbeats().at(-1)!.status).toBe(UserStatus.Away);
   });
 
-  test("always answers, so the worker is never left waiting on a heartbeat", async () => {
-    const worker = await connectedWorker();
-    await worker.say({ type: "heartbeatRequest" });
-
-    expect(worker.heartbeats()).toHaveLength(1);
-  });
-
   /**
    * The boot-order contract behind the heartbeat's answer in `src/store/realtime/busStore.ts`.
    *

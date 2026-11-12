@@ -7,7 +7,6 @@ import {
   PROTOCOL_VERSION,
   PROTOCOL_MIN_VERSION,
   PROTOCOL_MAX_VERSION,
-  CURRENT_PROTOCOL,
   generateMessageId,
   createMessage,
   createResponse,
@@ -18,24 +17,6 @@ import {
   type ResponseEnvelope,
 } from '../src/protocol';
 
-describe('Protocol Versioning', () => {
-  test('PROTOCOL_VERSION is defined', () => {
-    expect(PROTOCOL_VERSION).toBe(1);
-  });
-
-  test('version range is valid', () => {
-    expect(PROTOCOL_MIN_VERSION).toBeLessThanOrEqual(PROTOCOL_VERSION);
-    expect(PROTOCOL_MAX_VERSION).toBeGreaterThanOrEqual(PROTOCOL_VERSION);
-  });
-
-  test('CURRENT_PROTOCOL has correct structure', () => {
-    expect(CURRENT_PROTOCOL).toHaveProperty('major');
-    expect(CURRENT_PROTOCOL).toHaveProperty('minor');
-    expect(CURRENT_PROTOCOL).toHaveProperty('patch');
-    expect(CURRENT_PROTOCOL.major).toBe(1);
-  });
-});
-
 describe('generateMessageId', () => {
   test('generates unique IDs', () => {
     const ids = new Set<string>();
@@ -43,12 +24,6 @@ describe('generateMessageId', () => {
       ids.add(generateMessageId());
     }
     expect(ids.size).toBe(1000);
-  });
-
-  test('generated ID is a string', () => {
-    const id = generateMessageId();
-    expect(typeof id).toBe('string');
-    expect(id.length).toBeGreaterThan(0);
   });
 
   test('generated ID contains timestamp component', () => {

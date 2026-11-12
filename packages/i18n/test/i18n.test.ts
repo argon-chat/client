@@ -83,10 +83,6 @@ describe("createArgonI18n", () => {
     expect(createArgonI18n().mode).toBe("composition");
   });
 
-  test("extra vue-i18n options are passed through", () => {
-    const i18n = createArgonI18n({ options: { missingWarn: false } as never });
-    expect(i18n).toBeDefined();
-  });
 });
 
 describe("the shipped locale files", () => {

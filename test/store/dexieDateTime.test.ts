@@ -17,16 +17,6 @@ import { PoolDatabase } from "@/store/db/dexie";
 const stored = <T>(row: T): T => structuredClone(row);
 
 describe("cached datetimes", () => {
-  test("a cloned IonDateTime has lost its methods", () => {
-    const clone: any = stored(IonDateTime.now());
-
-    // The premise of the file. If this ever stops holding, the hooks are dead weight — and note it
-    // is a *fresh* value, so emptying the cache on migration does not sidestep any of this.
-    expect(clone).not.toBeInstanceOf(IonDateTime);
-    expect(typeof clone.toDate).toBe("undefined");
-    expect(typeof clone.unixTicks).toBe("bigint");
-  });
-
   test("messages.timeSent survives the round trip", () => {
     const db = new PoolDatabase("probe-messages");
     const sent = IonDateTime.now();

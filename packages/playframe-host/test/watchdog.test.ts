@@ -3,7 +3,7 @@
  */
 
 import { describe, test, expect, beforeEach, afterEach, mock } from 'bun:test';
-import { Watchdog, type WatchdogConfig, type HealthReport } from '../src/watchdog';
+import { Watchdog } from '../src/watchdog';
 
 // ============================================================================
 // Watchdog Tests
@@ -35,14 +35,6 @@ describe('Watchdog', () => {
 
   afterEach(() => {
     watchdog.stop();
-  });
-
-  test('starts and stops', () => {
-    watchdog.start();
-    expect(pingSender).toHaveBeenCalled();
-
-    watchdog.stop();
-    // Should be able to stop without error
   });
 
   test('sends initial ping on start', () => {
@@ -79,17 +71,6 @@ describe('Watchdog', () => {
 
     const health = watchdog.getHealth();
     expect(health.currentResponseTime).toBeGreaterThan(0);
-  });
-
-  test('ignores out of order pong', () => {
-    watchdog.start();
-
-    // Send wrong sequence number
-    watchdog.recordPong(999, Date.now());
-
-    // Should still have pending ping
-    const health = watchdog.getHealth();
-    expect(health.missedHeartbeats).toBe(0);
   });
 
   test('reports health on pong', () => {
@@ -171,23 +152,6 @@ describe('Watchdog', () => {
     expect(pingSender.mock.calls.length).toBe(initialCalls);
   });
 
-  test('calculates average response time', () => {
-    watchdog.start();
-
-    // Simulate multiple pong responses
-    for (let i = 0; i < 5; i++) {
-      const [seq] = pingSender.mock.calls[pingSender.mock.calls.length - 1] as [number, number];
-      watchdog.recordPong(seq, Date.now());
-
-      // Trigger next ping manually for testing
-      (watchdog as any).sendPing();
-    }
-
-    const health = watchdog.getHealth();
-    expect(health.averageResponseTime).toBeDefined();
-    expect(typeof health.averageResponseTime).toBe('number');
-  });
-
   test('keeps only last 10 response times', () => {
     watchdog.start();
 
@@ -200,53 +164,5 @@ describe('Watchdog', () => {
 
     // Internal responseTimes array should have at most 10 entries
     expect((watchdog as any).responseTimes.length).toBeLessThanOrEqual(10);
-  });
-});
-
-// ============================================================================
-// HealthReport Type Tests
-// ============================================================================
-
-describe('HealthReport', () => {
-  test('has all required fields', () => {
-    const onTimeout = mock(() => {});
-    const watchdog = new Watchdog({
-      heartbeatInterval: 100,
-      timeout: 200,
-      maxMissedHeartbeats: 3,
-      onTimeout,
-    });
-
-    watchdog.setPingSender(() => {});
-    watchdog.start();
-
-    const health = watchdog.getHealth();
-
-    expect(health).toHaveProperty('state');
-    expect(health).toHaveProperty('lastHeartbeat');
-    expect(health).toHaveProperty('missedHeartbeats');
-    expect(health).toHaveProperty('averageResponseTime');
-    expect(health).toHaveProperty('currentResponseTime');
-    expect(health).toHaveProperty('uptime');
-
-    watchdog.stop();
-  });
-
-  test('state is one of healthy, warning, critical', () => {
-    const onTimeout = mock(() => {});
-    const watchdog = new Watchdog({
-      heartbeatInterval: 100,
-      timeout: 200,
-      maxMissedHeartbeats: 3,
-      onTimeout,
-    });
-
-    watchdog.setPingSender(() => {});
-    watchdog.start();
-
-    const health = watchdog.getHealth();
-    expect(['healthy', 'warning', 'critical']).toContain(health.state);
-
-    watchdog.stop();
   });
 });

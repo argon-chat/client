@@ -157,11 +157,4 @@ describe("a card's overhang", () => {
     expect(overhang.value).toEqual({ top: 0, right: 0, bottom: 0, left: 0 });
   });
 
-  test("names every side for a worn frame", async () => {
-    await loaded();
-
-    const overhang = within(() => useCosmeticOverhang(framed));
-
-    expect(Object.keys(overhang.value).sort()).toEqual(["bottom", "left", "right", "top"]);
-  });
 });

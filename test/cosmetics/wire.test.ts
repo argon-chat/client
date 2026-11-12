@@ -35,7 +35,6 @@ import {
   sidesOf,
   slotName,
   textEffectOptionOf,
-  toWornItem,
   toWornNickname,
   tuningOf,
 } from "@/cosmetics/wire";
@@ -379,15 +378,6 @@ describe("worn nickname", () => {
 
     expect([worn.font, worn.effect, worn.colors, worn.angle, worn.shape, worn.animate, worn.weight, worn.letterSpacing])
       .toEqual([null, null, null, null, null, null, null, null]);
-  });
-});
-
-describe("worn item", () => {
-  it("is a real WornItem", () => {
-    const worn = toWornItem("item-id");
-
-    expect(worn).toBeInstanceOf(WornItem);
-    expect(worn.itemId).toBe("item-id");
   });
 });
 

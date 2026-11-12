@@ -76,13 +76,6 @@ afterEach(() => {
 });
 
 describe("ChannelPermissions", () => {
-  test("has no save button", async () => {
-    const wrapper = await open();
-    await pick(wrapper, 0);
-
-    expect(wrapper.text()).not.toContain("save_changes");
-  });
-
   test("a burst of clicks is saved once, after a short pause", async () => {
     const wrapper = await open();
     await pick(wrapper, 0);

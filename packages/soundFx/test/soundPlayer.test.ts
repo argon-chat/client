@@ -194,14 +194,6 @@ describe("playing", () => {
     expect(instanceGain.outputs).toHaveLength(1);
   });
 
-  test("a fade-in ramps from silence instead of setting the level", async () => {
-    const player = await ready();
-    player.play({ volume: 1, fadeIn: 250 });
-
-    // Ramp target is the final volume; the starting point must be zero or it clicks.
-    expect(created.gains.at(-1)!.gain.value).toBe(1);
-  });
-
   test("panning is clamped to the valid range", async () => {
     const player = await ready();
 

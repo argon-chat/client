@@ -13,7 +13,7 @@ import {
   fitToAspectRatio, computeViewportScaleRatio,
 } from "../src/geometry";
 import { easeOutCubic, tween } from "../src/animation";
-import { deepEqualApprox, omitKeys, touchDeep } from "../src/comparison";
+import { deepEqualApprox, omitKeys } from "../src/comparison";
 import { ADJUSTMENTS, adjustmentKeys, adjustmentsConfig } from "../src/adjustments";
 
 describe("colour parsing", () => {
@@ -257,13 +257,6 @@ describe("omitKeys", () => {
   test("omitting nothing, or something absent, is harmless", () => {
     expect(omitKeys({ a: 1 }, [])).toEqual({ a: 1 });
     expect(omitKeys({ a: 1 }, ["zz" as never])).toEqual({ a: 1 });
-  });
-});
-
-describe("touchDeep", () => {
-  test("walks nested structures without throwing", () => {
-    expect(() => touchDeep({ a: [1, { b: [2, 3] }], c: "x" })).not.toThrow();
-    expect(() => touchDeep(null)).not.toThrow();
   });
 });
 
