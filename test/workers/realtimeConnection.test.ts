@@ -17,6 +17,7 @@ import {
   SessionRevoked,
   type Resume,
   type SubscribeToChannel,
+  type SubscribeToSpace,
 } from "@argon/glue";
 import {
   connectFresh,
@@ -211,6 +212,25 @@ describe("resume", () => {
     expect(subscribe.channelId).toBe(CHANNEL);
     expect(states().at(-1)).toEqual({ state: "connected" });
     expect(posted("heartbeatRequest")).toHaveLength(1);
+  });
+
+  test("a space created after connect is asked for on the live call and left to the next connect after that", async () => {
+    const ws = await connectFresh({ resumeToken: "tok" });
+    await send({ type: "subscribeSpace", spaceId: SPACE_A });
+    await settle();
+    const asked = ws.commands().find((c) => c.isSubscribeToSpace()) as SubscribeToSpace;
+    expect(asked.spaceId).toBe(SPACE_A);
+
+    ws.drop();
+    await vi.advanceTimersByTimeAsync(1_000);
+    const attempt = sockets[1].accept();
+    attempt.fail("STREAM_NOT_RESUMABLE", "no such session");
+    await settle();
+    const fresh = sockets[2];
+    await welcome(fresh);
+
+    // The server joins every space of the user on connect, this one included.
+    expect(fresh.commandKeys()).not.toContain("SubscribeToSpace");
   });
 
   test("the very first session sends no Resume: there is nothing to resume from", async () => {

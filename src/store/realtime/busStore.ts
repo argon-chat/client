@@ -290,6 +290,11 @@ export const useBus = defineStore("bus", () => {
     worker?.postMessage({ type: "unsubscribeChannel", channelId });
   }
 
+  // The stream joins the user's spaces on connect; one created or joined later is asked for here.
+  function subscribeToSpace(spaceId: string) {
+    worker?.postMessage({ type: "subscribeSpace", spaceId });
+  }
+
   function listenEvents(id: string) {}
 
   function onServerEvent<T extends IArgonEvent>(
@@ -359,6 +364,7 @@ export const useBus = defineStore("bus", () => {
     pushStatusNow,
     subscribeToChannel,
     unsubscribeFromChannel,
+    subscribeToSpace,
     IAmTypingEvent,
     IAmStopTypingEvent,
     isReconnecting,

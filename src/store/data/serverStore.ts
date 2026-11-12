@@ -22,6 +22,7 @@ import { v7 } from "uuid";
 import { Guid } from "@argon-chat/ion.webcore";
 import { useChannelStore } from "@/store/data/channelStore";
 import { useNotificationStore } from "@/store/data/notificationStore";
+import { useBus } from "@/store/realtime/busStore";
 import { channelLayoutRefusal, spaceManageRefusal } from "@/lib/refusals";
 
 export const useSpaceStore = defineStore("spaces", () => {
@@ -53,11 +54,12 @@ export const useSpaceStore = defineStore("spaces", () => {
 
   async function createServer(name: string): Promise<boolean> {
     try {
-      await api.userInteraction.CreateSpace({
+      const res = await api.userInteraction.CreateSpace({
         avatarFieldId: "",
         description: "",
         name: name,
       });
+      if (res.isSuccessCreateSpace()) useBus().subscribeToSpace(res.space.spaceId);
     } catch (e) {
       logger.error("failed to create server", e);
       metrics.count("space.created", { result: "failed", error: errorKind(e) });
@@ -85,6 +87,7 @@ export const useSpaceStore = defineStore("spaces", () => {
     });
 
     if (r.isSuccessJoin()) {
+      useBus().subscribeToSpace(r.space.spaceId);
       // The new space's read states first — history from before the join arrives already read — so
       // its channels never render as unread in between.
       const ntf = useNotificationStore();

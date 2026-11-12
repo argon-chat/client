@@ -22,6 +22,7 @@
  *     { type: 'disconnect' }
  *     { type: 'wake' }
  *     { type: 'subscribeChannel' | 'unsubscribeChannel', channelId: string }
+ *     { type: 'subscribeSpace', spaceId: string }
  *     { type: 'ticketResponse', requestId: string, payload?: ArrayBuffer,
  *       error?: { status?: number, code?: string, message: string }, fatal?: boolean }
  *     { type: 'invoke', method: 'Heartbeat' | 'GoOffline' | 'Typing' | 'StopTyping', args: any[] }
@@ -52,6 +53,7 @@ import {
   Resume,
   StopTyping,
   SubscribeToChannel,
+  SubscribeToSpace,
   Typing,
   UnsubscribeFromChannel,
   type IRealtimeCommand,
@@ -586,6 +588,10 @@ export function createRealtimeCore(post: RealtimePost): RealtimeCore {
       case "unsubscribeChannel":
         if (subscribedChannels.delete(msg.channelId))
           call?.commands.push(new UnsubscribeFromChannel(msg.channelId));
+        break;
+      // Not remembered: every connect joins all of the user's spaces, this one included.
+      case "subscribeSpace":
+        call?.commands.push(new SubscribeToSpace(msg.spaceId));
         break;
       case "ticketResponse":
         pendingTickets.get(msg.requestId)?.(msg);

@@ -12909,6 +12909,9 @@ export abstract class IRealtimeCommand implements IIonUnion<IRealtimeCommand>
   public isStopTyping(): this is StopTyping {
     return this.UnionKey === "StopTyping";
   }
+  public isSubscribeToSpace(): this is SubscribeToSpace {
+    return this.UnionKey === "SubscribeToSpace";
+  }
 
 }
 
@@ -12969,11 +12972,19 @@ export class StopTyping extends IRealtimeCommand
   UnionIndex: number = 6;
 }
 
+export class SubscribeToSpace extends IRealtimeCommand
+{
+  constructor(public spaceId: guid) { super(); }
+
+  UnionKey: string = "SubscribeToSpace";
+  UnionIndex: number = 7;
+}
+
 
 
 IonFormatterStorage.register("IRealtimeCommand", {
   read(reader: CborReader): IRealtimeCommand {
-    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IRealtimeCommand", 7);
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "IRealtimeCommand", 8);
     let value: IRealtimeCommand = null as any;
 
     if (false)
@@ -12992,8 +13003,10 @@ IonFormatterStorage.register("IRealtimeCommand", {
       value = IonFormatterStorage.get<Typing>("Typing").read(reader);
     else if (unionIndex == 6)
       value = IonFormatterStorage.get<StopTyping>("StopTyping").read(reader);
+    else if (unionIndex == 7)
+      value = IonFormatterStorage.get<SubscribeToSpace>("SubscribeToSpace").read(reader);
 
-    else IonFormatterStorage.invalidUnionIndex("IRealtimeCommand", unionIndex, 7);
+    else IonFormatterStorage.invalidUnionIndex("IRealtimeCommand", unionIndex, 8);
 
     IonFormatterStorage.readEndUnion(reader);
     return value!;
@@ -13024,8 +13037,11 @@ IonFormatterStorage.register("IRealtimeCommand", {
     else if (value.UnionIndex == 6) {
         IonFormatterStorage.get<StopTyping>("StopTyping").write(writer, value as StopTyping);
     }
-  
-    else throw new Error(`Ion union 'IRealtimeCommand' has no case ${value.UnionIndex}; this revision declares 7 case(s)`);
+    else if (value.UnionIndex == 7) {
+        IonFormatterStorage.get<SubscribeToSpace>("SubscribeToSpace").write(writer, value as SubscribeToSpace);
+    }
+
+    else throw new Error(`Ion union 'IRealtimeCommand' has no case ${value.UnionIndex}; this revision declares 8 case(s)`);
     writer.writeEndArray();
   }
 });
@@ -13131,6 +13147,20 @@ IonFormatterStorage.register("StopTyping", {
     writer.writeStartArray(2);
     IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     IonFormatterStorage.get<guid>('guid').write(writer, value.channelId);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("SubscribeToSpace", {
+  read(reader: CborReader): SubscribeToSpace {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "SubscribeToSpace");
+    const spaceId = IonFormatterStorage.get<guid>('guid').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new SubscribeToSpace(spaceId);
+  },
+  write(writer: CborWriter, value: SubscribeToSpace): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<guid>('guid').write(writer, value.spaceId);
     writer.writeEndArray();
   }
 });
