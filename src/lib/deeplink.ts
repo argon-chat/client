@@ -11,6 +11,7 @@ import { forwardLaunchLinks } from "@/lib/vn/launch";
  *  - `argon://invite/{code}` → opens the invite preview modal.
  *  - `argon://i/{code}`, `argon://v/{code}` → the same, spelled like the web links they came from.
  *  - `argon://connections/linked?provider=…` → the settings on Connections, once a sign-in returns.
+ *  - `argon://connections/complete?h=…&k=…` → finishes a sign-in started from this desktop.
  *
  * Returns true if the URL was recognised and handled.
  */
@@ -41,11 +42,18 @@ export function handleDeepLink(rawUrl: string): boolean {
       return true;
     }
 
-    // The provider's sign-in finished in the browser and the callback page sent the user back:
-    // the connection itself arrives as an event, this only brings the settings into view.
+    // The provider's sign-in finished in the browser. `complete` carries the handshake this app
+    // finishes as its own account; `linked` only brings the settings into view.
     case "connections": {
       useWindow().openSettings("connections");
-      void import("@/store/features/connectionsStore").then((m) => m.useConnectionsStore().load());
+      const query = new URLSearchParams(s.split("?")[1]?.split("#")[0] ?? "");
+      const handshakeId = query.get("h");
+      const key = query.get("k");
+      void import("@/store/features/connectionsStore").then((m) => {
+        const store = m.useConnectionsStore();
+        if ((segments[0] ?? "").toLowerCase() === "complete" && handshakeId && key) void store.complete(handshakeId, key);
+        else void store.load();
+      });
       return true;
     }
   }

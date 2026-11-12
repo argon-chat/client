@@ -2320,6 +2320,42 @@ export const Ion_BeginConnectError_OpenEnum = {
 } as const;
 
 
+export enum CompleteConnectError
+{
+  NONE = 0,
+  EXPIRED = 1,
+  WRONG_USER = 2,
+  ALREADY_LINKED_ELSEWHERE = 3,
+  PROVIDER_ALREADY_LINKED = 4,
+  SUSPENDED = 5,
+  INTERNAL_ERROR = 6,
+}
+
+const declaredCompleteConnectError: ReadonlySet<unknown> = new Set<unknown>([CompleteConnectError.NONE, CompleteConnectError.EXPIRED, CompleteConnectError.WRONG_USER, CompleteConnectError.ALREADY_LINKED_ELSEWHERE, CompleteConnectError.PROVIDER_ALREADY_LINKED, CompleteConnectError.SUSPENDED, CompleteConnectError.INTERNAL_ERROR]);
+
+/**
+ * Open-enum helpers for {@link CompleteConnectError}.
+ *
+ * Adding a member to an Ion enum is a safe schema change, so a value this revision does
+ * not declare is decoded, carried and re-encoded verbatim rather than rejected. These
+ * say whether that happened — a `switch` over the enum cannot, because an undeclared
+ * value simply matches no case.
+ */
+export const Ion_CompleteConnectError_OpenEnum = {
+  /** Whether `value` is a member this schema revision declares. */
+  isKnown(value: CompleteConnectError): boolean {
+    return declaredCompleteConnectError.has(value);
+  },
+  /**
+   * The raw `u2` the peer sent when `value` names no declared member, or
+   * `undefined` when it does. This is the exact value that will be written back out.
+   */
+  unknownValue(value: CompleteConnectError): u2 | undefined {
+    return declaredCompleteConnectError.has(value) ? undefined : (value as unknown as u2);
+  },
+} as const;
+
+
 export enum ConnectionError
 {
   NONE = 0,
@@ -13816,6 +13852,109 @@ IonFormatterStorage.register("FailedBeginConnect", {
 
 
 
+export abstract class ICompleteConnectResult implements IIonUnion<ICompleteConnectResult>
+{
+  abstract UnionKey: string;
+  abstract UnionIndex: number;
+  
+  
+  
+  
+  public isSuccessCompleteConnect(): this is SuccessCompleteConnect {
+    return this.UnionKey === "SuccessCompleteConnect";
+  }
+  public isFailedCompleteConnect(): this is FailedCompleteConnect {
+    return this.UnionKey === "FailedCompleteConnect";
+  }
+
+}
+
+
+export class SuccessCompleteConnect extends ICompleteConnectResult
+{
+  constructor(public provider: ConnectionProvider, public name: string) { super(); }
+
+  UnionKey: string = "SuccessCompleteConnect";
+  UnionIndex: number = 0;
+}
+
+export class FailedCompleteConnect extends ICompleteConnectResult
+{
+  constructor(public error: CompleteConnectError) { super(); }
+
+  UnionKey: string = "FailedCompleteConnect";
+  UnionIndex: number = 1;
+}
+
+
+
+IonFormatterStorage.register("ICompleteConnectResult", {
+  read(reader: CborReader): ICompleteConnectResult {
+    const unionIndex = IonFormatterStorage.readStartUnion(reader, "ICompleteConnectResult", 2);
+    let value: ICompleteConnectResult = null as any;
+
+    if (false)
+    {}
+        else if (unionIndex == 0)
+      value = IonFormatterStorage.get<SuccessCompleteConnect>("SuccessCompleteConnect").read(reader);
+    else if (unionIndex == 1)
+      value = IonFormatterStorage.get<FailedCompleteConnect>("FailedCompleteConnect").read(reader);
+
+    else IonFormatterStorage.invalidUnionIndex("ICompleteConnectResult", unionIndex, 2);
+
+    IonFormatterStorage.readEndUnion(reader);
+    return value!;
+  },
+  write(writer: CborWriter, value: ICompleteConnectResult): void {
+    writer.writeStartArray(2);
+    writer.writeUInt32(value.UnionIndex);
+    if (false)
+    {}
+        else if (value.UnionIndex == 0) {
+        IonFormatterStorage.get<SuccessCompleteConnect>("SuccessCompleteConnect").write(writer, value as SuccessCompleteConnect);
+    }
+    else if (value.UnionIndex == 1) {
+        IonFormatterStorage.get<FailedCompleteConnect>("FailedCompleteConnect").write(writer, value as FailedCompleteConnect);
+    }
+  
+    else throw new Error(`Ion union 'ICompleteConnectResult' has no case ${value.UnionIndex}; this revision declares 2 case(s)`);
+    writer.writeEndArray();
+  }
+});
+
+
+IonFormatterStorage.register("SuccessCompleteConnect", {
+  read(reader: CborReader): SuccessCompleteConnect {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 2, "SuccessCompleteConnect");
+    const provider = IonFormatterStorage.get<ConnectionProvider>('ConnectionProvider').read(reader);
+    const name = IonFormatterStorage.get<string>('string').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 2);
+    return new SuccessCompleteConnect(provider, name);
+  },
+  write(writer: CborWriter, value: SuccessCompleteConnect): void {
+    writer.writeStartArray(2);
+    IonFormatterStorage.get<ConnectionProvider>('ConnectionProvider').write(writer, value.provider);
+    IonFormatterStorage.get<string>('string').write(writer, value.name);
+    writer.writeEndArray();
+  }
+});
+
+IonFormatterStorage.register("FailedCompleteConnect", {
+  read(reader: CborReader): FailedCompleteConnect {
+    const arraySize = IonFormatterStorage.readStartMessage(reader, 1, "FailedCompleteConnect");
+    const error = IonFormatterStorage.get<CompleteConnectError>('CompleteConnectError').read(reader);
+    reader.readEndArrayAndSkip(arraySize - 1);
+    return new FailedCompleteConnect(error);
+  },
+  write(writer: CborWriter, value: FailedCompleteConnect): void {
+    writer.writeStartArray(1);
+    IonFormatterStorage.get<CompleteConnectError>('CompleteConnectError').write(writer, value.error);
+    writer.writeEndArray();
+  }
+});
+
+
+
 export abstract class IUpdateConnectionResult implements IIonUnion<IUpdateConnectionResult>
 {
   abstract UnionKey: string;
@@ -23007,6 +23146,16 @@ IonFormatterStorage.register("BeginConnectError", {
   }
 });
 
+IonFormatterStorage.register("CompleteConnectError", {
+  read(reader: CborReader): CompleteConnectError {
+    return IonFormatterStorage.readOpenEnum<CompleteConnectError>(reader, 'u2');
+  },
+  write(writer: CborWriter, value: CompleteConnectError): void {
+    const casted: u2 = value;
+    IonFormatterStorage.get<u2>('u2').write(writer, casted);
+  }
+});
+
 IonFormatterStorage.register("ConnectionError", {
   read(reader: CborReader): ConnectionError {
     return IonFormatterStorage.readOpenEnum<ConnectionError>(reader, 'u2');
@@ -26073,6 +26222,7 @@ export interface IConnectionsInteraction extends IIonService
   JoinListenAlong(hostUserId: guid): Promise<IListenAlongResult>;
   LeaveListenAlong(): Promise<void>;
   GetListenAlongState(): Promise<ListenAlongState | null>;
+  CompleteConnect(handshakeId: guid, key: string): Promise<ICompleteConnectResult>;
 }
 
 
@@ -26546,6 +26696,7 @@ export interface IConnectionsInteraction extends IIonService
   JoinListenAlong(hostUserId: guid): Promise<IListenAlongResult>;
   LeaveListenAlong(): Promise<void>;
   GetListenAlongState(): Promise<ListenAlongState | null>;
+  CompleteConnect(handshakeId: guid, key: string): Promise<ICompleteConnectResult>;
 }
 
 
@@ -28451,7 +28602,20 @@ export class ConnectionsInteraction_Executor extends ServiceExecutor<IConnection
           
     return await req.callAsyncNullableT<ListenAlongState>("ListenAlongState", writer.data, this.signal);
   }
-
+  async CompleteConnect(handshakeId: guid, key: string): Promise<ICompleteConnectResult> {
+    const req = new IonRequest(this.ctx, "IConnectionsInteraction", "CompleteConnect");
+          
+    const writer = new CborWriter();
+      
+    writer.writeStartArray(2);
+          
+    IonFormatterStorage.get<guid>('guid').write(writer, handshakeId);
+    IonFormatterStorage.get<string>('string').write(writer, key);
+      
+    writer.writeEndArray();
+          
+    return await req.callAsyncT<ICompleteConnectResult>("ICompleteConnectResult", writer.data, this.signal);
+  }
 }
 
 IonFormatterStorage.registerClientExecutor<IConnectionsInteraction>('ConnectionsInteraction', ConnectionsInteraction_Executor);

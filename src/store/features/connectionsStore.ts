@@ -4,6 +4,7 @@ import { logger } from "@argon/core";
 import type { IonPartial } from "@argon-chat/ion.webcore";
 import {
   BeginConnectError,
+  CompleteConnectError,
   ConnectionError,
   ConnectReturnKind,
   ListenAlongEndReason,
@@ -25,7 +26,7 @@ import { onSessionReset } from "@/store/system/sessionLifecycle";
 import { useLocale } from "@/store/system/localeStore";
 import { useToast } from "@argon/ui/toast";
 import { openExternalUrl } from "@/lib/linkPreview/openExternal";
-import { sortByProvider } from "@/lib/connections/providers";
+import { providerMeta, sortByProvider } from "@/lib/connections/providers";
 
 /** The translation key for a listen-along refusal. */
 export const LISTEN_ALONG_ERROR_KEYS: Record<ListenAlongError, string> = {
@@ -59,6 +60,16 @@ export const BEGIN_CONNECT_ERROR_KEYS: Record<BeginConnectError, string> = {
   [BeginConnectError.RATE_LIMITED]: "connections_error_rate_limited",
   [BeginConnectError.INTERNAL_ERROR]: "connections_error_unknown",
   [BeginConnectError.CONNECTION_SUSPENDED]: "connections_error_suspended",
+};
+
+export const COMPLETE_CONNECT_ERROR_KEYS: Record<CompleteConnectError, string> = {
+  [CompleteConnectError.NONE]: "connections_error_unknown",
+  [CompleteConnectError.EXPIRED]: "connections_error_expired",
+  [CompleteConnectError.WRONG_USER]: "connections_error_wrong_user",
+  [CompleteConnectError.ALREADY_LINKED_ELSEWHERE]: "connections_error_linked_elsewhere",
+  [CompleteConnectError.PROVIDER_ALREADY_LINKED]: "connections_error_already_linked",
+  [CompleteConnectError.SUSPENDED]: "connections_error_suspended",
+  [CompleteConnectError.INTERNAL_ERROR]: "connections_error_unknown",
 };
 
 export const CONNECTION_ERROR_KEYS: Record<ConnectionError, string> = {
@@ -170,6 +181,31 @@ export const useConnectionsStore = defineStore("connections", () => {
     pending.value = null;
   }
 
+  /**
+   * The desktop's half of the hand-off: the callback page opened `argon://connections/complete`
+   * with the handshake and its one-time key, and the link is finished as the account signed in here.
+   */
+  async function complete(handshakeId: string, key: string): Promise<void> {
+    subscribe();
+    const { t } = useLocale();
+    const { toast } = useToast();
+    try {
+      const result = await api.connectionsInteraction.CompleteConnect(handshakeId, key);
+      if (result.isSuccessCompleteConnect()) {
+        pending.value = null;
+        toast({ title: t("connections_linked", { provider: providerMeta(result.provider)?.name ?? "", name: result.name }) });
+        await load();
+        return;
+      }
+      const error = result.isFailedCompleteConnect() ? result.error : CompleteConnectError.INTERNAL_ERROR;
+      pending.value = null;
+      toast({ title: t("error"), description: t(COMPLETE_CONNECT_ERROR_KEYS[error] ?? "connections_error_unknown"), variant: "destructive" });
+    } catch (e) {
+      logger.error("[connections] completing a hand-off failed", e);
+      toast({ title: t("error"), description: t("connections_error_unknown"), variant: "destructive" });
+    }
+  }
+
   async function disconnect(provider: ConnectionProvider): Promise<boolean> {
     const done = await api.connectionsInteraction.Disconnect(provider);
     if (done) mine.value = mine.value.filter((c) => c.provider !== provider);
@@ -262,6 +298,7 @@ export const useConnectionsStore = defineStore("connections", () => {
     load,
     connect,
     cancelPending,
+    complete,
     disconnect,
     updateOptions,
     refresh,
