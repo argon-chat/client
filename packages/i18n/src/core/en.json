@@ -2002,6 +2002,8 @@
   "password_required": "Enter your password",
   "pin": "Pin",
   "players": "players",
+  "playframe_unsupported_description": "Activities aren't available on this system yet.",
+  "playframe_unsupported_title": "Can't start a PlayFrame activity",
   "reply": "Reply",
   "select_game_description": "Pick something to play together in this channel.",
   "select_option": "Select…",

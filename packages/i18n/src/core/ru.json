@@ -1848,6 +1848,8 @@
   "password_required": "Введите пароль",
   "pin": "Закрепить",
   "players": "игроков",
+  "playframe_unsupported_description": "На этой системе активности пока недоступны.",
+  "playframe_unsupported_title": "Не удаётся запустить активность PlayFrame",
   "reply": "Ответить",
   "select_game_description": "Выберите, во что поиграть вместе в этом канале.",
   "select_option": "Выберите…",

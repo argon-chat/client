@@ -43,6 +43,20 @@ import {
   createPlayFrameChannel,
   type PlayFrameChannel,
 } from "@/lib/playframe/playframeChannel";
+import { useLocale } from "@/store/system/localeStore";
+import { useToast } from "@argon/ui/toast";
+
+/**
+ * Can this host show a game at all? A game is a document in an `<iframe>`.
+ * In a browser that is always there. Under vue-native the iframe is a system
+ * webview, and `vnFeatures.iframe` says whether this machine has one: yes on
+ * Windows and macOS, no on Linux (and no on a Windows without the WebView2
+ * runtime).
+ */
+function activitiesSupported(): boolean {
+  const features = (globalThis as { vnFeatures?: { iframe?: boolean } }).vnFeatures;
+  return features ? features.iframe === true : true;
+}
 
 // ============================================================================
 // Game Registry (mock — будет заменён на API)
@@ -199,7 +213,20 @@ export const usePlayFrameActivity = defineStore("playframe-activity", () => {
   // Picker / popout
   // ==========================================================================
 
+  /** Says why nothing happened where a game cannot be shown. True when refused. */
+  function refuseUnsupported(): boolean {
+    if (activitiesSupported()) return false;
+    logger.warn("[PlayFrame] Cannot start activity - this system has no webview for the game");
+    const { t } = useLocale();
+    useToast().toast({
+      title: t("playframe_unsupported_title"),
+      description: t("playframe_unsupported_description"),
+    });
+    return true;
+  }
+
   function openPicker() {
+    if (refuseUnsupported()) return;
     if (!canStartActivity.value) {
       logger.warn("[PlayFrame] Cannot start activity - not in voice channel");
       return;
@@ -258,6 +285,7 @@ export const usePlayFrameActivity = defineStore("playframe-activity", () => {
 
   /** Phase 1: stage the launch + show the panel; the host mounts when the panel provides a container. */
   function beginLaunch(launch: PendingLaunch): void {
+    if (refuseUnsupported()) return;
     logger.log(`[PlayFrame] Launch ${launch.intent}: ${launch.game.title}`);
     pendingLaunch.value = launch;
     currentGame.value = launch.game;
