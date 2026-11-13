@@ -19,20 +19,12 @@ export interface ActivityConfig {
   software?: { queries?: { name?: string; CN?: string; nearbyFiles?: string[]; pathContains?: string[]; ignoredVariants?: string[] }[] };
 }
 type Unsubscribe = () => void;
-export interface NativeHotkeyStatus { running: boolean; platform: string; accessibilityGranted: boolean; error: string | null; restarts: number }
-export interface NativeHotkeyBinding { id: string; chord: { buttons: { device: number; code: number }[] } }
-export interface NativeHotkeys {
-  setBindings(bindings: NativeHotkeyBinding[]): boolean; status(): NativeHotkeyStatus; restart(): boolean; requestAccessibility(): boolean;
-  captureOnce(): Promise<{ buttons: { device: number; code: number }[] }>; cancelCapture(): void;
-  onFired(fn: (event: { id: string; phase: "down" | "up" }) => void): Unsubscribe;
-}
 /** The Linux AppImage updating itself; `supported` is false everywhere else. */
 export interface UpdateStatus {
   supported: boolean; phase: "idle" | "checking" | "downloading" | "ready" | "failed"; current: string;
   version?: string; received?: number; total?: number; error?: string;
 }
 export interface ArgonShell {
-  hotkeys?: NativeHotkeys;
   update?: { state(): UpdateStatus; check(): boolean; restart(): boolean; onChanged(fn: (status: UpdateStatus) => void): Unsubscribe };
   launch?: { pending(): string[]; onOpenUrl(fn: (url: string) => void): Unsubscribe };
   idle: { getTime(): { idleMs: number } };

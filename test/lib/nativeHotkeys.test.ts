@@ -1,13 +1,18 @@
 import { afterEach, beforeAll, describe, expect, test, vi } from "vitest";
-import type { NativeHotkeyBinding } from "@/lib/shell/host";
+import type { HotkeyHostBinding } from "@/lib/hotkeys/host";
 vi.mock("@/lib/vn", () => ({ isVn: true }));
+// vue-native's `appHotkeys`, as the vue-native build exposes it on the "vue" namespace.
+const stubHotkeys = (hotkeys: object): void => {
+  vi.stubEnv("VN", "true");
+  vi.doMock("vue", async (importOriginal) => ({ ...(await importOriginal<typeof import("vue")>()), appHotkeys: hotkeys }));
+};
 // Cold transforms can exceed a test's timeout when all projects run together. Prepare the graph
 // separately, then reset it so each test still captures its own native service stub.
 beforeAll(async () => {
   await import("@/store/ui/hotKeyStore");
   vi.resetModules();
 }, 60_000);
-afterEach(() => { vi.unstubAllGlobals(); vi.resetModules(); });
+afterEach(() => { vi.doUnmock("vue"); vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.resetModules(); });
 describe("direct native hotkeys", () => {
   test("passes stored VK/raw chords directly and turns native release events into UI actions", async () => {
     let fire!: (event: { id: string; phase: "down" | "up" }) => void;
@@ -15,10 +20,10 @@ describe("direct native hotkeys", () => {
     const setBindings = vi.fn(() => true);
     const status = { running: true, platform: "win32", accessibilityGranted: true, error: null, restarts: 0 };
     const capture = { buttons: [{ device: 0, code: 0xa3 }, { device: 0, code: 0x10000 | 0x0e1c }, { device: 1, code: 4 }] };
-    vi.stubGlobal("argon", { hotkeys: {
+    stubHotkeys({
       setBindings, status: () => status, restart: () => true, captureOnce: () => Promise.resolve(capture),
       cancelCapture() {}, onFired(fn: typeof fire) { fire = fn; return off; },
-    } });
+    });
     const { hotkeyHost } = await import("@/lib/hotkeys/host");
     expect(hotkeyHost.available).toBe(true);
     await hotkeyHost.setBindings([{ id: "voice.pushToTalk", chord: capture }]);
@@ -36,15 +41,15 @@ describe("direct native hotkeys", () => {
   test("the real store sends reactive saved and captured chords and forwards both hold edges", async () => {
     let fire!: (event: { id: string; phase: "down" | "up" }) => void;
     const off = vi.fn();
-    const setBindings = vi.fn((_bindings: NativeHotkeyBinding[]) => true);
+    const setBindings = vi.fn((_bindings: HotkeyHostBinding[]) => true);
     const captured = { buttons: [{ device: 1, code: 5 }] };
-    vi.stubGlobal("argon", { hotkeys: {
+    stubHotkeys({
       setBindings,
       status: () => ({ running: true, platform: "win32", accessibilityGranted: true, error: null, restarts: 0 }),
       captureOnce: async () => captured,
       cancelCapture() {},
       onFired(fn: typeof fire) { fire = fn; return off; },
-    } });
+    });
     const { createPinia, setActivePinia } = await import("pinia");
     const { nextTick, isProxy } = await import("vue");
     const { default: superjson } = await import("superjson");
@@ -80,7 +85,7 @@ describe("direct native hotkeys", () => {
     expect(off).toHaveBeenCalledOnce();
   });
   test("capture cancellation errors retain a useful reason", async () => {
-    vi.stubGlobal("argon", { hotkeys: { captureOnce: () => Promise.reject(new Error("hotkey capture cancelled")) } });
+    stubHotkeys({ captureOnce: () => Promise.reject(new Error("hotkey capture cancelled")) });
     const { hotkeyHost, captureFailureReason } = await import("@/lib/hotkeys/host");
     const error = await hotkeyHost.captureOnce().catch((value) => value);
     expect(captureFailureReason(error)).toBe("cancelled");

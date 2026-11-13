@@ -5,6 +5,7 @@ export const DOWNLOAD_URL = "https://argon.gl/download";
 
 import { isVn } from "@/lib/vn";
 import { shell } from "@/lib/shell/host";
+import { hotkeyHost } from "@/lib/hotkeys/host";
 const hasWindow = typeof window !== "undefined";
 
 /** True for the native desktop build, false for the browser build. */
@@ -58,7 +59,7 @@ const WEB_UNSUPPORTED: ReadonlySet<PlatformFeature> = new Set<PlatformFeature>([
 /** Whether this build can do `feature` at all. */
 export function supports(feature: PlatformFeature): boolean {
   if (isVn) {
-    if (feature === "globalHotkeys") return !!shell?.hotkeys;
+    if (feature === "globalHotkeys") return hotkeyHost.available;
     if (feature === "nativeNotifications") return !!shell?.system.notifications;
     if (feature === "appUpdates") return !!shell?.system.updates;
     if (feature === "storageBreakdown") return !!shell?.system.storage;

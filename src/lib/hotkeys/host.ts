@@ -1,13 +1,24 @@
-/** UI hotkeys use an optional direct native service, never a pinned event bus. */
+/**
+ * UI hotkeys use vue-native's `appHotkeys`, never a pinned event bus. It is read off the "vue"
+ * namespace, as ../vn/tray.ts reads `appTray`: the Vite build has no "vue-native" module, and the
+ * lookup is dead code there behind `import.meta.env.VN`.
+ */
+import * as vue from "vue";
 import { isVn } from "@/lib/vn";
-import { shell, type NativeHotkeyStatus, type NativeHotkeyBinding } from "@/lib/shell/host";
+import { shell } from "@/lib/shell/host";
 import type { HotkeyChord } from "./chord";
 
-export type HotkeyHostStatus = NativeHotkeyStatus;
-export type HotkeyHostBinding = NativeHotkeyBinding;
+export interface HotkeyHostStatus { running: boolean; platform: string; accessibilityGranted: boolean; error: string | null; restarts: number }
+export interface HotkeyHostBinding { id: string; chord: { buttons: { device: number; code: number }[] } }
 export type HotkeyHostPhase = "down" | "up";
 export type HotkeyCaptureFailure = "cancelled" | "timeout" | "superseded";
-const service = () => isVn ? shell?.hotkeys : undefined;
+interface AppHotkeys {
+  setBindings(bindings: HotkeyHostBinding[]): boolean; status(): HotkeyHostStatus; restart(): boolean; requestAccessibility(): boolean;
+  captureOnce(): Promise<HotkeyChord>; cancelCapture(): void;
+  onFired(fn: (event: { id: string; phase: HotkeyHostPhase }) => void): () => void;
+}
+const service = (): AppHotkeys | undefined =>
+  import.meta.env.VN && isVn ? (Reflect.get(vue, "appHotkeys") as AppHotkeys | undefined) : undefined;
 export function captureFailureReason(err: unknown): HotkeyCaptureFailure | null {
   const message = err instanceof Error ? err.message : String(err);
   return /hotkey capture (cancelled|timeout|superseded)/.exec(message)?.[1] as HotkeyCaptureFailure | undefined ?? null;
