@@ -16,6 +16,11 @@
     }
   },
 
+  "$comment-aliases": "`livekit-client` in the native build is Argon's own LiveKit, not the npm SDK (which needs WebSocket/RTCPeerConnection the engine does not have): the JS half of crates/argon-livekit, whose host fns the shell installs (crates/argon-shell/src/voice.rs). Vite's web build keeps the npm package.",
+  "aliases": {
+    "livekit-client": "../crates/argon-livekit/js/livekit.ts"
+  },
+
   "$comment-publicDir": "Vite's public/: served at the root, so `/sounds/x.ogg` is public/sounds/x.ogg.",
   "publicDir": "public",
 

@@ -2,4 +2,5 @@
 import { isVn } from "./index";
 import { applyAtLaunch } from "@/lib/shell/config";
 import { startActivityDiagnostics } from "@/lib/shell/activityDiagnostics";
-if (isVn) { applyAtLaunch(); startActivityDiagnostics(); }
+import { startTray } from "./tray";
+if (isVn) { applyAtLaunch(); startActivityDiagnostics(); startTray(); }
