@@ -12,7 +12,7 @@ export interface Presence { kind: number; titleName: string; gameId?: string; pa
 export interface SystemInfo {
   platform: string; osVersion: string; osArchitecture: string; hostname: string; appVersion: string; osName?: string;
 }
-export interface AutostartStatus { supported: boolean; enabled: boolean }
+export interface AutostartStatus { supported: boolean; enabled: boolean; installRequired?: boolean }
 export interface ActivityConfig {
   systemDirectories?: string[]; blackListApp?: string[]; gameDlls?: string[];
   allowCheckSteamAcfManifest?: boolean; allowCheckEpicManifest?: boolean; pollIntervalMs?: number;

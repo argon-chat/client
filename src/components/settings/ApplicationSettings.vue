@@ -142,17 +142,28 @@
                 latest-version="99.0.0"
                 command="curl -fSL -o /tmp/argon-desktop.deb &quot;https://cdn.argon.gl/runtime/core-linux/99.0.0/argon-desktop.deb&quot; && sudo dpkg -i /tmp/argon-desktop.deb"
             />
-            <div v-if="autostartSupported" class="flex flex-row items-center justify-between rounded-lg border p-4">
+            <div v-if="autostartSupported || autostartInstallRequired" class="flex flex-row items-center justify-between rounded-lg border p-4">
                 <div class="space-y-0.5">
                     <div class="text-base">
                         {{ t("autostart") }}
                     </div>
                     <div class="text-xs text-gray-400">
-                        {{ t("autostart_desc") }}
+                        {{ t(autostartSupported ? "autostart_desc" : "autostart_install_required") }}
                     </div>
                 </div>
-                <Switch :checked="autostartEnabled" :disabled="autostartBusy"
-                    @update:checked="toggleAutostart" />
+                <Switch :checked="autostartEnabled" :disabled="autostartBusy || !autostartSupported"
+                    @update:checked="toggleAutostart" data-testid="setting-autostart" />
+            </div>
+            <div v-if="trayUp" class="flex flex-row items-center justify-between rounded-lg border p-4">
+                <div class="space-y-0.5">
+                    <div class="text-base">
+                        {{ t("close_behaviour") }}
+                    </div>
+                    <div class="text-xs text-gray-400">
+                        {{ t("minimize_to_tray") }}
+                    </div>
+                </div>
+                <Switch v-model:checked="preference.minimizeToTrayOnClose" data-testid="setting-minimize-to-tray" />
             </div>
             <div class="flex flex-row items-center justify-between rounded-lg border p-4">
                 <div class="space-y-0.5">
@@ -196,6 +207,7 @@ import {
 import { useToast } from "@argon/ui/toast";
 import { useAuthStore } from "@/store/auth/authStore";
 import { isSk } from "@/lib/sk";
+import { trayUp } from "@/lib/sk/tray";
 import { shell } from "@/lib/shell/host";
 import { openDevtools } from "@/lib/shell/desktop";
 import { ConfigKey, ConfigValueType, ConfigSection, ConfigUpdate } from "@/lib/shell/configTypes";
@@ -211,6 +223,7 @@ const variantLabel = (key: string, variant: string) =>
 const toast = useToast();
 
 const me = useMe();
+const preference = usePreference();
 const showLinuxUpdateModal = ref(false);
 const version = ref((window as any).ui_fullversion as string);
 const buildtime = ref((window as any).ui_buildtime as string);
@@ -221,9 +234,11 @@ const selected_api_endpoint = ref("live" as "live" | "dev" | "local");
 
 const configStore = useConfigStore();
 
-// Launch-on-login toggle. Backed by the host bridge, which reads/writes the registry live (see
-// ArgonApp/src/autostart.ts) and keeps the same Run entry the installer seeds.
+// Launch-on-login toggle. Backed by the host bridge, which reads/writes the registry live and keeps
+// the same Run entry the installer seeds. A copy that is not the installed one (a dev build) cannot
+// register itself, so it shows the switch off and says why instead of hiding it.
 const autostartSupported = ref(false);
+const autostartInstallRequired = ref(false);
 const autostartEnabled = ref(false);
 const autostartBusy = ref(false);
 
@@ -239,6 +254,7 @@ async function loadAutostart() {
     try {
         const s = await a.get();
         autostartSupported.value = !!s?.supported;
+        autostartInstallRequired.value = !!s?.installRequired;
         autostartEnabled.value = !!s?.enabled;
     } catch (e) {
         logger.error(e);

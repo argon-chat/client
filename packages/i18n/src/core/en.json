@@ -426,6 +426,7 @@
   "media_editor_video_quality": "Quality",
   "autostart": "Launch on startup",
   "autostart_desc": "Start Argon automatically when you sign in to Windows.",
+  "autostart_install_required": "Available in the installed Argon; this copy cannot start itself at sign-in.",
   "channel": "Channel",
   "select_update_channel": "Select update channel",
   "select_channel_placeholder": "Live",

@@ -341,6 +341,7 @@
   "media_editor_video_quality": "Качество",
   "autostart": "Запуск при старте системы",
   "autostart_desc": "Автоматически запускать Argon при входе в Windows.",
+  "autostart_install_required": "Доступно в установленном Argon; эта копия не может запускаться при входе.",
   "channel": "Канал",
   "select_update_channel": "Выберите канал обновлений",
   "select_channel_placeholder": "Прямой эфир",

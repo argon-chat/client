@@ -1,5 +1,6 @@
 /**
- * Argon's tray icon on Skathi: Open / Exit, and a click that brings the window back. It used to
+ * Argon's tray icon on Skathi: Open / Exit, and a click that brings the window back; with "minimize to
+ * tray on close" on, closing the window hides it here instead of quitting. It used to
  * be the shell's Rust (crates/argon-shell/src/tray.rs); it is the app's now, through the SDK's
  * `appTray`, as any Skathi app would write it.
  *
@@ -14,6 +15,7 @@ import * as vue from "vue";
 import { isSk } from "./index";
 import { appWindow } from "./window";
 import { logger } from "@argon/core";
+import { usePreference } from "@/store/ui/preferenceStore";
 
 interface AppTray {
   readonly available: boolean;
@@ -38,6 +40,24 @@ const MENU_BAR_ICON = `data:image/svg+xml,${encodeURIComponent(
 
 const show = () => appWindow?.show();
 
+/** Whether the icon is up, so a window hidden to the tray can be brought back. */
+export const trayUp = vue.ref(false);
+
+const closesToTray = () => trayUp.value && usePreference().minimizeToTrayOnClose;
+
+/** Argon's own titlebar X: what the OS close button does. */
+export function closeWindow(): void {
+  if (closesToTray()) appWindow?.hide();
+  else appWindow?.close();
+}
+
+// The OS close button, Alt+F4, the taskbar's Close window. Exit in the tray quits without asking.
+function onCloseRequested(event: Event): void {
+  if (!closesToTray()) return;
+  event.preventDefault();
+  appWindow?.hide();
+}
+
 /** Puts the icon up. Called once at launch; a later call replaces the model. */
 export function startTray(): void {
   if (!appTray) return;
@@ -53,6 +73,9 @@ export function startTray(): void {
         { role: "quit", label: "Exit" },
       ],
     });
+    trayUp.value = true;
+    appWindow?.removeEventListener("close-requested", onCloseRequested);
+    appWindow?.addEventListener("close-requested", onCloseRequested);
   } catch (error) {
     logger.warn("[tray] could not start the tray icon:", error);
     // A failed icon must not strand a hidden (autostarted) app.

@@ -18,6 +18,7 @@ import Counter from './motionCounter/Counter.vue';
 import { computedAsync } from '@vueuse/core';
 import { openDevtools } from "@/lib/shell/desktop";
 import { appWindow } from "@/lib/sk/window";
+import { closeWindow } from "@/lib/sk/tray";
 import { shell } from '@/lib/shell/host';
 
 const { t } = useLocale();
@@ -133,7 +134,7 @@ const windowMaximize = async () => {
   isMaximized.value = appWindow?.isMaximized() ?? false;
 };
 const windowClose = () => {
-  appWindow?.close();
+  closeWindow();
 };
 
 // Frameless Windows/Linux don't auto-maximize on titlebar double-click — do it
