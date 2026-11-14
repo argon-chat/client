@@ -3,12 +3,12 @@ import { getAnimationIntersector, type AnimationControl } from "@/lib/expression
 import { prefersReducedMotion } from "@/lib/expressions/settings";
 
 /**
- * vue-native only: the `play` attribute of a `<vn-sticker>`, from the same AnimationIntersector policy
+ * Skathi only: the `play` attribute of a `<sk-sticker>`, from the same AnimationIntersector policy
  * the browser players follow (groups and their locks, the picker's autoplay setting, animations off,
- * the page hidden or the window left, a hover or click that plays). The item has no element: vue-native knows what is on
+ * the page hidden or the window left, a hover or click that plays). The item has no element: Skathi knows what is on
  * screen and plays only that, so the intersector sees it as always visible.
  */
-export function useVnStickerPlay(options: { group: () => string; autoplay: () => boolean | undefined }) {
+export function useSkStickerPlay(options: { group: () => string; autoplay: () => boolean | undefined }) {
   const playing = ref(false);
   let control: AnimationControl | null = null;
 
@@ -43,7 +43,7 @@ export function useVnStickerPlay(options: { group: () => string; autoplay: () =>
 }
 
 /**
- * vue-native only: a `CustomEmojiOverlay`'s play mode, shared by the `CustomEmojiInline`s inside it
+ * Skathi only: a `CustomEmojiOverlay`'s play mode, shared by the `CustomEmojiInline`s inside it
  * (one policy item per overlay, as the browser has one player per file and group).
  */
-export const VN_EMOJI_PLAY: InjectionKey<ComputedRef<"on" | "off">> = Symbol("vn-emoji-play");
+export const SK_EMOJI_PLAY: InjectionKey<ComputedRef<"on" | "off">> = Symbol("sk-emoji-play");

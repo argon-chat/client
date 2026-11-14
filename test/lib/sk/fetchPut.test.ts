@@ -1,5 +1,5 @@
 /**
- * Uploads where there is no XMLHttpRequest (vue-native today): the same PUTs over fetch, with the
+ * Uploads where there is no XMLHttpRequest (Skathi today): the same PUTs over fetch, with the
  * same errors, and progress that is 0 until the storage answers and then all of it.
  */
 

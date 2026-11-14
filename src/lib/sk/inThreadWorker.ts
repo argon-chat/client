@@ -1,12 +1,12 @@
 /**
  * A worker's body run on the main thread, behind an object shaped like the `Worker` it stands for.
  *
- * vue-native has no Workers yet (its Workers v1 is designed, not built), so `new RealtimeWorker()`
+ * Skathi has no Workers yet (its Workers v1 is designed, not built), so `new RealtimeWorker()`
  * is a stub there that throws a named error, and the app would run with no incoming events at all.
- * Until Workers land, the realtime core runs here instead. vue-native's
+ * Until Workers land, the realtime core runs here instead. Skathi's
  * research/reports/m26/client-gap.md §4, "realtime worker in-thread"; client-gap/A-webapi.md #10.
  *
- * The two sides talk through a pair of fake MessagePorts, because vue-native has no MessageChannel
+ * The two sides talk through a pair of fake MessagePorts, because Skathi has no MessageChannel
  * either. What a port pair promises, these keep:
  * - each message is its own task (a `setTimeout(0)`), in the order it was posted, never
  *   synchronously inside `postMessage`;
@@ -137,7 +137,7 @@ class InThreadWorker {
     const message = error instanceof Error ? error.message : String(error);
     const event = { type: "error", message, error } as unknown as ErrorEvent;
     if (this.onerror) this.onerror(event);
-    else console.error("[vue-native] in-thread worker:", error);
+    else console.error("[skathi] in-thread worker:", error);
   }
 }
 

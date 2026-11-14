@@ -1,10 +1,10 @@
 /**
- * UI hotkeys use vue-native's `appHotkeys`, never a pinned event bus. It is read off the "vue"
- * namespace, as ../vn/tray.ts reads `appTray`: the Vite build has no "vue-native" module, and the
- * lookup is dead code there behind `import.meta.env.VN`.
+ * UI hotkeys use Skathi's `appHotkeys`, never a pinned event bus. It is read off the "vue"
+ * namespace, as ../sk/tray.ts reads `appTray`: the Vite build has no Skathi module, and the
+ * lookup is dead code there behind `import.meta.env.SK`.
  */
 import * as vue from "vue";
-import { isVn } from "@/lib/vn";
+import { isSk } from "@/lib/sk";
 import { shell } from "@/lib/shell/host";
 import type { HotkeyChord } from "./chord";
 
@@ -18,7 +18,7 @@ interface AppHotkeys {
   onFired(fn: (event: { id: string; phase: HotkeyHostPhase }) => void): () => void;
 }
 const service = (): AppHotkeys | undefined =>
-  import.meta.env.VN && isVn ? (Reflect.get(vue, "appHotkeys") as AppHotkeys | undefined) : undefined;
+  import.meta.env.SK && isSk ? (Reflect.get(vue, "appHotkeys") as AppHotkeys | undefined) : undefined;
 export function captureFailureReason(err: unknown): HotkeyCaptureFailure | null {
   const message = err instanceof Error ? err.message : String(err);
   return /hotkey capture (cancelled|timeout|superseded)/.exec(message)?.[1] as HotkeyCaptureFailure | undefined ?? null;
@@ -37,8 +37,8 @@ export const hotkeyHost = {
   onFired(callback: (id: string, phase: HotkeyHostPhase) => void): (() => void) | null {
     return service()?.onFired((event) => callback(event.id, event.phase)) ?? null;
   },
-  async toggleMainWindow(): Promise<boolean> { return isVn ? shell.system.window.toggle() : false; },
-  async showMainWindow(): Promise<boolean> { return isVn ? shell.system.window.show() : false; },
+  async toggleMainWindow(): Promise<boolean> { return isSk ? shell.system.window.toggle() : false; },
+  async showMainWindow(): Promise<boolean> { return isSk ? shell.system.window.show() : false; },
   async isAccessibilityGranted(): Promise<boolean> { return service()?.status().accessibilityGranted ?? false; },
   async requestAccessibility(): Promise<boolean> {
     const hotkeys = service();

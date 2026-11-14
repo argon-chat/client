@@ -16,8 +16,8 @@ vi.mock("@/components/media/VideoPlayer.vue", () => ({ default: { render: () => 
 vi.mock("@/lib/media/mediaUrl", () => ({ resolveMediaUrl: vi.fn(), invalidateMediaUrl: vi.fn() }));
 vi.mock("@/lib/media/videoAutoplay", () => ({ suspendChatVideos: vi.fn() }));
 vi.mock("@/lib/attachments/clipboard", () => ({ copyAttachmentToClipboard: vi.fn() }));
-vi.mock("@/lib/vn/vnWindow", () => ({ VnWindow: null }));
-vi.mock("@/lib/vn/viewerWindow", () => ({ useViewerWindow: vi.fn() }));
+vi.mock("@/lib/sk/skWindow", () => ({ SkWindow: null }));
+vi.mock("@/lib/sk/viewerWindow", () => ({ useViewerWindow: vi.fn() }));
 vi.mock("@argon/ui/context-menu", async () => {
   const { defineComponent, h } = await import("vue");
   const slot = defineComponent({ setup: (_, { slots }) => () => h("div", slots.default?.()) });

@@ -5,7 +5,7 @@
  * disabled when the overlay feature flag is off.
  */
 import { watch } from "vue";
-import { isVn } from "@/lib/vn";
+import { isSk } from "@/lib/sk";
 import { setHudChat } from "@/lib/shell/overlays";
 import { usePoolStore } from "@/store/data/poolStore";
 import { useChannelStore } from "@/store/data/channelStore";
@@ -15,7 +15,7 @@ import { useFeatureFlags } from "@/store/features/featureFlagsStore";
 const MAX = 10;
 
 export function useOverlayChatPublisher(): void {
-  if (!isVn) return;
+  if (!isSk) return;
 
   const pool = usePoolStore();
   const channels = useChannelStore();

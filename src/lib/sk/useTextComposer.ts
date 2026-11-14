@@ -1,13 +1,13 @@
 /**
- * MessageInput as a `<textarea>`, for vue-native: the same props, events and exposed API, so its
+ * MessageInput as a `<textarea>`, for Skathi: the same props, events and exposed API, so its
  * parents (EnterText and whatever reaches the composer through it) do not change. The value is
  * textComposer's `{ text, entities }`, a custom emoji showing as its `:name:`.
  *
- * vue-native has no contenteditable, Selection or Range, which is what the rich composer is built
- * from. vue-native's research/reports/m26/client-gap.md §4, "<textarea> composer"; A-webapi.md #62.
+ * Skathi has no contenteditable, Selection or Range, which is what the rich composer is built
+ * from. Skathi's research/reports/m26/client-gap.md §4, "<textarea> composer"; A-webapi.md #62.
  *
  * **The caret.** Where the field has `selectionStart` and `setSelectionRange` (every browser), the
- * caret is the field's own. vue-native's textarea has neither yet, and a text given to it leaves its
+ * caret is the field's own. Skathi's textarea has neither yet, and a text given to it leaves its
  * caret at the end. There the caret is worked out instead:
  * - after the user's edit, it is where the edit ended (exact, except inside a run of one repeated
  *   character, where it is the end of the run);
@@ -72,7 +72,7 @@ function adviseCaret() {
   if (advised) return;
   advised = true;
   console.warn(
-    "[vue-native] composer: this <textarea> has no selectionStart/setSelectionRange, so a text set by the app leaves the caret at its end, and the caret is read from the last edit",
+    "[skathi] composer: this <textarea> has no selectionStart/setSelectionRange, so a text set by the app leaves the caret at its end, and the caret is read from the last edit",
   );
 }
 
@@ -169,7 +169,7 @@ export function useTextComposer(props: Readonly<TextComposerProps>, emit: (...ar
     send("keydown", event);
     if (event.defaultPrevented) return;
     if (event.key === "Enter") {
-      // Always ours: vue-native's field breaks the line on Enter only, never on Shift+Enter.
+      // Always ours: Skathi's field breaks the line on Enter only, never on Shift+Enter.
       event.preventDefault();
       if (props.singleLine || event.ctrlKey || event.metaKey) send("submit", value.value.text);
       else insert("\n");

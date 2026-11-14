@@ -18,7 +18,7 @@ const h = vi.hoisted(() => ({
   ff: null as any,
 }));
 
-vi.mock("@/lib/vn", () => ({ isVn: true }));
+vi.mock("@/lib/sk", () => ({ isSk: true }));
 vi.mock("@/lib/shell/overlays", () => ({
   nativeDrawingAvailable: () => bridge.available,
   startNativeDrawing: (sourceId: string | null) => bridge.start(sourceId),

@@ -2,7 +2,7 @@ import { computed, ref } from "vue";
 
 type CameraMediaDevices = Pick<MediaDevices, "enumerateDevices"> & Partial<Pick<MediaDevices, "addEventListener" | "removeEventListener">> & {
   /** Native hardware enumeration does not depend on a camera permission grant. */
-  __vnVideoEnumerationAuthoritative?: boolean;
+  __skVideoEnumerationAuthoritative?: boolean;
 };
 
 export function createCameraDeviceState(options: {
@@ -33,7 +33,7 @@ export function createCameraDeviceState(options: {
       if (!md || typeof md.enumerateDevices !== "function") { confirmed.value = false; return null; }
       try {
         const list = (await md.enumerateDevices()).filter((device) => device.kind === "videoinput");
-        const complete = md.__vnVideoEnumerationAuthoritative === true || list.some((device) => !!device.deviceId) || await browserGrant();
+        const complete = md.__skVideoEnumerationAuthoritative === true || list.some((device) => !!device.deviceId) || await browserGrant();
         if (disposed) return null;
         devices.value = list;
         loaded.value = true;

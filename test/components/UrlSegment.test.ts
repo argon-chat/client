@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 const mocks = vi.hoisted(() => ({ openUrl: vi.fn(async () => true), openInvitePreview: vi.fn() }));
-vi.mock("@/lib/vn", () => ({ isVn: false }));
+vi.mock("@/lib/sk", () => ({ isSk: false }));
 vi.mock("@/lib/shell/host", () => ({ shell: { system: { openUrl: mocks.openUrl } } }));
 vi.mock("@/store/ui/windowStore", () => ({ useWindow: () => ({ openInvitePreview: mocks.openInvitePreview }) }));
 import UrlSegment from "@/components/chats/UrlSegment.vue";

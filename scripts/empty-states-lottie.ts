@@ -1,7 +1,7 @@
 /**
  * Converts the animated empty-state SVGs into Lottie, for the native app.
  *
- * vue-native draws an inline <svg> as one raster and runs no CSS animation inside it, so the artwork
+ * Skathi draws an inline <svg> as one raster and runs no CSS animation inside it, so the artwork
  * of components/shared/EmptyStateArt.vue cannot move there. Its native twin, EmptyStateLottie.vue,
  * plays these files on <lottie> instead (ThorVG, on a worker thread). The SVGs stay the source: the
  * web keeps playing them, and this script is re-run whenever one changes.

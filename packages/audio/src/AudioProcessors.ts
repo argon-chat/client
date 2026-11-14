@@ -19,7 +19,7 @@ const NATIVE_PROCESSORS: Readonly<Record<string, NativeAudioProcessorName>> = {
 };
 
 export const isNativeAudioRuntime = (): boolean =>
-  (globalThis as { isVn?: unknown }).isVn === true;
+  (globalThis as { isSk?: unknown }).isSk === true;
 
 type NativeAudioContext = AudioContext & {
   loadNativeAudioWorklet?: (
@@ -33,7 +33,7 @@ export function nativeProcessorName(ctx: AudioContext, workletId: string): Nativ
   const name = Object.hasOwn(NATIVE_PROCESSORS, workletId) ? NATIVE_PROCESSORS[workletId] : undefined;
   if (!name) throw new Error(`[AudioManagement] No native audio processor for: ${workletId}`);
   if (typeof (ctx as NativeAudioContext).loadNativeAudioWorklet !== "function") {
-    throw new Error("[AudioManagement] This vue-native runtime does not support loadNativeAudioWorklet");
+    throw new Error("[AudioManagement] This Skathi runtime does not support loadNativeAudioWorklet");
   }
   return name;
 }

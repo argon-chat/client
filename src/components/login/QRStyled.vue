@@ -3,9 +3,9 @@ import { onMounted, ref, watch, onUnmounted, nextTick, computed, shallowRef } fr
 import QRCodeStyling, { Options } from "qr-code-styling";
 import CatIconUrl from "@argon/assets/icons/icon_cat_colored.svg?url";
 import { useTheme } from "@/composables/useTheme";
-import { isVn } from "@/lib/vn";
-import QrSvg from "@/lib/vn/QrSvg.vue";
-import { drawQr, qrMatrix, type QrDrawing } from "@/lib/vn/qrDrawing";
+import { isSk } from "@/lib/sk";
+import QrSvg from "@/lib/sk/QrSvg.vue";
+import { drawQr, qrMatrix, type QrDrawing } from "@/lib/sk/qrDrawing";
 
 const props = defineProps<{ value: string }>();
 const { currentTheme } = useTheme();
@@ -93,18 +93,18 @@ const config = computed<Options>(() => {
 });
 
 /**
- * vue-native: qr-code-styling cannot draw there (no createElementNS, XMLSerializer, canvas 2D, nor an
+ * Skathi: qr-code-styling cannot draw there (no createElementNS, XMLSerializer, canvas 2D, nor an
  * Image from a data: URL), so the same code, from the same options, is drawn as a template <svg>
- * (lib/vn/qrDrawing.ts). Phase 2 item 8, "QR on sign-in". The two slots stand for the two containers.
+ * (lib/sk/qrDrawing.ts). Phase 2 item 8, "QR on sign-in". The two slots stand for the two containers.
  */
-type VnQr = { drawing: QrDrawing; palette: { from: string; to: string; corners: string } };
-const vnQr = shallowRef<[VnQr | null, VnQr | null]>([null, null]);
+type SkQr = { drawing: QrDrawing; palette: { from: string; to: string; corners: string } };
+const skQr = shallowRef<[SkQr | null, SkQr | null]>([null, null]);
 
-function drawVnQr(targetIndex: 0 | 1, data: string) {
+function drawSkQr(targetIndex: 0 | 1, data: string) {
   const c = config.value;
   const dots = c.dotsOptions?.gradient?.colorStops ?? [];
   const corners = c.cornersSquareOptions?.gradient?.colorStops ?? [];
-  const next: [VnQr | null, VnQr | null] = [...vnQr.value];
+  const next: [SkQr | null, SkQr | null] = [...skQr.value];
   next[targetIndex] = {
     drawing: drawQr(qrMatrix(data, c.qrOptions?.errorCorrectionLevel ?? "M"), {
       size: c.width ?? 220,
@@ -121,7 +121,7 @@ function drawVnQr(targetIndex: 0 | 1, data: string) {
       corners: corners.at(-1)?.color ?? "#3b82f6",
     },
   };
-  vnQr.value = next;
+  skQr.value = next;
 }
 
 async function renderQr(targetIndex: 0 | 1) {
@@ -129,8 +129,8 @@ async function renderQr(targetIndex: 0 | 1) {
   isRefreshing.value = true;
 
   await nextTick();
-  if (isVn) {
-    drawVnQr(targetIndex, data);
+  if (isSk) {
+    drawSkQr(targetIndex, data);
   } else {
     const el = targetIndex === 0 ? container0.value : container1.value;
     if (!el) return;
@@ -192,8 +192,8 @@ watch(
 <template>
   <div class="flex flex-col items-center justify-center space-y-3 relative">
     <div class="relative w-[220px] h-[220px] flex items-center justify-center">
-      <!-- vue-native: the code as a template <svg>, the same two slots cross-fading (see drawVnQr). -->
-      <template v-if="isVn">
+      <!-- Skathi: the code as a template <svg>, the same two slots cross-fading (see drawSkQr). -->
+      <template v-if="isSk">
         <div
           v-for="slot in ([0, 1] as const)"
           :key="slot"
@@ -203,12 +203,12 @@ watch(
             'opacity-0 z-0': activeIndex !== slot
           }"
         >
-          <QrSvg v-if="vnQr[slot]" v-bind="vnQr[slot]!" :image="CatIconUrl" />
+          <QrSvg v-if="skQr[slot]" v-bind="skQr[slot]!" :image="CatIconUrl" />
         </div>
       </template>
 
       <div
-        v-if="!isVn"
+        v-if="!isSk"
         ref="container0"
         class="absolute inset-0 transition-opacity duration-300"
         :class="{
@@ -218,7 +218,7 @@ watch(
       ></div>
 
       <div
-        v-if="!isVn"
+        v-if="!isSk"
         ref="container1"
         class="absolute inset-0 transition-opacity duration-300"
         :class="{

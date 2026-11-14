@@ -1,5 +1,5 @@
 /**
- * `argon://` links under vue-native: what its `launchQueue` delivers reaches handleDeepLink, the
+ * `argon://` links under Skathi: what its `launchQueue` delivers reaches handleDeepLink, the
  * process's own launch and every forwarded one; a launch without a link is nothing.
  */
 
@@ -7,7 +7,7 @@ import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
 
 const h = vi.hoisted(() => ({ openInvitePreview: vi.fn(), openSettings: vi.fn() }));
 
-vi.mock("@/lib/vn", () => ({ isVn: true }));
+vi.mock("@/lib/sk", () => ({ isSk: true }));
 vi.mock("@/store/ui/windowStore", () => ({
   useWindow: () => ({ openInvitePreview: h.openInvitePreview, openSettings: h.openSettings }),
 }));
@@ -27,7 +27,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("deep links under vue-native", () => {
+describe("deep links under Skathi", () => {
   test("initDeepLinks takes the launch queue, and its links open what they name", async () => {
     vi.resetModules();
     const { initDeepLinks } = await import("@/lib/deeplink");
@@ -43,7 +43,7 @@ describe("deep links under vue-native", () => {
   test("no launchQueue: one warning, nothing else", async () => {
     vi.stubGlobal("launchQueue", undefined);
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const { forwardLaunchLinks } = await import("@/lib/vn/launch");
+    const { forwardLaunchLinks } = await import("@/lib/sk/launch");
     const open = vi.fn();
     forwardLaunchLinks(open);
     expect(warn).toHaveBeenCalledTimes(1);

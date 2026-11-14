@@ -8,7 +8,7 @@ interface LaunchQueueLike {
 export function forwardLaunchLinks(open: (url: string) => void): void {
   const queue = (globalThis as { launchQueue?: Partial<LaunchQueueLike> }).launchQueue;
   if (typeof queue?.setConsumer !== "function") {
-    console.warn("[vue-native] no launchQueue here: argon:// links will not reach the app");
+    console.warn("[skathi] no launchQueue here: argon:// links will not reach the app");
     return;
   }
   queue.setConsumer((params) => {

@@ -1,4 +1,4 @@
-import { isVn } from "@/lib/vn";
+import { isSk } from "@/lib/sk";
 import { shell } from "./host";
 
 export enum ActivityCategory { Game, Music, Hotkeys, System, Network }
@@ -7,7 +7,7 @@ export interface ActivityDiagnostic { category: ActivityCategory; logLevel: Diag
 const history: ActivityDiagnostic[] = [];
 let started = false;
 export function startActivityDiagnostics(): void {
-  if (started || !isVn || !shell?.activity) return;
+  if (started || !isSk || !shell?.activity) return;
   started = true;
   const record = (category: ActivityCategory, template: string, args: string[]) => {
     history.push({ category, logLevel: DiagnosticLevel.Info, template, args, time: Date.now() });

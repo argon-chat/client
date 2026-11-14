@@ -2,8 +2,8 @@
  * The realtime core — owns the realtime stream and the replay cursors.
  *
  * It runs in the realtime worker (realtimeWorker.ts), off the main thread. Where there are no Workers
- * it runs on the main thread instead, behind the same messages (vue-native today:
- * src/lib/vn/inThreadWorker.ts). It never touches `self`: it is handed the way to talk to the main
+ * it runs on the main thread instead, behind the same messages (Skathi today:
+ * src/lib/sk/inThreadWorker.ts). It never touches `self`: it is handed the way to talk to the main
  * thread, and each instance holds a freshly started worker's state.
  *
  * The stream is `EventBus.Realtime`, an Ion full-duplex call: frames in (`RealtimeFrame`), commands

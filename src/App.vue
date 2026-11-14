@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Toaster } from "@argon/ui/toast";
 import NativeOverlays from "@/components/overlays/NativeOverlays.vue";
-import { isVn } from "@/lib/vn";
+import { isSk } from "@/lib/sk";
 import { useColorMode, useMagicKeys } from "@vueuse/core";
 import { ref, watch, onMounted, computed } from "vue";
 import Island from "./components/shared/Island.vue";
@@ -117,7 +117,7 @@ watch(() => call.connectError, (err) => {
   <ErrorBoundary>
     <RouterView />
   </ErrorBoundary>
-  <NativeOverlays v-if="isVn" />
+  <NativeOverlays v-if="isSk" />
   <IncomingCallOverlay />
   <DiagnosticsOverlay v-if="showDiagnostics" />
   <ReconnectOverlay />

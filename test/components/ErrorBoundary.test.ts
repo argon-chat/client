@@ -1,6 +1,6 @@
 /**
  * A render error shows the boundary's card: what happened, folded details that can be copied, and
- * Continue / Reload. A native panic from vue-native leaves the JS runtime dead, so the card says the
+ * Continue / Reload. A native panic from Skathi leaves the JS runtime dead, so the card says the
  * app stopped and offers no buttons (the host's own dialog restarts it).
  */
 

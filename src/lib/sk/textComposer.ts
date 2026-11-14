@@ -8,7 +8,7 @@
  * `:name:` does (validCustomEmoji): an edit inside one turns it back into plain text, and a deletion
  * that cuts into one takes all of it, as Backspace takes a placeholder in the rich composer.
  *
- * vue-native has no contenteditable, Selection or Range, so this is its composer. vue-native's
+ * Skathi has no contenteditable, Selection or Range, so this is its composer. Skathi's
  * research/reports/m26/client-gap.md §4, "<textarea> composer"; client-gap/A-webapi.md #62.
  * Offsets are UTF-16 code units, like every entity.
  */

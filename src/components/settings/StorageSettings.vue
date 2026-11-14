@@ -158,7 +158,7 @@ import { cdnCacheEnabled } from "@/store/system/cdnCache";
 import { useConfigStore } from "@/store/ui/configStore";
 import { useConfig } from "@/store/system/remoteConfig";
 import { Switch } from "@argon/ui/switch";
-import { isVn } from "@/lib/vn";
+import { isSk } from "@/lib/sk";
 import { shell } from "@/lib/shell/host";
 import {
     HardDriveIcon,
@@ -283,7 +283,7 @@ const onWipeAll = async () => {
 onMounted(async () => {
     usageReport.value = await getStorageUsageReport();
 
-    if (isVn && shell.system.storage) {
+    if (isSk && shell.system.storage) {
         try {
             // @ts-ignore
             const space = shell.system.storage.diskSpace();

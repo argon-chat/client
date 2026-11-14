@@ -43,8 +43,8 @@ import {
   type MessageInputApi,
   type TextRange,
 } from "./messageInput";
-import { isVn } from "@/lib/vn";
-import { useTextComposer } from "@/lib/vn/useTextComposer";
+import { isSk } from "@/lib/sk";
+import { useTextComposer } from "@/lib/sk/useTextComposer";
 
 const props = withDefaults(
   defineProps<{
@@ -79,11 +79,11 @@ const emit = defineEmits<{
 }>();
 
 const editor = ref<HTMLDivElement | null>(null);
-// vue-native has no contenteditable, Selection or Range: there this is a <textarea> with the same
-// props, events and API, a custom emoji showing as its `:name:` (lib/vn/useTextComposer.ts).
-// vue-native's client-gap.md §4, "<textarea> composer" (A-webapi #62).
+// Skathi has no contenteditable, Selection or Range: there this is a <textarea> with the same
+// props, events and API, a custom emoji showing as its `:name:` (lib/sk/useTextComposer.ts).
+// Skathi's client-gap.md §4, "<textarea> composer" (A-webapi #62).
 const field = ref<HTMLTextAreaElement | null>(null);
-const vn = isVn ? reactive(useTextComposer(props, emit, field)) : null;
+const sk = isSk ? reactive(useTextComposer(props, emit, field)) : null;
 const resolver = useExpressionResolver();
 const empty = ref(true);
 
@@ -438,7 +438,7 @@ watch(
 );
 
 onMounted(() => {
-  if (vn) return;
+  if (sk) return;
   document.addEventListener("selectionchange", onSelectionChange);
   if (props.modelValue) {
     renderValue({ text: props.modelValue, entities: [] });
@@ -535,24 +535,24 @@ const api: Omit<MessageInputApi, "el"> = {
   },
 };
 
-defineExpose(vn ? { ...vn.api, el: field } : { ...api, el: editor });
+defineExpose(sk ? { ...sk.api, el: field } : { ...api, el: editor });
 </script>
 
 <template>
   <div class="message-input">
     <textarea
-      v-if="vn"
+      v-if="sk"
       ref="field"
-      v-model="vn.text"
+      v-model="sk.text"
       class="message-input__field"
-      :rows="vn.rows"
+      :rows="sk.rows"
       :placeholder="placeholder"
       :disabled="disabled"
-      @keydown="vn.onKeydown"
-      @paste="vn.onPaste"
-      @mousedown="vn.onPointerDown"
-      @focus="vn.onFocus"
-      @blur="vn.onBlur"
+      @keydown="sk.onKeydown"
+      @paste="sk.onPaste"
+      @mousedown="sk.onPointerDown"
+      @focus="sk.onFocus"
+      @blur="sk.onBlur"
     />
     <CustomEmojiOverlay v-else tag="div" class="message-input__surface">
       <div
@@ -574,7 +574,7 @@ defineExpose(vn ? { ...vn.api, el: field } : { ...api, el: editor });
         @blur="emit('blur')"
       />
     </CustomEmojiOverlay>
-    <div v-if="!vn && showPlaceholder" class="message-input__placeholder" @click="focusEditor">{{ placeholder }}</div>
+    <div v-if="!sk && showPlaceholder" class="message-input__placeholder" @click="focusEditor">{{ placeholder }}</div>
   </div>
 </template>
 
@@ -593,7 +593,7 @@ defineExpose(vn ? { ...vn.api, el: field } : { ...api, el: editor });
   font: inherit;
 }
 
-/* vue-native's <textarea> composer: the editor's look, the field's own placeholder. */
+/* Skathi's <textarea> composer: the editor's look, the field's own placeholder. */
 .message-input__field {
   display: block;
   width: 100%;

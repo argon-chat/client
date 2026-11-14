@@ -1,5 +1,5 @@
 /**
- * connectRoom's TURN probe, and vue-native, where there is none: no raw RTCPeerConnection exists
+ * connectRoom's TURN probe, and Skathi, where there is none: no raw RTCPeerConnection exists
  * there (its LiveKit is native), so the TURN servers go to the connection unprobed instead of all
  * being reported dead.
  */
@@ -53,8 +53,8 @@ describe("connectRoom", () => {
     expect(options.rtcConfig.iceServers).toEqual([{ urls: "stun:stun.test:3478" }]);
   });
 
-  test("under vue-native they are not probed, and handed on as they are", async () => {
-    vi.stubGlobal("isVn", true);
+  test("under Skathi they are not probed, and handed on as they are", async () => {
+    vi.stubGlobal("isSk", true);
     const { room, connect } = fakeRoom();
     const onTurnProbed = vi.fn();
     await connectRoom(room, rts, "token", { onTurnProbed });

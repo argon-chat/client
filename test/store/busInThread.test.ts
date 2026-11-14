@@ -1,5 +1,5 @@
 /**
- * busStore under vue-native: no `new RealtimeWorker()` (a stub there that throws), the realtime core
+ * busStore under Skathi: no `new RealtimeWorker()` (a stub there that throws), the realtime core
  * on this thread instead, and the same protocol both ways. What the core does with it is pinned by
  * test/workers/realtimeInThread.test.ts; this is the wiring.
  */
@@ -11,7 +11,7 @@ const h = vi.hoisted(() => ({
   cores: [] as { got: any[]; post: (m: unknown) => void; disposed: boolean }[],
 }));
 
-vi.mock("@/lib/vn", () => ({ isVn: true }));
+vi.mock("@/lib/sk", () => ({ isSk: true }));
 vi.mock("@/workers/realtimeWorker?worker", () => ({
   default: class {
     constructor() {
@@ -61,7 +61,7 @@ beforeEach(() => {
   setActivePinia(createPinia());
 });
 
-describe("busStore under vue-native", () => {
+describe("busStore under Skathi", () => {
   test("connects through the in-thread core, and hears it back", async () => {
     const bus = useBus();
     await bus.doListenMyEvents();

@@ -1,7 +1,7 @@
 // Re-export from @argon/audio package
 import { AudioManagement as BaseAudioManagement, type IAudioManagement, createDTMFPlayer } from "@argon/audio";
 import { WebRTCProcessor } from "./WebRTCProcessor";
-import { isVn } from "@/lib/vn";
+import { isSk } from "@/lib/sk";
 
 // Noise suppressor assets (resolved by Vite via ?url)
 import rnnoiseWorkletPath from "@sapphi-red/web-noise-suppressor/rnnoiseWorklet.js?url";
@@ -37,7 +37,7 @@ const audio = new AppAudioManagement({
   // RNNoise/Speex are third-party WASM processors, separate from the native meter/mono/input gate.
   // Native capture uses libwebrtc APM through audio constraints; RNNoise/Speex modes are not
   // advertised as equivalent native algorithms. Without their URLs the mode remains "off".
-  noiseSuppressorUrls: isVn ? undefined : {
+  noiseSuppressorUrls: isSk ? undefined : {
     rnnoiseWorklet: rnnoiseWorkletPath,
     rnnoiseWasm: rnnoiseWasmPath,
     rnnoiseWasmSimd: rnnoiseWasmSimdPath,

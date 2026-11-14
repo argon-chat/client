@@ -28,7 +28,7 @@ export interface MessageInputApi {
   focus(): void;
   blur(): void;
   clear(): void;
-  /** The editor: a contenteditable `<div>`, or under vue-native the `<textarea>` (lib/vn/useTextComposer.ts). */
+  /** The editor: a contenteditable `<div>`, or under Skathi the `<textarea>` (lib/sk/useTextComposer.ts). */
   el: HTMLElement | null;
 }
 

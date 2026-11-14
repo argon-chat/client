@@ -193,7 +193,7 @@ describe("processing configured before the pipeline exists still applies", () =>
   });
 });
 
-describe("noise suppression under vue-native", () => {
+describe("noise suppression under Skathi", () => {
   const urls = {
     rnnoiseWorklet: "rnnoise.js",
     rnnoiseWasm: "rnnoise.wasm",
@@ -204,7 +204,7 @@ describe("noise suppression under vue-native", () => {
   };
 
   test("rnnoise loads no worklet: the capture's own noiseSuppression does it", async () => {
-    vi.stubGlobal("isVn", true);
+    vi.stubGlobal("isSk", true);
     const m = make({ noiseSuppressorUrls: urls });
     await m.setNoiseSuppressionMode("rnnoise");
     await m.acquireInput();
@@ -742,7 +742,7 @@ describe("the voice bus", () => {
 
 describe("compiled native audio processors", () => {
   function nativeManager() {
-    vi.stubGlobal("isVn", true);
+    vi.stubGlobal("isSk", true);
     const manager = make();
     const ctx = manager.getCurrentAudioContext() as AudioContext & { loadNativeAudioWorklet: ReturnType<typeof vi.fn> };
     const browserAdd = ctx.audioWorklet.addModule;

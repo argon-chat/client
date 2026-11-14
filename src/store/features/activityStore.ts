@@ -7,7 +7,7 @@ import { ActivityPresenceKind } from "@argon/glue";
 import { useFeatureFlags } from "@/store/features/featureFlagsStore";
 import { useGameOverlaySettings } from "@/store/features/gameOverlaySettingsStore";
 import { setGameRunning } from "@/lib/powerSaver";
-import { isVn } from "@/lib/vn";
+import { isSk } from "@/lib/sk";
 import { shell } from "@/lib/shell/host";
 
 type Presence = {
@@ -218,7 +218,7 @@ export const useActivity = defineStore("activity", () => {
   }
 
   async function init() {
-    if (!isVn || bound) return;
+    if (!isSk || bound) return;
     bound = true;
 
     stopNativePresence = shell.presence.onChanged((data) => {

@@ -632,7 +632,7 @@ describe("camera", () => {
 
   test("a confirmed empty hardware list prevents starting capture", async () => {
     const md = navigator.mediaDevices as any;
-    md.__vnVideoEnumerationAuthoritative = true;
+    md.__skVideoEnumerationAuthoritative = true;
     md.enumerateDevices = async () => [];
     const capture = vi.fn(md.getUserMedia);
     md.getUserMedia = capture;
@@ -644,7 +644,7 @@ describe("camera", () => {
 
   test("a removed saved camera falls back to the available virtual camera", async () => {
     const md = navigator.mediaDevices as any;
-    md.__vnVideoEnumerationAuthoritative = true;
+    md.__skVideoEnumerationAuthoritative = true;
     md.enumerateDevices = async () => [{ deviceId: "obs", kind: "videoinput", label: "OBS Virtual Camera", groupId: "" }];
     const originalCapture = md.getUserMedia;
     const requested: unknown[] = [];
@@ -666,7 +666,7 @@ describe("camera", () => {
 
   test("permission refusal is not retried on another device or classified as no camera", async () => {
     const md = navigator.mediaDevices as any;
-    md.__vnVideoEnumerationAuthoritative = true;
+    md.__skVideoEnumerationAuthoritative = true;
     md.enumerateDevices = async () => [{ deviceId: "obs", kind: "videoinput", label: "OBS Virtual Camera", groupId: "" }];
     md.getUserMedia = vi.fn(async () => { throw Object.assign(new Error("Camera access denied"), { name: "NotAllowedError" }); });
     const config = makeConfig();

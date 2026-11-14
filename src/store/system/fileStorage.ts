@@ -4,7 +4,7 @@ import { useConfig } from "@/store/system/remoteConfig";
 import { isWeb } from "@/lib/platform";
 import { clearMediaCache, mediaCacheStats } from "@/lib/webMediaCache";
 import { cdnCacheEnabled } from "@/store/system/cdnCache";
-import { isVn } from "@/lib/vn";
+import { isSk } from "@/lib/sk";
 import { shell } from "@/lib/shell/host";
 
 export type GroupReport = {
@@ -90,7 +90,7 @@ export async function getStorageUsageReport(): Promise<StorageUsageReport> {
   // Native: walk the real userData footprint (cdn-cache + HTTP cache + IndexedDB
   // + service worker + shaders…). navigator.storage.estimate() can't see most of
   // these, so on desktop it badly undercounts — we replace it entirely.
-  if (isVn && shell.system.storage) {
+  if (isSk && shell.system.storage) {
     try {
       const res = shell.system.storage.usage();
 
@@ -172,7 +172,7 @@ export const pruneStorageCategory = async (category: string) => {
     try { await clearMediaCache(); } catch (e) { logger.error(e); }
     return;
   }
-  if (!isVn || !shell.system.storage) return;
+  if (!isSk || !shell.system.storage) return;
   try {
     await shell.system.storage.clear(category);
   } catch (e) {
@@ -181,7 +181,7 @@ export const pruneStorageCategory = async (category: string) => {
 };
 
 export const pruneCache = async () => {
-  if (isVn && shell.system.storage) {
+  if (isSk && shell.system.storage) {
     try { await shell.system.storage.clear("mediaCache"); } catch (e) { logger.error(e); }
   }
   // The web's equivalent of that on-disk cdn cache: a bucket the service worker owns, which the

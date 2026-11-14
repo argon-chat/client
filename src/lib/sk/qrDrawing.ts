@@ -1,9 +1,9 @@
 /**
- * The sign-in QR as SVG geometry, for vue-native, where qr-code-styling cannot draw.
+ * The sign-in QR as SVG geometry, for Skathi, where qr-code-styling cannot draw.
  *
  * qr-code-styling builds its picture with `document.createElementNS`, serialises it with
  * XMLSerializer, paints that into a canvas 2D context through an `Image` loaded from a data: URL,
- * and fetches the logo over XMLHttpRequest. vue-native has none of those, so QRStyled.vue draws
+ * and fetches the logo over XMLHttpRequest. Skathi has none of those, so QRStyled.vue draws
  * the same code as a template `<svg>` from this geometry instead. Phase 2 item 8, "QR on sign-in".
  *
  * The geometry is qr-code-styling 1.9.2's for the options QRStyled passes (square shape,

@@ -17,7 +17,7 @@ import { Signal } from 'lucide-vue-next';
 import Counter from './motionCounter/Counter.vue';
 import { computedAsync } from '@vueuse/core';
 import { openDevtools } from "@/lib/shell/desktop";
-import { appWindow } from "@/lib/vn/window";
+import { appWindow } from "@/lib/sk/window";
 import { shell } from '@/lib/shell/host';
 
 const { t } = useLocale();

@@ -1,17 +1,17 @@
 /**
- * Argon's tray icon on vue-native: Open / Exit, and a click that brings the window back. It used to
+ * Argon's tray icon on Skathi: Open / Exit, and a click that brings the window back. It used to
  * be the shell's Rust (crates/argon-shell/src/tray.rs); it is the app's now, through the SDK's
- * `appTray`, as any vue-native app would write it.
+ * `appTray`, as any Skathi app would write it.
  *
- * `appTray` is read off the "vue" namespace, as ./vnWindow.ts reads `VnWindow`: the Vite build has no
- * "vue-native" module, and the lookup is dead code there behind `import.meta.env.VN`.
+ * `appTray` is read off the "vue" namespace, as ./skWindow.ts reads `SkWindow`: the Vite build has no
+ * Skathi module, and the lookup is dead code there behind `import.meta.env.SK`.
  *
  * An autostart starts the window hidden. If the icon cannot be shown here, the window is shown
- * instead, so a hidden app is never left with no way back in; vue-native does the same on its own
+ * instead, so a hidden app is never left with no way back in; Skathi does the same on its own
  * when no icon is up a few seconds after a hidden start.
  */
 import * as vue from "vue";
-import { isVn } from "./index";
+import { isSk } from "./index";
 import { appWindow } from "./window";
 import { logger } from "@argon/core";
 
@@ -21,7 +21,7 @@ interface AppTray {
 }
 
 const appTray: AppTray | null =
-  import.meta.env.VN && isVn ? ((Reflect.get(vue, "appTray") as AppTray | undefined) ?? null) : null;
+  import.meta.env.SK && isSk ? ((Reflect.get(vue, "appTray") as AppTray | undefined) ?? null) : null;
 
 const isMac = typeof navigator !== "undefined" && navigator.userAgent.includes("Mac");
 

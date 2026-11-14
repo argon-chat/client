@@ -14,8 +14,8 @@ interface AppWindowLike extends Partial<Pick<EventTarget, "addEventListener">> {
   theme?: string;
 }
 
-// window.ts reads the same global, for the same reason: the Vite build has no "vue-native" module.
-const appWindow = (globalThis as { __VN_WINDOW__?: { appWindow?: AppWindowLike } }).__VN_WINDOW__?.appWindow;
+// window.ts reads the same global, for the same reason: the Vite build has no Skathi module.
+const appWindow = (globalThis as { __SK_WINDOW__?: { appWindow?: AppWindowLike } }).__SK_WINDOW__?.appWindow;
 
 /** Saved values, one per key, in Electron's `StoredValue` shape. */
 type StoredValue = { b?: boolean; s?: string; e?: string; n?: string; f?: number };
@@ -56,7 +56,7 @@ function backdropMaterial(backdrop: string | undefined): string {
 /** `appWindow.backdrop` for a WindowMaterial value. `solid` is Electron's `none`. */
 function materialBackdrop(material: string): string {
   if (material === "acrylic" || material === "mica") return material;
-  // `acrylic` is the backdrop vn.config.json opens the window with; on macOS it is the glass.
+  // `acrylic` is the backdrop sk.config.json opens the window with; on macOS it is the glass.
   if (material === "glass" && isMac) return "acrylic";
   return "none";
 }
@@ -72,7 +72,7 @@ function setWindowTheme(source: string): void {
   if (!("theme" in appWindow)) {
     if (!themeWarned) {
       themeWarned = true;
-      console.warn("[vue-native] host config appearance.Theme: stored, but this host cannot set the window's colour scheme");
+      console.warn("[skathi] host config appearance.Theme: stored, but this host cannot set the window's colour scheme");
     }
     return;
   }
@@ -85,7 +85,7 @@ function setBackdrop(backdrop: string): boolean {
   return true;
 }
 
-// Read before anything sets it: the backdrop vn.config.json opened the window with.
+// Read before anything sets it: the backdrop sk.config.json opened the window with.
 const openedMaterial = backdropMaterial(appWindow?.backdrop);
 
 const SCHEMA: { section: string; keys: KeySchema[] }[] = [
@@ -122,12 +122,12 @@ function load(): StoredConfig {
     const parsed: unknown = raw ? JSON.parse(raw) : {};
     return parsed && typeof parsed === "object" ? (parsed as StoredConfig) : {};
   } catch (e) {
-    console.warn("[vue-native] host config: the saved config could not be read, starting empty", e);
+    console.warn("[skathi] host config: the saved config could not be read, starting empty", e);
     return {};
   }
 }
 
-// Read on first use: ipc.ts imports this module in every build, and only vue-native's calls it.
+// Read on first use: ipc.ts imports this module in every build, and only Skathi's calls it.
 let saved: StoredConfig | null = null;
 const values = (): StoredConfig => (saved ??= load());
 
@@ -135,7 +135,7 @@ function save(): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(values()));
   } catch (e) {
-    console.warn("[vue-native] host config: could not be saved", e);
+    console.warn("[skathi] host config: could not be saved", e);
   }
 }
 

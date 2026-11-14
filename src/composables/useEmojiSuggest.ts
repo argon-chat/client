@@ -379,7 +379,7 @@ export function useEmojiSuggest(opts: EmojiSuggestOptions) {
     swallowSpaceAt = null;
     const ed = opts.editor();
     if (!held || !ed || e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return false;
-    // No Selection under vue-native (a <textarea> composer): the caret check below is what is left.
+    // No Selection under Skathi (a <textarea> composer): the caret check below is what is left.
     if (window.getSelection?.()?.isCollapsed === false) return false;
     const target = revertTarget(held, opts.text(), ed.getCursorOffset());
     if (!target) return false;

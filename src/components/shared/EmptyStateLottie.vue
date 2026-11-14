@@ -1,7 +1,7 @@
 <!--
   The native half of EmptyStateArt.vue: the same artwork, played as Lottie.
 
-  vue-native draws an inline <svg> as one picture and runs no CSS animation inside it, so the SVGs
+  Skathi draws an inline <svg> as one picture and runs no CSS animation inside it, so the SVGs
   stand still there. scripts/empty-states-lottie.ts converts each one into a Lottie file, which
   <lottie> plays on its worker thread. The palette still comes from the theme: the --es-… tokens are
   read off EmptyStateArt's .es-art wrapper and written into the file (lib/emptyStateLottie.ts), and
@@ -32,7 +32,7 @@ import type { EmptyStateArtName } from "./EmptyStateArt.vue";
 
 const props = defineProps<{ name: EmptyStateArtName }>();
 
-// Relative: vue-native's builder does not resolve an alias in a glob.
+// Relative: Skathi's builder does not resolve an alias in a glob.
 const FILES = import.meta.glob<string>("../../styles/empty-states/lottie/*.json", { query: "?raw", import: "default" });
 
 const host = ref<HTMLElement | null>(null);

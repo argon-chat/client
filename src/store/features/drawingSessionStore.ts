@@ -18,7 +18,7 @@
  * someone its offer covers, judged by the sender's identity rather than what the packet claims.
  */
 import { defineStore } from "pinia";
-import { isVn } from "@/lib/vn";
+import { isSk } from "@/lib/sk";
 import { nativeDrawingAvailable, startNativeDrawing, stopNativeDrawing, applyNativeStroke } from "@/lib/shell/overlays";
 import { computed, ref, watch } from "vue";
 import type { Room, RemoteParticipant } from "livekit-client";
@@ -64,7 +64,7 @@ export const useDrawingSession = defineStore("drawingSession", () => {
   /** Whether this client can paint on the shared monitor at all. Probed once; false on the web. */
   const overlayAvailable = ref(false);
   void Promise.resolve()
-    .then(() => isVn && nativeDrawingAvailable())
+    .then(() => isSk && nativeDrawingAvailable())
     .then((ok) => { overlayAvailable.value = !!ok; })
     .catch(() => { overlayAvailable.value = false; });
 

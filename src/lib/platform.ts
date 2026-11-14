@@ -3,13 +3,13 @@
 /** Where the browser build sends people who want the parts it cannot offer. */
 export const DOWNLOAD_URL = "https://argon.gl/download";
 
-import { isVn } from "@/lib/vn";
+import { isSk } from "@/lib/sk";
 import { shell } from "@/lib/shell/host";
 import { hotkeyHost } from "@/lib/hotkeys/host";
 const hasWindow = typeof window !== "undefined";
 
 /** True for the native desktop build, false for the browser build. */
-export const isDesktop: boolean = hasWindow && isVn;
+export const isDesktop: boolean = hasWindow && isSk;
 
 /** True in a plain browser tab — the web build. */
 export const isWeb: boolean = hasWindow && !isDesktop;
@@ -58,7 +58,7 @@ const WEB_UNSUPPORTED: ReadonlySet<PlatformFeature> = new Set<PlatformFeature>([
 
 /** Whether this build can do `feature` at all. */
 export function supports(feature: PlatformFeature): boolean {
-  if (isVn) {
+  if (isSk) {
     if (feature === "globalHotkeys") return hotkeyHost.available;
     if (feature === "nativeNotifications") return !!shell?.system.notifications;
     if (feature === "appUpdates") return !!shell?.system.updates;

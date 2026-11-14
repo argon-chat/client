@@ -1,5 +1,5 @@
 /**
- * The `<textarea>` composer's value (vue-native): the same `{ text, entities }` the rich composer
+ * The `<textarea>` composer's value (Skathi): the same `{ text, entities }` the rich composer
  * reads off its DOM, built from the field's text and caret instead. A custom emoji is its `:name:`
  * with an entity over exactly that range, so what is sent is the parser's output either way.
  */
@@ -10,7 +10,7 @@ import { composerFragment, readComposer, type ComposerNodes, type ComposerValue 
 import { customEmojiFromItem, customEmojiMedia } from "@/lib/chat/customEmoji";
 import { parseMessageContent } from "@/lib/chat/parseMessageContent";
 import { customEmojiNode } from "@/components/chats/messageInput";
-import { changedStretch, cutToMaxLength, fieldEdit, replaceRange, type TextEdit } from "@/lib/vn/textComposer";
+import { changedStretch, cutToMaxLength, fieldEdit, replaceRange, type TextEdit } from "@/lib/sk/textComposer";
 
 const item = (name: string) =>
   ({

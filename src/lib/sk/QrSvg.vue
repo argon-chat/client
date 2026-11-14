@@ -7,11 +7,11 @@ let instances = 0;
 /**
  * A QR drawn by qrDrawing.ts, as a template `<svg>` with the logo on top as an `<img>`.
  *
- * QRStyled.vue shows this under vue-native in place of qr-code-styling's canvas. Phase 2 item 8,
+ * QRStyled.vue shows this under Skathi in place of qr-code-styling's canvas. Phase 2 item 8,
  * "QR on sign-in".
  *
- * vue-native paints an inline `<svg>` as a one-colour mask tinted by the element's CSS `color`
- * (crates/vn-tree/src/svg.rs, "svg-multicolor"), so there the gradient below reads as `from`: the
+ * Skathi paints an inline `<svg>` as a one-colour mask tinted by the element's CSS `color`
+ * (crates/sk-tree/src/svg.rs, "svg-multicolor"), so there the gradient below reads as `from`: the
  * style's `color` is that tint. A browser ignores it, because every part has its own fill.
  */
 import type { QrDrawing } from "./qrDrawing";
@@ -24,7 +24,7 @@ defineProps<{
   image?: string;
 }>();
 
-const gradientId = `vn-qr-dots-${(instances += 1)}`;
+const gradientId = `sk-qr-dots-${(instances += 1)}`;
 </script>
 
 <template>

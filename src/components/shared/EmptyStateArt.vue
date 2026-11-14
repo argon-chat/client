@@ -15,7 +15,7 @@
   (i.e. the accent colour picked in Appearance settings) and the neutrals follow the usual surface
   tokens, so dark / light / OLED all work without a second set of files.
 
-  vue-native runs no CSS animation inside an inlined SVG, so the native app plays the same artwork
+  Skathi runs no CSS animation inside an inlined SVG, so the native app plays the same artwork
   as Lottie instead (EmptyStateLottie.vue), themed from the same palette. Only the build it belongs
   to carries each: the web build has no Lottie files, the native one no SVGs.
 -->
@@ -103,9 +103,9 @@ import noTextChannel from "@/styles/empty-states/no-text-channel.svg?raw";
 import notFound from "@/styles/empty-states/not-found.svg?raw";
 import selectRole from "@/styles/empty-states/select-role.svg?raw";
 
-const Lottie = import.meta.env.VN ? defineAsyncComponent(() => import("./EmptyStateLottie.vue")) : null;
+const Lottie = import.meta.env.SK ? defineAsyncComponent(() => import("./EmptyStateLottie.vue")) : null;
 
-const ART: Record<EmptyStateArtName, string> | null = import.meta.env.VN ? null : {
+const ART: Record<EmptyStateArtName, string> | null = import.meta.env.SK ? null : {
   "call-failed": callFailed,
   "error-generic": errorGeneric,
   forbidden,

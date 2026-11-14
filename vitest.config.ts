@@ -15,9 +15,9 @@ import path from "node:path";
  * Standalone on purpose otherwise — vite.config.ts carries app-only concerns (dev https
  * certs, Sentry upload, devtools) that have no business running in tests.
  */
-// As in vite.config.ts: vue-native's own elements (<vn-sticker>, <lottie>) are not components to resolve.
+// As in vite.config.ts: Skathi's own elements (<sk-sticker>, <lottie>) are not components to resolve.
 const vueOptions = {
-  template: { compilerOptions: { isCustomElement: (tag: string) => tag.startsWith("vn-") || tag === "lottie" } },
+  template: { compilerOptions: { isCustomElement: (tag: string) => tag.startsWith("sk-") || tag === "lottie" } },
 };
 
 export default defineConfig({

@@ -6,9 +6,9 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe("audio processor capability", () => {
   test("native hosts require the compiled processor API, not a JS constructor", () => {
-    vi.stubGlobal("window", { isVn: true, AudioContext: { prototype: { loadNativeAudioWorklet() {} } } });
+    vi.stubGlobal("window", { isSk: true, AudioContext: { prototype: { loadNativeAudioWorklet() {} } } });
     expect(audioCapability.present()).toBe(true);
-    vi.stubGlobal("window", { isVn: true, AudioWorkletNode() {}, AudioContext: { prototype: {} } });
+    vi.stubGlobal("window", { isSk: true, AudioWorkletNode() {}, AudioContext: { prototype: {} } });
     expect(audioCapability.present()).toBe(false);
   });
 

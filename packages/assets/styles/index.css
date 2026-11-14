@@ -241,7 +241,7 @@
   /* The window's material is suspended: a macOS fullscreen window whose desktop picture cannot be put
      under its glass draws a flat system background instead, and the transparent body would show it.
      The flat theme background stands in until the material returns (src/lib/shell/config.ts,
-     `followEffectiveBackdrop`). In vue-native the app root is `html` and `body` at once, one element
+     `followEffectiveBackdrop`). In Skathi the app root is `html` and `body` at once, one element
      with both classes, so the descendant form never matches there; the compound form does. */
   html.backdrop-suspended body:not(.oled-theme),
   body.backdrop-suspended:not(.oled-theme) {

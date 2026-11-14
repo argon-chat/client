@@ -8,7 +8,7 @@ describe("native drawing lifecycle", () => {
     let target: any = { monitorIndex: 1, x: -1200, y: 100, w: 900, h: 600, scaleFactor: 1.5 };
     const resolve = vi.fn(() => target);
     vi.stubGlobal("argon", { capture: { target: resolve } });
-    vi.stubGlobal("__VN_WINDOW__", { appWindow: { scaleFactor: 1 } });
+    vi.stubGlobal("__SK_WINDOW__", { appWindow: { scaleFactor: 1 } });
     const overlay = await import("@/lib/shell/overlays");
     overlay.startNativeDrawing("window:123");
     expect(resolve).toHaveBeenCalledWith("window:123");
@@ -26,7 +26,7 @@ describe("native drawing lifecycle", () => {
     vi.useFakeTimers();
     const resolve = vi.fn(() => ({ monitorIndex: 0, x: 0, y: 0, w: 100, h: 100 }));
     vi.stubGlobal("argon", { capture: { target: resolve } });
-    vi.stubGlobal("__VN_WINDOW__", { appWindow: { scaleFactor: 1 } });
+    vi.stubGlobal("__SK_WINDOW__", { appWindow: { scaleFactor: 1 } });
     const overlay = await import("@/lib/shell/overlays");
     const accept = vi.fn();
     const off = overlay.onNativeStroke(accept);

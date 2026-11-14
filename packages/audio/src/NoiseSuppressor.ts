@@ -7,8 +7,8 @@ import type {
 
 // Loaded on first use, not at import. The package defines `class extends AudioWorkletNode` at module
 // scope, which is a ReferenceError wherever AudioWorkletNode does not exist, and it took the whole
-// bundle down with it. That includes vue-native today, where suppression is native anyway.
-// vue-native's research/reports/m26/client-gap.md §4, "noise suppressor: off".
+// bundle down with it. That includes Skathi today, where suppression is native anyway.
+// Skathi's research/reports/m26/client-gap.md §4, "noise suppressor: off".
 const suppressorLib = () => import("@sapphi-red/web-noise-suppressor");
 
 export type NoiseSuppressionMode = "off" | "rnnoise" | "speex" | "noisegate";

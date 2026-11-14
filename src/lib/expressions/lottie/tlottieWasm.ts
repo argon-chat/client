@@ -36,19 +36,19 @@ export interface TLottieAnimation {
 /**
  * The wasm build for this browser, as a URL the worker can fetch.
  *
- * Imported when asked for, and only outside vue-native: there stickers and animated emoji are the
- * native `<vn-sticker>`, and `import.meta.env.VN` (true in every vue-native build) drops this
+ * Imported when asked for, and only outside Skathi: there stickers and animated emoji are the
+ * native `<sk-sticker>`, and `import.meta.env.SK` (true in every Skathi build) drops this
  * branch before the wasm is ever bundled.
  */
 export async function tlottieWasmUrl(): Promise<string> {
-  if (!import.meta.env.VN) {
+  if (!import.meta.env.SK) {
     const { default: url } = isWasmSimdSupported()
       ? await import("@/vendor/tlottie/tlottie.wasm?url")
       : await import("@/vendor/tlottie/tlottie.nosimd.wasm?url");
     const base = typeof location !== "undefined" ? location.href : undefined;
     return base ? new URL(url, base).href : url;
   }
-  throw new Error("tlottie is not part of a vue-native build: stickers are <vn-sticker>");
+  throw new Error("tlottie is not part of a Skathi build: stickers are <sk-sticker>");
 }
 
 // Upstream collapses proven-static compositions to one render frame; keep the authored duration so

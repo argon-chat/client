@@ -195,7 +195,7 @@ import {
 } from "@argon/ui/select";
 import { useToast } from "@argon/ui/toast";
 import { useAuthStore } from "@/store/auth/authStore";
-import { isVn } from "@/lib/vn";
+import { isSk } from "@/lib/sk";
 import { shell } from "@/lib/shell/host";
 import { openDevtools } from "@/lib/shell/desktop";
 import { ConfigKey, ConfigValueType, ConfigSection, ConfigUpdate } from "@/lib/shell/configTypes";
@@ -214,7 +214,7 @@ const me = useMe();
 const showLinuxUpdateModal = ref(false);
 const version = ref((window as any).ui_fullversion as string);
 const buildtime = ref((window as any).ui_buildtime as string);
-const host_version = ref(isVn ? shell.system.info().appVersion : "");
+const host_version = ref(isSk ? shell.system.info().appVersion : "");
 const selected_channel = ref("live" as "live" | "canary" | "beta");
 const disable_channel_select = ref(false);
 const selected_api_endpoint = ref("live" as "live" | "dev" | "local");
@@ -231,7 +231,7 @@ type AutostartBridge = {
     get: () => Promise<{ supported: boolean; enabled: boolean }>;
     set: (enabled: boolean) => Promise<{ supported: boolean; enabled: boolean }>;
 };
-const autostartBridge = () => isVn ? shell.system.autostart : undefined;
+const autostartBridge = () => isSk ? shell.system.autostart : undefined;
 
 async function loadAutostart() {
     const a = autostartBridge();
@@ -274,7 +274,7 @@ const copyMyUserId = () => {
 };
 
 watch(selected_channel, (channel) => {
-    if (isVn) shell.system.updates?.setChannel(channel);
+    if (isSk) shell.system.updates?.setChannel(channel);
 });
 
 watch(selected_api_endpoint, async (e) => {
@@ -289,8 +289,8 @@ watch(selected_api_endpoint, async (e) => {
 onMounted(async () => {
     void loadAutostart();
 
-    disable_channel_select.value = !isVn || !shell.system.updates;
-    if (isVn && shell.system.updates) selected_channel.value = shell.system.updates.getChannel();
+    disable_channel_select.value = !isSk || !shell.system.updates;
+    if (isSk && shell.system.updates) selected_channel.value = shell.system.updates.getChannel();
 
     const currentApiEndpoint = localStorage.getItem("api_endpoint");
 
@@ -315,8 +315,8 @@ const pruneDatabases = async (pruneLocalStorage = true) => {
         }
     }
 
-    // Storage Buckets is Chromium-only: vue-native (and Firefox, Safari) have none, and the reset
-    // must still reach the reload below. vue-native's client-gap.md §4, "Storage Buckets".
+    // Storage Buckets is Chromium-only: Skathi (and Firefox, Safari) have none, and the reset
+    // must still reach the reload below. Skathi's client-gap.md §4, "Storage Buckets".
     const allStorages = (await navigator.storageBuckets?.keys()) ?? [];
 
     for (const storage of allStorages) {

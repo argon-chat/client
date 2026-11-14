@@ -5,4 +5,4 @@ export interface AppWindow extends EventTarget {
   show(): void;
   readonly scaleFactor: number; theme: string;
 }
-export const appWindow = (globalThis as { __VN_WINDOW__?: { appWindow?: AppWindow } }).__VN_WINDOW__?.appWindow;
+export const appWindow = (globalThis as { __SK_WINDOW__?: { appWindow?: AppWindow } }).__SK_WINDOW__?.appWindow;

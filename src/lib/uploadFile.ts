@@ -1,5 +1,5 @@
 import { UploadFileError, type IUploadFileResult } from "@argon/glue";
-import { fetchPut, FetchPutError, noXhr } from "@/lib/vn/fetchPut";
+import { fetchPut, FetchPutError, noXhr } from "@/lib/sk/fetchPut";
 
 export interface UploadResult {
   blobId: string;
@@ -71,14 +71,14 @@ export async function uploadFile(
     }
   }
 
-  // No XMLHttpRequest (vue-native today): fetch, with no upload progress. client-gap.md §4, "uploads".
+  // No XMLHttpRequest (Skathi today): fetch, with no upload progress. client-gap.md §4, "uploads".
   const put = noXhr() ? fetchFilePut : xhrPut;
   await put(uploadUrl, blob, headers, options?.onProgress, options?.signal, options?.timeout);
 
   return { blobId };
 }
 
-/** xhrPut's contract over fetch (lib/vn/fetchPut.ts): progress is 0, then 1 once it is answered. */
+/** xhrPut's contract over fetch (lib/sk/fetchPut.ts): progress is 0, then 1 once it is answered. */
 async function fetchFilePut(
   url: string,
   body: Blob,

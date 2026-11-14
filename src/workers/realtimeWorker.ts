@@ -3,7 +3,7 @@
  * worker's own `self`, off the main thread.
  *
  * The core is a module of its own so that a runtime without Workers can run the same code on the
- * main thread behind the same messages (vue-native today: src/lib/vn/inThreadWorker.ts).
+ * main thread behind the same messages (Skathi today: src/lib/sk/inThreadWorker.ts).
  */
 
 import { createRealtimeCore } from "./realtimeCore";

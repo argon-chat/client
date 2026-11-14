@@ -1,5 +1,5 @@
 /**
- * The realtime core on the main thread, as vue-native runs it until it has Workers: behind an object
+ * The realtime core on the main thread, as Skathi runs it until it has Workers: behind an object
  * shaped like the Worker, over a pair of fake ports, and driven exactly as busStore drives the real
  * worker. The network underneath is the same scripted Ion server the worker's own tests use.
  */
@@ -7,7 +7,7 @@
 import { describe, test, expect, beforeEach, afterEach, vi } from "vitest";
 import { ForSelf, Heartbeat, UserStatus, Welcome } from "@argon/glue";
 import { FakeSocket, payload, sockets, ticketResponseBytes } from "./realtimeHarness";
-import { inThreadWorker, portPair, type StartWorkerBody } from "@/lib/vn/inThreadWorker";
+import { inThreadWorker, portPair, type StartWorkerBody } from "@/lib/sk/inThreadWorker";
 import { createRealtimeCore } from "@/workers/realtimeCore";
 
 /**

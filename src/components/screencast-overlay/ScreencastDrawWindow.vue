@@ -3,7 +3,7 @@
 </template>
 
 <script setup lang="ts">
-/** Canvas 2D strokes painted inside a capture-excluded VnWindow. */
+/** Canvas 2D strokes painted inside a capture-excluded SkWindow. */
 import { onMounted, onUnmounted, ref, watch } from "vue";
 import { onNativeStroke } from "@/lib/shell/overlays";
 import { StrokeCanvas } from "@/lib/screencast-draw/StrokeCanvas";

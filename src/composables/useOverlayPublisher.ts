@@ -1,6 +1,6 @@
 /** Keeps the native game HUD in step with the voice channel. */
 import { computed, watch } from "vue";
-import { isVn } from "@/lib/vn";
+import { isSk } from "@/lib/sk";
 import { setHudVoice } from "@/lib/shell/overlays";
 import { useUnifiedCall } from "@/store/media/unifiedCallStore";
 import { useRealtimeStore } from "@/store/realtime/realtimeStore";
@@ -34,7 +34,7 @@ function overlayAvatarUrl(fileId: string): string {
 }
 
 export function useOverlayPublisher(): void {
-  if (!isVn) return;
+  if (!isSk) return;
 
   const voice = useUnifiedCall();
   const realtimeStore = useRealtimeStore();

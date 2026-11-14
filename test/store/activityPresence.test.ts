@@ -55,7 +55,7 @@ const bus = vi.hoisted(() => {
   };
 });
 
-vi.mock("@/lib/vn", () => ({ isVn: true }));
+vi.mock("@/lib/sk", () => ({ isSk: true }));
 vi.mock("@/lib/shell/host", () => ({ shell: { presence: { onChanged: (handler: (data: unknown) => void) => {
   announce = handler as (presence: HostPresence) => void;
   return () => {};

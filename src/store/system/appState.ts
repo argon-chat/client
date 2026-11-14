@@ -133,7 +133,7 @@ export const useAppState = defineStore("app", () => {
         run: async () => {
           // Native processors are compiled into the host and need no JS module loader.
           // A native host missing that API must fail explicitly during worklets.init().
-          if ((globalThis as { isVn?: unknown }).isVn !== true && !audio.getCurrentAudioContext().audioWorklet) {
+          if ((globalThis as { isSk?: unknown }).isSk !== true && !audio.getCurrentAudioContext().audioWorklet) {
             logger.warn("[appState] AudioWorklet is not available; audio worklets stay off");
             return;
           }

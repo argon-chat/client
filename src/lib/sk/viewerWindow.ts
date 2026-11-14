@@ -1,5 +1,5 @@
 /**
- * The media viewer's own window under vue-native (vue-native docs/MULTIWINDOW.md §7.9). It works the
+ * The media viewer's own window under Skathi (Skathi docs/MULTIWINDOW.md §7.9). It works the
  * way Telegram Desktop's viewer does:
  *
  * - a window with no frame over the whole monitor the main window is on;
@@ -13,13 +13,13 @@
  * A drag that ends on the dim is not a click on it. The pictures keep their full decode while the
  * viewer shows them.
  *
- * ImageLightbox asks for this only when `import.meta.env.VN` is true. Vite replaces that with
+ * ImageLightbox asks for this only when `import.meta.env.SK` is true. Vite replaces that with
  * `undefined`, so in Electron and the browser neither the call nor this module is in the bundle, and
  * the viewer stays the overlay teleported into the page.
  */
 import { computed, defineComponent, h, markRaw, nextTick, onMounted, reactive, ref, type Component } from "vue";
 import type { ChatMediaItem } from "@/lib/media/mediaItem";
-import type { VnWindowHandle } from "./vnWindow";
+import type { SkWindowHandle } from "./skWindow";
 
 /**
  * Topmost while it is up. Off: a full-screen window that is the foreground one is already above the
@@ -39,15 +39,15 @@ export interface ViewerSource {
   video(): boolean;
 }
 
-export function useViewerWindow(VnWindow: Component, src: ViewerSource) {
+export function useViewerWindow(SkWindow: Component, src: ViewerSource) {
   /** The window exists, hidden until shown. Made at idle, or by the first open if that is sooner. */
   const warm = ref(false);
   /** The window is up: from the open until the leave transition has finished. */
   const shown = ref(false);
-  const viewer = ref<VnWindowHandle | null>(null);
+  const viewer = ref<SkWindowHandle | null>(null);
   /**
-   * The viewer's viewport in CSS px: the monitor's. `vw` / `vh` are the main window's in a vue-native
-   * pop-out (vue-native A-M05), so the viewer's sizes are worked out from this instead.
+   * The viewer's viewport in CSS px: the monitor's. `vw` / `vh` are the main window's in a Skathi
+   * pop-out (Skathi A-M05), so the viewer's sizes are worked out from this instead.
    */
   const viewport = reactive({ width: 0, height: 0 });
   /** The viewer's device px per CSS px: what one picture pixel per screen pixel is measured in. */
@@ -72,7 +72,7 @@ export function useViewerWindow(VnWindow: Component, src: ViewerSource) {
     defineComponent({
       inheritAttrs: false,
       setup(_, { slots, attrs }) {
-        return () => (warm.value ? h(VnWindow, { ...attrs, ref: viewer }, slots) : null);
+        return () => (warm.value ? h(SkWindow, { ...attrs, ref: viewer }, slots) : null);
       },
     }),
   );

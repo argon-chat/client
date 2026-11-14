@@ -10,7 +10,7 @@
  * waiting on) whose `animationend` something is listening for.
  *
  * `!important` because every one of these animations is an inline style. `:root.x .y` and not
- * `html.x body .y`: in vue-native the root is both, and the latter never matches there.
+ * `html.x body .y`: in Skathi the root is both, and the latter never matches there.
  */
 :root.decor-paused .cosmetic-text-style,
 :root.decor-paused .cosmetic-frame-paint,

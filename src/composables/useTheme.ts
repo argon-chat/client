@@ -1,7 +1,7 @@
 // Re-export from @argon/theme with app-specific (native host) wiring.
 import { useTheme as useBaseTheme, type ThemeId, accentColors, hexToHSL } from "@argon/theme";
 import { ref } from "vue";
-import { appWindow } from "@/lib/vn/window";
+import { appWindow } from "@/lib/sk/window";
 import { useConfigStore } from "@/store/ui/configStore";
 import { useFeatureFlags, FeatureFlagKeys } from "@/store/features/featureFlagsStore";
 

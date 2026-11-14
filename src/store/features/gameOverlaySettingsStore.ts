@@ -1,7 +1,7 @@
 import { persistedValue } from "@argon/storage";
 import { openDB, type IDBPDatabase } from "idb";
 import { defineStore } from "pinia";
-import { isVn } from "@/lib/vn";
+import { isSk } from "@/lib/sk";
 import { shell } from "@/lib/shell/host";
 import { computed, shallowReactive, onScopeDispose } from "vue";
 import {
@@ -192,7 +192,7 @@ export const useGameOverlaySettings = defineStore("gameOverlaySettings", () => {
       return;
     }
     try {
-      const dataUrl = await (isVn ? shell.activity.icon?.(id) : undefined);
+      const dataUrl = await (isSk ? shell.activity.icon?.(id) : undefined);
       if (typeof dataUrl === "string" && dataUrl && games[id]) {
         icons[id] = dataUrl;
         await writeStoredIcon(id, dataUrl);
@@ -308,7 +308,7 @@ export const useGameOverlaySettings = defineStore("gameOverlaySettings", () => {
     pruneJournal();
     migrateLegacyIcons();
     Object.assign(hud, normalizeHudConfig(hud));
-    if (isVn) {
+    if (isSk) {
       for (const activity of shell.activity.list()) recordGame(activity.path, activity.name);
       nativeListeners.push(shell.activity.onStarted((activity) => recordGame(activity.path, activity.name)));
       nativeListeners.push(shell.activity.onWindowChanged((value) => {

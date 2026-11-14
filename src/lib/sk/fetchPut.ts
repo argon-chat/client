@@ -1,9 +1,9 @@
 /**
- * A PUT over fetch, for a runtime with no XMLHttpRequest (vue-native today; XHR with upload
+ * A PUT over fetch, for a runtime with no XMLHttpRequest (Skathi today; XHR with upload
  * progress is planned there). The uploads use XHR only for its upload progress, which fetch does not
  * report, so progress here is 0 when the request goes out and all of it once the storage answered:
  * a bar that waits, then fills, rather than one that never moves.
- * vue-native's research/reports/m26/client-gap.md §4, "uploads via fetch PUT if XHR is not done yet".
+ * Skathi's research/reports/m26/client-gap.md §4, "uploads via fetch PUT if XHR is not done yet".
  */
 
 /** Why no answer came. */

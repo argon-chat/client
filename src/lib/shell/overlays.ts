@@ -3,7 +3,7 @@ import type { VoiceMember, OverlayChatMessage, OverlayNotification, OverlayHudCo
 import type { DrawPacket } from "@/lib/screencast-draw/types";
 import type { MonitorTarget } from "./host";
 import { shell } from "./host";
-import { appWindow } from "@/lib/vn/window";
+import { appWindow } from "@/lib/sk/window";
 
 export const hudVoice = shallowRef<{ inVoice: boolean; members: VoiceMember[] }>({ inVoice: false, members: [] });
 export const hudChat = shallowRef<OverlayChatMessage[]>([]);

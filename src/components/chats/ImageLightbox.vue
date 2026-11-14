@@ -1,11 +1,11 @@
 <template>
-  <!-- Teleported into the page; under vue-native, a window of its own (lib/vn/viewerWindow.ts) -->
-  <LightboxHost v-bind="vnBind?.host">
-    <Transition name="lightbox" @after-leave="vn?.afterLeave()">
+  <!-- Teleported into the page; under Skathi, a window of its own (lib/sk/viewerWindow.ts) -->
+  <LightboxHost v-bind="skBind?.host">
+    <Transition name="lightbox" @after-leave="sk?.afterLeave()">
       <div
         v-if="isOpen"
         class="lightbox-overlay"
-        v-bind="vnBind?.overlay"
+        v-bind="skBind?.overlay"
         @click.self="onDimClick"
         @keydown="onKeydown"
         tabindex="0"
@@ -22,7 +22,7 @@
         </button>
 
         <!-- Main image or video -->
-        <div class="lightbox-content" v-bind="vnBind?.content" @click.stop>
+        <div class="lightbox-content" v-bind="skBind?.content" @click.stop>
           <div v-if="currentVideo" class="lightbox-video" :style="videoBox" data-testid="lightbox-video">
             <VideoPlayer
               :key="`${currentIndex}:${currentVideo.fileId}`"
@@ -50,7 +50,7 @@
                   :alt="currentItem?.fileName ?? ''"
                   class="lightbox-image"
                   :class="{ loaded: imageLoaded }"
-                  v-bind="vnBind?.image"
+                  v-bind="skBind?.image"
                   @load="imageLoaded = true"
                   draggable="false"
                 />
@@ -131,8 +131,8 @@ import { isVideoEntity, type ChatMediaItem } from "@/lib/media/mediaItem";
 import { invalidateMediaUrl, resolveMediaUrl } from "@/lib/media/mediaUrl";
 import { loopsInViewer } from "@/lib/video/playerSettings";
 import { suspendChatVideos } from "@/lib/media/videoAutoplay";
-import { VnWindow } from "@/lib/vn/vnWindow";
-import { useViewerWindow } from "@/lib/vn/viewerWindow";
+import { SkWindow } from "@/lib/sk/skWindow";
+import { useViewerWindow } from "@/lib/sk/viewerWindow";
 
 const { t } = useLocale();
 const { toast } = useToast();
@@ -240,7 +240,7 @@ const videoBox = computed(() => {
   const h = video?.height && video.height > 0 ? video.height : 9;
   return {
     aspectRatio: `${w} / ${h}`,
-    width: vn?.videoWidth(w, h, MIN_VIDEO_WIDTH) ?? `min(${Math.max(w, MIN_VIDEO_WIDTH)}px, 90vw, calc(85vh * ${w / h}))`,
+    width: sk?.videoWidth(w, h, MIN_VIDEO_WIDTH) ?? `min(${Math.max(w, MIN_VIDEO_WIDTH)}px, 90vw, calc(85vh * ${w / h}))`,
   };
 });
 
@@ -249,14 +249,14 @@ function onPip(active: boolean) {
   if (active) close();
 }
 
-// Under vue-native the viewer is a window of its own over the whole monitor (lib/vn/viewerWindow.ts).
-// Vite replaces `import.meta.env.VN` with `undefined`: in Electron and the browser `vn` is null, the
-// overlay is teleported into the page as before, and none of the vue-native code is in the bundle.
-const vn = import.meta.env.VN && VnWindow
-  ? useViewerWindow(VnWindow, { item: () => currentItem.value, video: () => !!currentVideo.value })
+// Under Skathi the viewer is a window of its own over the whole monitor (lib/sk/viewerWindow.ts).
+// Vite replaces `import.meta.env.SK` with `undefined`: in Electron and the browser `sk` is null, the
+// overlay is teleported into the page as before, and none of the Skathi code is in the bundle.
+const sk = import.meta.env.SK && SkWindow
+  ? useViewerWindow(SkWindow, { item: () => currentItem.value, video: () => !!currentVideo.value })
   : null;
-const vnBind = vn?.bind;
-const LightboxHost = vn ? vn.Host : defineComponent((_, { slots }) => () => h(Teleport, { to: "body" }, slots.default?.() ?? []));
+const skBind = sk?.bind;
+const LightboxHost = sk ? sk.Host : defineComponent((_, { slots }) => () => h(Teleport, { to: "body" }, slots.default?.() ?? []));
 
 function loadCurrent() {
   clearSaveBlob();
@@ -281,7 +281,7 @@ watch(() => props.isOpen, async (open) => {
     // A changed index loads through the watcher below; the same one has to be loaded here.
     if (currentIndex.value !== index) currentIndex.value = index;
     else loadCurrent();
-    vn?.opened();
+    sk?.opened();
     await nextTick();
     overlayRef.value?.focus();
   } else {
@@ -292,18 +292,18 @@ watch(() => props.isOpen, async (open) => {
 });
 
 watch(currentIndex, () => {
-  vn?.stepped();
+  sk?.stepped();
   if (props.isOpen) loadCurrent();
 });
 
 function close() {
-  if (vn) return void vn.beforeClose().then(() => emit("close"));
+  if (sk) return void sk.beforeClose().then(() => emit("close"));
   emit("close");
 }
 
 /** A click on the dim closes, unless it ends a drag of a zoomed picture that was let go over the dim. */
 function onDimClick() {
-  if (vn?.consumeDrag()) return;
+  if (sk?.consumeDrag()) return;
   close();
 }
 

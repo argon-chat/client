@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 const h = vi.hoisted(() => ({ open: vi.fn(), sdk: null as any, host: null as any, pending: vi.fn(() => ["argon://invite/ABC-DEF-GHI"]), subscribe: vi.fn() }));
-vi.mock("@/lib/vn", () => ({ isVn: true }));
-vi.mock("@/lib/vn/launch", () => ({ forwardLaunchLinks: (fn: unknown) => { h.sdk = fn; } }));
+vi.mock("@/lib/sk", () => ({ isSk: true }));
+vi.mock("@/lib/sk/launch", () => ({ forwardLaunchLinks: (fn: unknown) => { h.sdk = fn; } }));
 vi.mock("@/lib/shell/host", () => ({ shell: { launch: {
   pending: h.pending,
   onOpenUrl(fn: unknown) { h.subscribe(); h.host = fn; return () => {}; },

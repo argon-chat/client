@@ -6,7 +6,7 @@ const camera = (deviceId: string) => ({ deviceId, kind: "videoinput", label: dev
 function setup(authoritative = true) {
   const listeners = new Set<() => void>();
   const md = {
-    __vnVideoEnumerationAuthoritative: authoritative,
+    __skVideoEnumerationAuthoritative: authoritative,
     enumerateDevices: vi.fn(async (): Promise<MediaDeviceInfo[]> => []),
     addEventListener: vi.fn((_type, listener) => listeners.add(listener)),
     removeEventListener: vi.fn((_type, listener) => listeners.delete(listener)),

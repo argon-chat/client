@@ -1,5 +1,5 @@
 /**
- * The sign-in QR's geometry under vue-native (lib/vn/qrDrawing.ts): every dark module of the matrix
+ * The sign-in QR's geometry under Skathi (lib/sk/qrDrawing.ts): every dark module of the matrix
  * is drawn once, as a dot or as part of a finder pattern, except the ones under the logo; and each
  * dot takes the shape qr-code-styling's "extra-rounded" gives it.
  */
@@ -7,7 +7,7 @@
 import { describe, test, expect } from "vitest";
 import qrcode from "qrcode-generator";
 import QRCodeStyling from "qr-code-styling";
-import { drawQr, qrMatrix, type QrMatrix, type QrStyle } from "@/lib/vn/qrDrawing";
+import { drawQr, qrMatrix, type QrMatrix, type QrStyle } from "@/lib/sk/qrDrawing";
 
 /** QRStyled's options: 220 px, margin 2, level M, the cat at 0.4 of what may be hidden. */
 const SIGN_IN: QrStyle = { size: 220, margin: 2, level: "M", imageSize: 0.4, imageAspect: 1 };

@@ -1,9 +1,9 @@
 import { afterEach, beforeAll, describe, expect, test, vi } from "vitest";
 import type { HotkeyHostBinding } from "@/lib/hotkeys/host";
-vi.mock("@/lib/vn", () => ({ isVn: true }));
-// vue-native's `appHotkeys`, as the vue-native build exposes it on the "vue" namespace.
+vi.mock("@/lib/sk", () => ({ isSk: true }));
+// Skathi's `appHotkeys`, as the Skathi build exposes it on the "vue" namespace.
 const stubHotkeys = (hotkeys: object): void => {
-  vi.stubEnv("VN", "true");
+  vi.stubEnv("SK", "true");
   vi.doMock("vue", async (importOriginal) => ({ ...(await importOriginal<typeof import("vue")>()), appHotkeys: hotkeys }));
 };
 // Cold transforms can exceed a test's timeout when all projects run together. Prepare the graph
@@ -94,7 +94,7 @@ describe("direct native hotkeys", () => {
     const toggle = vi.fn(() => true);
     const show = vi.fn(() => true);
     vi.stubGlobal("argon", { system: { window: { toggle, show } } });
-    vi.stubGlobal("__VN_WINDOW__", { appWindow: {} });
+    vi.stubGlobal("__SK_WINDOW__", { appWindow: {} });
     const { hotkeyHost } = await import("@/lib/hotkeys/host");
     expect(await hotkeyHost.toggleMainWindow()).toBe(true);
     expect(await hotkeyHost.showMainWindow()).toBe(true);

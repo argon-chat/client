@@ -1,8 +1,8 @@
 import { logger } from "@argon/core";
 import { useWindow } from "@/store/ui/windowStore";
-import { isVn } from "@/lib/vn";
+import { isSk } from "@/lib/sk";
 import { shell } from "@/lib/shell/host";
-import { forwardLaunchLinks } from "@/lib/vn/launch";
+import { forwardLaunchLinks } from "@/lib/sk/launch";
 
 /**
  * Routes an `argon://` deep link to an in-app action.
@@ -94,9 +94,9 @@ export function initDeepLinks() {
     if (typeof detail === "string") handleDeepLink(detail);
   });
 
-  // vue-native has no preload bridge: its links come through `launchQueue` (lib/vn/launch.ts).
-  // vue-native's client-gap.md §4, "launchQueue URLs → handleDeepLink" (A-webapi #94).
-  if (isVn) {
+  // Skathi has no preload bridge: its links come through `launchQueue` (lib/sk/launch.ts).
+  // Skathi's client-gap.md §4, "launchQueue URLs → handleDeepLink" (A-webapi #94).
+  if (isSk) {
     forwardLaunchLinks(handleDeepLink);
     if (shell?.launch) {
       shell.launch.onOpenUrl(handleDeepLink);

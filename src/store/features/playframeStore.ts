@@ -48,13 +48,13 @@ import { useToast } from "@argon/ui/toast";
 
 /**
  * Can this host show a game at all? A game is a document in an `<iframe>`.
- * In a browser that is always there. Under vue-native the iframe is a system
- * webview, and `vnFeatures.iframe` says whether this machine has one: yes on
+ * In a browser that is always there. Under Skathi the iframe is a system
+ * webview, and `skFeatures.iframe` says whether this machine has one: yes on
  * Windows and macOS, no on Linux (and no on a Windows without the WebView2
  * runtime).
  */
 function activitiesSupported(): boolean {
-  const features = (globalThis as { vnFeatures?: { iframe?: boolean } }).vnFeatures;
+  const features = (globalThis as { skFeatures?: { iframe?: boolean } }).skFeatures;
   return features ? features.iframe === true : true;
 }
 

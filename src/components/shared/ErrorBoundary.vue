@@ -6,7 +6,7 @@
  * fine, so the user may continue (the subtree renders again) or reload. The details are folded away
  * and can be copied for a bug report.
  *
- * A native panic is different. vue-native throws `native panic at …` into JS and then stops running
+ * A native panic is different. Skathi throws `native panic at …` into JS and then stops running
  * JS for good (its runtime is poisoned), so no button here could ever do anything; the host shows
  * its own crash dialog with a real restart. This only says what happened, without dead buttons.
  */
@@ -86,7 +86,7 @@ async function copyReport() {
 <template>
   <slot v-if="!hasError" />
 
-  <!-- Portalled: vue-native lays a `fixed` box out against its parent (v1), and the parent here is
+  <!-- Portalled: Skathi lays a `fixed` box out against its parent (v1), and the parent here is
        the app's empty root, so in place the card was centred on a 48 px strip and cut in half. -->
   <Teleport v-else to="body">
     <div class="eb-overlay" role="alertdialog" aria-modal="true" aria-labelledby="eb-title">

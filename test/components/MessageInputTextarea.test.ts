@@ -1,7 +1,7 @@
 /**
- * MessageInput under vue-native: a `<textarea>` with the rich composer's props, events and API, so
+ * MessageInput under Skathi: a `<textarea>` with the rich composer's props, events and API, so
  * EnterText drives it unchanged. Run twice: with the selection API every browser has, and without it,
- * as vue-native's field is today — there the caret is read from the edits (lib/vn/useTextComposer.ts).
+ * as Skathi's field is today — there the caret is read from the edits (lib/sk/useTextComposer.ts).
  */
 
 import { describe, test, expect, vi, afterEach } from "vitest";
@@ -10,7 +10,7 @@ import { nextTick } from "vue";
 import type { ExpressionItem, MessageEntityCustomEmoji } from "@argon/glue";
 import { customEmojiFromItem } from "@/lib/chat/customEmoji";
 
-vi.mock("@/lib/vn", () => ({ isVn: true }));
+vi.mock("@/lib/sk", () => ({ isSk: true }));
 vi.mock("@/store/system/fileStorage", () => ({
   cdnUrl: () => "",
   cdnFetchUrl: () => "",
@@ -28,7 +28,7 @@ afterEach(() => {
   for (const w of mounted.splice(0)) w.unmount();
 });
 
-/** `selection: false` takes the field's selection API away, as vue-native's textarea has none. */
+/** `selection: false` takes the field's selection API away, as Skathi's textarea has none. */
 function show(props: Record<string, unknown> = {}, { selection = true } = {}) {
   const wrapper = mount(MessageInput, { props, attachTo: document.body });
   mounted.push(wrapper);
@@ -148,7 +148,7 @@ describe("MessageInput as a <textarea>", () => {
   });
 });
 
-describe("without a selection API (vue-native's field today)", () => {
+describe("without a selection API (Skathi's field today)", () => {
   test("the caret is where the last edit ended, and the composer's edits chain on it", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const { wrapper, field, api } = show({}, { selection: false });

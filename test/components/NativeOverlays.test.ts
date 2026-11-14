@@ -4,11 +4,11 @@ import { nextTick, reactive } from "vue";
 import { defaultHudConfig } from "@/lib/overlay/layout";
 
 const h = vi.hoisted(() => ({ settings: null as any, game: null as any, changed: null as any, off: vi.fn(), mainScale: 1 }));
-vi.mock("@/lib/vn", () => ({ isVn: true }));
-vi.mock("@/lib/vn/window", () => ({ appWindow: { get scaleFactor() { return h.mainScale; } } }));
-vi.mock("@/lib/vn/vnWindow", async () => {
+vi.mock("@/lib/sk", () => ({ isSk: true }));
+vi.mock("@/lib/sk/window", () => ({ appWindow: { get scaleFactor() { return h.mainScale; } } }));
+vi.mock("@/lib/sk/skWindow", async () => {
   const { defineComponent, h: node } = await import("vue");
-  return { VnWindow: defineComponent({
+  return { SkWindow: defineComponent({
     name: "NativeWindowStub",
     props: ["title", "chrome", "backdrop", "cover", "monitor", "alwaysOnTop", "focusable", "ignoreMouseEvents", "contentProtection", "taskbar", "activate", "resizable", "titleBarHeight", "bounds"],
     setup(props, { slots }) { return () => node("section", { "data-window": props.title }, slots.default?.()); },

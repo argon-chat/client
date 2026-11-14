@@ -1,5 +1,5 @@
 /**
- * Microphone and camera permission over the host's `__VN_CAPTURE__` API.
+ * Microphone and camera permission over the host's `__SK_CAPTURE__` API.
  *
  * The regressions worth guarding: a banner that never shows (every join failing after one Block,
  * with nothing to lift it), and a call path that prompts on its own, which would show a second
@@ -28,19 +28,19 @@ const host = {
   permission: vi.fn((source: MediaPermission) => states[source]),
   requestPermission: vi.fn(async (_source: MediaPermission) => "granted"),
 };
-const g = globalThis as { __VN_CAPTURE__?: unknown };
+const g = globalThis as { __SK_CAPTURE__?: unknown };
 
 beforeEach(() => {
   vi.clearAllMocks();
   states.microphone = status("granted");
   states.camera = status("granted");
-  g.__VN_CAPTURE__ = host;
+  g.__SK_CAPTURE__ = host;
 });
-afterEach(() => { delete g.__VN_CAPTURE__; });
+afterEach(() => { delete g.__SK_CAPTURE__; });
 
 describe("without the host permission API", () => {
   test("the browser has no gate and reports granted", async () => {
-    delete g.__VN_CAPTURE__;
+    delete g.__SK_CAPTURE__;
     expect(needsMediaPermissionGate()).toBe(false);
     expect(readMediaPermission("microphone").state).toBe("granted");
     expect(await isMediaPermissionGranted("camera")).toBe(true);
@@ -48,7 +48,7 @@ describe("without the host permission API", () => {
   });
 
   test("an older host without permission() is treated the same", async () => {
-    g.__VN_CAPTURE__ = { requestPermission: host.requestPermission };
+    g.__SK_CAPTURE__ = { requestPermission: host.requestPermission };
     expect(needsMediaPermissionGate()).toBe(false);
     expect(needsPermissionBanner(readMediaPermission("microphone"))).toBe(false);
     expect(await ensureMediaPermission("camera")).toBe(true);

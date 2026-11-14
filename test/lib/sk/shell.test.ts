@@ -1,15 +1,15 @@
 import { describe, test, expect, vi, beforeAll, afterEach } from "vitest";
 
-vi.mock("@/lib/vn", () => ({ isVn: true }));
+vi.mock("@/lib/sk", () => ({ isSk: true }));
 
 // Cold transforms of the generated server contracts can exceed the behavior test's
 // budget under CI load. Reset evaluation afterwards so bootstrap still binds fresh stubs.
 beforeAll(async () => {
-  vi.stubGlobal("isVn", true);
+  vi.stubGlobal("isSk", true);
   vi.stubGlobal("argon", {});
-  vi.stubGlobal("__VN_WINDOW__", { appWindow: { backdrop: "mica", theme: "system" } });
+  vi.stubGlobal("__SK_WINDOW__", { appWindow: { backdrop: "mica", theme: "system" } });
   try {
-    await import("@/lib/vn/bootstrap");
+    await import("@/lib/sk/bootstrap");
     await import("@argon/glue");
   } finally {
     vi.unstubAllGlobals();
@@ -21,12 +21,12 @@ beforeAll(async () => {
 afterEach(() => { vi.unstubAllGlobals(); vi.resetModules(); localStorage.clear(); });
 describe("native desktop services", () => {
   test("boot preserves the direct native namespace and installs no IPC bridge", async () => {
-    vi.stubGlobal("isVn", true);
+    vi.stubGlobal("isSk", true);
     const direct = { idle: { getTime: () => ({ idleMs: 42 }) } };
     vi.stubGlobal("argon", direct);
     delete (window as any).argonIpc;
-    vi.stubGlobal("__VN_WINDOW__", { appWindow: { backdrop: "mica", theme: "system" } });
-    await import("@/lib/vn/bootstrap");
+    vi.stubGlobal("__SK_WINDOW__", { appWindow: { backdrop: "mica", theme: "system" } });
+    await import("@/lib/sk/bootstrap");
     const glue = await import("@argon/glue");
     expect(window.argon).toBe(direct);
     expect("native" in glue).toBe(false);
@@ -40,8 +40,8 @@ describe("native desktop services", () => {
     const setPendingSource = vi.fn(() => true);
     const open = vi.fn(() => JSON.stringify({ opened: true }));
     vi.stubGlobal("argon", { idle: { getTime } });
-    vi.stubGlobal("__VN_CAPTURE__", { getSources, setPendingSource });
-    vi.stubGlobal("__vn_devtools_open", open);
+    vi.stubGlobal("__SK_CAPTURE__", { getSources, setPendingSource });
+    vi.stubGlobal("__sk_devtools_open", open);
     const desktop = await import("@/lib/shell/desktop");
     const { shell } = await import("@/lib/shell/host");
     expect(shell.idle.getTime()).toEqual({ idleMs: 3200 });
@@ -55,8 +55,8 @@ describe("native desktop services", () => {
   });
 
   test("invalid SDK selection rejects and disabled devtools explains the refusal", async () => {
-    vi.stubGlobal("__VN_CAPTURE__", { setPendingSource: () => false });
-    vi.stubGlobal("__vn_devtools_open", () => JSON.stringify({ error: "devtools are disabled" }));
+    vi.stubGlobal("__SK_CAPTURE__", { setPendingSource: () => false });
+    vi.stubGlobal("__sk_devtools_open", () => JSON.stringify({ error: "devtools are disabled" }));
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const desktop = await import("@/lib/shell/desktop");
     await expect(desktop.selectCaptureSource("window:0", false)).rejects.toThrow("invalid");

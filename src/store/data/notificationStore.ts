@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { isVn } from "@/lib/vn";
+import { isSk } from "@/lib/sk";
 import { ref, computed, shallowRef, triggerRef, watch } from "vue";
 import { logger } from "@argon/core";
 import { shell } from "@/lib/shell/host";
@@ -145,7 +145,7 @@ export const useNotificationStore = defineStore("notifications", () => {
   watch(
     [hasAnyUnread, pingCount],
     ([has, pings]) => {
-      if (!isVn || !shell.system.notifications) return;
+      if (!isSk || !shell.system.notifications) return;
       try {
         shell.system.notifications.setUnread({ unread: has, count: pings });
       } catch (e) {
@@ -158,7 +158,7 @@ export const useNotificationStore = defineStore("notifications", () => {
   // Pulse the taskbar button (Windows) / bounce the dock (macOS) on a real ping when the window
   // isn't focused — the host decides whether to actually flash based on focus.
   function flashForAttention() {
-    if (!isVn || !shell.system.notifications) return;
+    if (!isSk || !shell.system.notifications) return;
     try {
       shell.system.notifications.requestAttention();
     } catch (e) {

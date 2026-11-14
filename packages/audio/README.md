@@ -54,7 +54,7 @@ const unsub = audio.onInputDeviceChanged((deviceId) => {
 ### Worklet Manager
 
 The manager uses browser AudioWorklet modules in web builds and compiled Rust
-processors in vue-native (`globalThis.isVn === true`). Native registration checks
+processors in Skathi (`globalThis.isSk === true`). Native registration checks
 `AudioContext.loadNativeAudioWorklet` and performs no JS module fetch.
 
 ```typescript

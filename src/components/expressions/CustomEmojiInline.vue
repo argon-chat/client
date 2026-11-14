@@ -5,16 +5,16 @@ import { decodeOutline } from "@/lib/expressions/outline";
 import { ExpressionFormat, type ExpressionMedia } from "@/lib/expressions/types";
 import { CUSTOM_EMOJI_GROUP } from "@/lib/expressions/customEmojiRegistry";
 import { cdnUrl } from "@/store/system/fileStorage";
-import { isVn } from "@/lib/vn";
-import { useVnStickerPlay, VN_EMOJI_PLAY } from "./useVnStickerPlay";
+import { isSk } from "@/lib/sk";
+import { useSkStickerPlay, SK_EMOJI_PLAY } from "./useSkStickerPlay";
 
 /**
  * A custom emoji's placeholder in text. It holds only the outline; a `CustomEmojiOverlay` around it
  * fills it in (an image, a video canvas, or a Lottie frame drawn over it).
  *
- * vue-native: the placeholder fills itself with a `<vn-sticker>`, whatever the format, tinted with the
+ * Skathi: the placeholder fills itself with a `<sk-sticker>`, whatever the format, tinted with the
  * text colour when the emoji asks for it. The overlay around it only gives the play mode of its group
- * (vue-native client-gap.md §4, "stickers").
+ * (Skathi client-gap.md §4, "stickers").
  */
 const props = defineProps<{
   media: ExpressionMedia;
@@ -27,24 +27,24 @@ const outline = computed(() => (props.media.outline?.length ? decodeOutline(prop
 const px = computed(() => (props.size ? Math.round(props.size) : undefined));
 const style = computed(() => (px.value ? { "--ce-size": `${px.value}px` } : undefined));
 
-// vue-native: drawn here rather than by the overlay.
-const vnMode = isVn
-  ? (inject(VN_EMOJI_PLAY, null) ??
-    useVnStickerPlay({ group: () => CUSTOM_EMOJI_GROUP, autoplay: () => undefined }).mode)
+// Skathi: drawn here rather than by the overlay.
+const skMode = isSk
+  ? (inject(SK_EMOJI_PLAY, null) ??
+    useSkStickerPlay({ group: () => CUSTOM_EMOJI_GROUP, autoplay: () => undefined }).mode)
   : null;
-const vnKind = computed(() =>
+const skKind = computed(() =>
   props.media.format === ExpressionFormat.Lottie ? "lottie" : props.media.format === ExpressionFormat.Video ? "video" : "image",
 );
-const vnReady = ref(false);
-const vnFailed = ref(false);
+const skReady = ref(false);
+const skFailed = ref(false);
 watch(
   () => props.media.fileId,
   () => {
-    vnReady.value = false;
-    vnFailed.value = false;
+    skReady.value = false;
+    skFailed.value = false;
   },
 );
-const vnThumb = computed(() => (vnFailed.value && props.media.thumbFileId ? cdnUrl(props.media.thumbFileId) : null));
+const skThumb = computed(() => (skFailed.value && props.media.thumbFileId ? cdnUrl(props.media.thumbFileId) : null));
 </script>
 
 <template>
@@ -59,29 +59,29 @@ const vnThumb = computed(() => (vnFailed.value && props.media.thumbFileId ? cdnU
     :data-ce-size="px"
     :style="style"
   >
-    <svg v-if="outline && !vnReady" class="ce-outline" viewBox="0 0 512 512" aria-hidden="true"><path :d="outline" /></svg>
-    <template v-if="vnMode">
-      <vn-sticker
-        v-if="!vnFailed"
+    <svg v-if="outline && !skReady" class="ce-outline" viewBox="0 0 512 512" aria-hidden="true"><path :d="outline" /></svg>
+    <template v-if="skMode">
+      <sk-sticker
+        v-if="!skFailed"
         class="ce-img"
         :src="cdnUrl(media.fileId)"
-        :kind="vnKind"
+        :kind="skKind"
         :tint="media.textColor ? '' : undefined"
-        :play="vnMode"
-        @load="vnReady = true"
-        @error="vnFailed = true"
+        :play="skMode"
+        @load="skReady = true"
+        @error="skFailed = true"
       />
       <!-- As the overlay's fallback does: the thumbnail stands in (tinted too, where the browser's is
            a CSS mask), and the outline goes once it shows. -->
-      <vn-sticker
-        v-else-if="vnThumb && media.textColor"
+      <sk-sticker
+        v-else-if="skThumb && media.textColor"
         class="ce-img"
-        :src="vnThumb"
+        :src="skThumb"
         kind="image"
         tint=""
-        @load="vnReady = true"
+        @load="skReady = true"
       />
-      <img v-else-if="vnThumb" class="ce-img" :src="vnThumb" alt="" draggable="false" @load="vnReady = true" />
+      <img v-else-if="skThumb" class="ce-img" :src="skThumb" alt="" draggable="false" @load="skReady = true" />
     </template>
   </span>
 </template>

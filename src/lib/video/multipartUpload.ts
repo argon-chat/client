@@ -1,6 +1,6 @@
 import { SuccessUploadFile, type UploadedPart, type VideoUploadTicket } from "@argon/glue";
 import { uploadFile } from "@/lib/uploadFile";
-import { fetchPut, FetchPutError, noXhr } from "@/lib/vn/fetchPut";
+import { fetchPut, FetchPutError, noXhr } from "@/lib/sk/fetchPut";
 import { VideoPartUploadError } from "./errors";
 
 export interface PartPutResult {
@@ -32,7 +32,7 @@ export interface UploadPartsOptions {
   signal?: AbortSignal;
   /**
    * The transport; XMLHttpRequest by default, since fetch reports no upload progress. Where there
-   * is no XMLHttpRequest (vue-native today), fetch all the same: fetchPartPut.
+   * is no XMLHttpRequest (Skathi today), fetch all the same: fetchPartPut.
    */
   put?: PartPut;
   /** Wait before retry `attempt` (0-based). */
@@ -130,7 +130,7 @@ export const xhrPut: PartPut = (url, body, { onProgress, signal, timeoutMs }) =>
   });
 
 /**
- * PUT through fetch, where there is no XMLHttpRequest (vue-native today; lib/vn/fetchPut.ts). With
+ * PUT through fetch, where there is no XMLHttpRequest (Skathi today; lib/sk/fetchPut.ts). With
  * no progress to slide a timeout on, a part gets `timeoutMs` plus its bytes at 256 kbit/s, the rule
  * singlePutTimeoutMs uses for a whole file. client-gap.md §4, "uploads via fetch PUT".
  */

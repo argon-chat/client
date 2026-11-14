@@ -8,7 +8,7 @@
  * signal until that lands.
  */
 import { usePoolStore } from "@/store/data/poolStore";
-import { isVn } from "@/lib/vn";
+import { isSk } from "@/lib/sk";
 import { pushHudNotification } from "@/lib/shell/overlays";
 import { useBus } from "@/store/realtime/busStore";
 import { useUnifiedCall } from "@/store/media/unifiedCallStore";
@@ -20,7 +20,7 @@ let counter = 0;
 const nextId = () => `n${++counter}`;
 
 export function useOverlayNotificationsPublisher(): void {
-  if (!isVn) return;
+  if (!isSk) return;
 
   const pool = usePoolStore();
   const bus = useBus();

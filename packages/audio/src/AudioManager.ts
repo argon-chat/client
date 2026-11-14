@@ -931,7 +931,7 @@ export class AudioManagement implements IAudioManagement {
     // the noiseSuppression constraint; it does not promise identical RNNoise/Speex output.
     if (mode !== "off" && isNativeAudioRuntime()) {
       logger.info(
-        `[AudioManagement] The "${mode}" worklet is unavailable under vue-native; ` +
+        `[AudioManagement] The "${mode}" worklet is unavailable under Skathi; ` +
           `capture uses its noiseSuppression constraint (${this.audioConstraints.noiseSuppression})`,
       );
       this.rebuildInputPipeline();

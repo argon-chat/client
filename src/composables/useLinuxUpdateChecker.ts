@@ -1,6 +1,6 @@
 import { ref, onMounted, onUnmounted, computed } from "vue";
 import { logger } from "@argon/core";
-import { isVn } from "@/lib/vn";
+import { isSk } from "@/lib/sk";
 import { shell, type UpdateStatus } from "@/lib/shell/host";
 
 const UPDATE_CHECK_URL = "https://updates.argon.gl/runtime/core-linux/latest.linux";
@@ -14,7 +14,7 @@ const CHECK_INTERVAL = 10 * 60 * 1000; // 10 minutes
  */
 export function useLinuxUpdateChecker() {
   const isLinux = navigator.userAgent.includes("Linux") && !navigator.userAgent.includes("Android");
-  const native = isVn && !!shell.update;
+  const native = isSk && !!shell.update;
   const nativeStatus = ref<UpdateStatus | null>(null);
   const latestVersion = ref<string | null>(null);
   const latestDebPath = ref<string | null>(null);
@@ -25,7 +25,7 @@ export function useLinuxUpdateChecker() {
   let unsubscribe: (() => void) | null = null;
 
   const currentVersion = computed(() => {
-    return isVn ? shell.system.info().appVersion : undefined;
+    return isSk ? shell.system.info().appVersion : undefined;
   });
 
   const hasUpdate = computed(() => (native ? nativeStatus.value?.phase === "ready" : debUpdate.value));
@@ -107,7 +107,7 @@ export function useLinuxUpdateChecker() {
       unsubscribe = update.onChanged(onNativeStatus);
       return;
     }
-    if (isVn || !isLinux) return;
+    if (isSk || !isLinux) return;
     check();
     timer = setInterval(check, CHECK_INTERVAL);
   });

@@ -1,10 +1,10 @@
 /**
- * Microphone and camera permission as the desktop host keeps it (vue-native PERMISSIONS.md §5.1).
+ * Microphone and camera permission as the desktop host keeps it (Skathi PERMISSIONS.md §5.1).
  *
  * Capture asks the user itself, but only from `prompt`: after a Block it refuses for good, and only
  * an explicit request (the settings banner's button) asks again. So nothing here prompts on its
  * own; the settings banners read the state and the button calls `requestMediaPermission`.
- * The browser build and hosts without `__VN_CAPTURE__.permission` report granted: there the
+ * The browser build and hosts without `__SK_CAPTURE__.permission` report granted: there the
  * browser's getUserMedia drives its own prompt and there is nothing to gate.
  */
 import { logger } from "@argon/core";
@@ -28,7 +28,7 @@ interface PermissionApi {
 const GRANTED: MediaPermissionStatus = { state: "granted", canRequest: false, deniedBySystem: false };
 const STATES = new Set<string>(["granted", "denied", "prompt", "unsupported"]);
 
-const api = () => (globalThis as { __VN_CAPTURE__?: PermissionApi }).__VN_CAPTURE__;
+const api = () => (globalThis as { __SK_CAPTURE__?: PermissionApi }).__SK_CAPTURE__;
 
 /** True only when the host exposes the permission API, i.e. when there is a state to show. */
 export function needsMediaPermissionGate(): boolean {

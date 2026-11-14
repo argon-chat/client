@@ -1,23 +1,23 @@
 /**
- * The Electron shell's own config under vue-native (src/lib/vn/hostConfig.ts), reached the way
+ * The Electron shell's own config under Skathi (src/lib/sk/hostConfig.ts), reached the way
  * configStore and AppearanceSettings reach it: typed desktopConfig operations. Same three keys and
- * rules as ArgonApp's NativeConfigStore. Theme and WindowMaterial drive vue-native's `appWindow`, and
+ * rules as ArgonApp's NativeConfigStore. Theme and WindowMaterial drive Skathi's `appWindow`, and
  * the values survive a relaunch.
  */
 
 import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
 import { ConfigValueType, type ConfigSection, type ConfigUpdate } from "@/lib/shell/configTypes";
 
-vi.mock("@/lib/vn", () => ({ isVn: true }));
+vi.mock("@/lib/sk", () => ({ isSk: true }));
 
 type Bridge = typeof import("@/lib/shell/desktop");
 type Win = { backdrop: string; theme?: string };
 
 /** A fresh launch: the module graph re-evaluates against `win` and whatever localStorage holds. */
 async function launch(win: Win): Promise<Bridge> {
-  vi.stubGlobal("__VN_WINDOW__", { appWindow: win });
+  vi.stubGlobal("__SK_WINDOW__", { appWindow: win });
   vi.resetModules();
-  await import("@/lib/vn/bootstrap");
+  await import("@/lib/sk/bootstrap");
   return import("@/lib/shell/desktop");
 }
 
@@ -152,7 +152,7 @@ describe("macOS: one material, glass", () => {
     vi.spyOn(navigator, "userAgent", "get").mockReturnValue(MAC_UA);
   });
 
-  test("glass and solid are the variants, and vn.config.json's acrylic window reads as glass", async () => {
+  test("glass and solid are the variants, and sk.config.json's acrylic window reads as glass", async () => {
     const bridge = await launch({ backdrop: "acrylic", theme: "system" });
     const material = ((await bridge.desktopConfig.read()) as ConfigSection[]).flatMap((s) => s.keys)[2];
     expect([material.valueEnum, material.valueEnumVariants]).toEqual(["glass", ["glass", "solid"]]);

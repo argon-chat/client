@@ -2,15 +2,15 @@
 import "./customEmoji.css";
 import { provide, ref } from "vue";
 import { CUSTOM_EMOJI_GROUP } from "@/lib/expressions/customEmojiRegistry";
-import { isVn } from "@/lib/vn";
+import { isSk } from "@/lib/sk";
 import { useCustomEmojiOverlay } from "./useCustomEmojiOverlay";
-import { useVnStickerPlay, VN_EMOJI_PLAY } from "./useVnStickerPlay";
+import { useSkStickerPlay, SK_EMOJI_PLAY } from "./useSkStickerPlay";
 
 /**
  * Wraps a block of text holding custom emoji placeholders (`CustomEmojiInline`, or the same markup
  * rendered elsewhere) and draws the animated ones on one canvas laid over it.
  *
- * vue-native: each placeholder draws itself with a `<vn-sticker>`; the overlay only gives them the play
+ * Skathi: each placeholder draws itself with a `<sk-sticker>`; the overlay only gives them the play
  * mode of its group. There is no canvas, and nothing to rescan or redraw.
  */
 const props = withDefaults(
@@ -26,17 +26,17 @@ const props = withDefaults(
 const container = ref<HTMLElement | null>(null);
 const canvas = ref<HTMLCanvasElement | null>(null);
 
-const overlay = isVn
+const overlay = isSk
   ? null
   : useCustomEmojiOverlay(container, canvas, {
       group: props.group,
       resolveUrl: props.resolveUrl,
       resolveFetchUrl: props.resolveFetchUrl,
     });
-if (isVn) {
+if (isSk) {
   provide(
-    VN_EMOJI_PLAY,
-    useVnStickerPlay({ group: () => props.group ?? CUSTOM_EMOJI_GROUP, autoplay: () => undefined }).mode,
+    SK_EMOJI_PLAY,
+    useSkStickerPlay({ group: () => props.group ?? CUSTOM_EMOJI_GROUP, autoplay: () => undefined }).mode,
   );
 }
 
@@ -52,6 +52,6 @@ defineExpose({
 <template>
   <component :is="tag" ref="container" class="ce-container">
     <slot />
-    <canvas v-if="!isVn" ref="canvas" class="ce-overlay" aria-hidden="true" />
+    <canvas v-if="!isSk" ref="canvas" class="ce-overlay" aria-hidden="true" />
   </component>
 </template>

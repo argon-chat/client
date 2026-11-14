@@ -1,15 +1,15 @@
 {
-  "$comment": "Argon on vue-native (research/reports/m26/client-gap.md, Phase 1). Read only by vue-native's builders and `vn build`; Vite never sees it.",
+  "$comment": "Argon on Skathi (research/reports/m26/client-gap.md, Phase 1). Read only by Skathi's builders and `sk build`; Vite never sees it.",
 
   "name": "argon-vue-native",
   "productName": "Argon",
 
-  "$comment-define": "What vite.config.ts injects through `define` (client-gap/B-build-ui.md row 8). A string value would be an expression, as in Vite; an object is inlined as JSON. Static placeholders: the version here is not GitVersion's answer, and `branch: vue-native` says which build it is.",
+  "$comment-define": "What vite.config.ts injects through `define` (client-gap/B-build-ui.md row 8). A string value would be an expression, as in Vite; an object is inlined as JSON. Static placeholders: the version here is not GitVersion's answer, and `branch: skathi` says which build it is.",
   "define": {
     "__ARGON_BUILD__": {
       "version": "0.0.0.0",
-      "fullVersion": "0.0.0.0-vue-native",
-      "branch": "vue-native",
+      "fullVersion": "0.0.0.0-skathi",
+      "branch": "skathi",
       "commit": "00000000",
       "builtAt": "1970-01-01T00:00:00Z",
       "dirty": true
@@ -26,11 +26,11 @@
 
   "assets": ["packages/assets/fonts/VT323", "packages/media-editor/src/assets/fonts/**/*.txt", "packages/media-editor/src/assets/fonts/sources.json"],
 
-  "$comment-singleInstance": "One Argon per user, as the Electron shell's requestSingleInstanceLock: a second launch hands its argv to the running window, which comes to the front, and exits (vue-native docs/LAUNCH.md §2). Without it the second copy cannot open the IndexedDB the first holds and never gets past the logo. Dev and test copies opt out with VN_SINGLE_INSTANCE=0.",
+  "$comment-singleInstance": "One Argon per user, as the Electron shell's requestSingleInstanceLock: a second launch hands its argv to the running window, which comes to the front, and exits (Skathi docs/LAUNCH.md §2). Without it the second copy cannot open the IndexedDB the first holds and never gets past the logo. Dev and test copies opt out with SK_SINGLE_INSTANCE=0.",
   "singleInstance": true,
 
 
-  "$comment-windows": "The exe `vn build` stamps (vue-native docs/PACKAGING.md §3): Argon.exe with the app's own icon.",
+  "$comment-windows": "The exe `sk build` stamps (Skathi docs/PACKAGING.md §3): Argon.exe with the app's own icon.",
   "windows": {
     "exeName": "Argon",
     "icon": "public/icon-512.png"

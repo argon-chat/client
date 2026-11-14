@@ -257,7 +257,7 @@ describe("without AudioWorklet", () => {
 
 describe("native WorkletManager", () => {
   function nativeAudio() {
-    vi.stubGlobal("isVn", true);
+    vi.stubGlobal("isSk", true);
     (audio.ctx as any).audioWorklet = undefined;
     const load = vi.fn((name: string, options: AudioWorkletNodeOptions) => new FakeWorkletNode(audio.ctx, name, options));
     (audio.ctx as any).loadNativeAudioWorklet = load;
@@ -287,7 +287,7 @@ describe("native WorkletManager", () => {
     expect(node.port.close).toHaveBeenCalledOnce();
   });
   test("an old native host does not silently return a passthrough or analyser", async () => {
-    vi.stubGlobal("isVn", true);
+    vi.stubGlobal("isSk", true);
     (audio.ctx as any).audioWorklet = undefined;
     const worklets = new WorkletManager(audio.manager);
     await expect(worklets.createStereoToMonoProcessor()).rejects.toThrow("does not support loadNativeAudioWorklet");
