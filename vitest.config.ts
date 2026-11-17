@@ -4,6 +4,9 @@ import { playwright } from "@vitest/browser-playwright";
 import tailwind from "tailwindcss";
 import autoprefixer from "autoprefixer";
 import path from "node:path";
+import { nativeModules } from "./scripts/nativeModules";
+
+const native = nativeModules(path.resolve(__dirname, "src/native-modules.d.ts"));
 
 /**
  * Runs the app's own tests plus every package that ships its own vitest config.
@@ -46,7 +49,7 @@ export default defineConfig({
     },
     projects: [
       {
-        plugins: [vue(vueOptions)],
+        plugins: [vue(vueOptions), native],
         resolve: {
           alias: { "@": path.resolve(__dirname, "./src") },
         },
@@ -63,7 +66,7 @@ export default defineConfig({
       // What only a real browser answers honestly: layout, scrolling, ResizeObserver. happy-dom
       // computes none of it, and a faked geometry can hide a bug as easily as invent one.
       {
-        plugins: [vue(vueOptions)],
+        plugins: [vue(vueOptions), native],
         resolve: {
           alias: { "@": path.resolve(__dirname, "./src") },
         },

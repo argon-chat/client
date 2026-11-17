@@ -1,12 +1,13 @@
 import { describe, test, expect, vi, beforeAll, afterEach } from "vitest";
 
+const idle = vi.hoisted(() => ({ ms: vi.fn(() => 3200) }));
 vi.mock("@/lib/sk", () => ({ isSk: true }));
+vi.mock("native:system", () => ({ available: true, idleMs: idle.ms }));
 
 // Cold transforms of the generated server contracts can exceed the behavior test's
 // budget under CI load. Reset evaluation afterwards so bootstrap still binds fresh stubs.
 beforeAll(async () => {
   vi.stubGlobal("isSk", true);
-  vi.stubGlobal("argon", {});
   vi.stubGlobal("__SK_WINDOW__", { appWindow: { backdrop: "mica", theme: "system" } });
   try {
     await import("@/lib/sk/bootstrap");
@@ -20,32 +21,26 @@ beforeAll(async () => {
 
 afterEach(() => { vi.unstubAllGlobals(); vi.resetModules(); localStorage.clear(); });
 describe("native desktop services", () => {
-  test("boot preserves the direct native namespace and installs no IPC bridge", async () => {
+  test("boot installs no IPC bridge", async () => {
     vi.stubGlobal("isSk", true);
-    const direct = { idle: { getTime: () => ({ idleMs: 42 }) } };
-    vi.stubGlobal("argon", direct);
     delete (window as any).argonIpc;
     vi.stubGlobal("__SK_WINDOW__", { appWindow: { backdrop: "mica", theme: "system" } });
     await import("@/lib/sk/bootstrap");
     const glue = await import("@argon/glue");
-    expect(window.argon).toBe(direct);
     expect("native" in glue).toBe(false);
     expect("createIpcClient" in glue).toBe(false);
     expect((window as any).argonIpc).toBeUndefined();
   });
 
-  test("idle is a direct synchronous native snapshot; capture and devtools use SDK operations", async () => {
-    const getTime = vi.fn(() => ({ idleMs: 3200 }));
+  test("idle is a synchronous native:system call; capture and devtools use SDK operations", async () => {
     const getSources = vi.fn(async () => [{ id: "screen:1" }]);
     const setPendingSource = vi.fn(() => true);
     const open = vi.fn(() => JSON.stringify({ opened: true }));
-    vi.stubGlobal("argon", { idle: { getTime } });
     vi.stubGlobal("__SK_CAPTURE__", { getSources, setPendingSource });
     vi.stubGlobal("__sk_devtools_open", open);
     const desktop = await import("@/lib/shell/desktop");
-    const { shell } = await import("@/lib/shell/host");
-    expect(shell.idle.getTime()).toEqual({ idleMs: 3200 });
     expect(await desktop.idleSeconds()).toBe(3);
+    expect(idle.ms).toHaveBeenCalledTimes(1);
     expect(await desktop.screenSources(["screen"], { withIcons: false })).toEqual([{ id: "screen:1" }]);
     await desktop.selectCaptureSource("screen:1", true);
     desktop.openDevtools();

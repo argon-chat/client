@@ -56,10 +56,14 @@ const bus = vi.hoisted(() => {
 });
 
 vi.mock("@/lib/sk", () => ({ isSk: true }));
-vi.mock("@/lib/shell/host", () => ({ shell: { presence: { onChanged: (handler: (data: unknown) => void) => {
-  announce = handler as (presence: HostPresence) => void;
-  return () => {};
-} } } }));
+vi.mock("native:presence", () => ({
+  available: true,
+  current: () => null,
+  on: (_event: string, handler: (data: unknown) => void) => {
+    announce = handler as (presence: HostPresence) => void;
+    return () => {};
+  },
+}));
 vi.mock("@argon/core", () => ({
   logger: { log() {}, debug() {}, info() {}, warn() {}, error() {} },
 }));

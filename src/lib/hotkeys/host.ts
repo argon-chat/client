@@ -5,7 +5,7 @@
  */
 import * as vue from "vue";
 import { isSk } from "@/lib/sk";
-import { shell } from "@/lib/shell/host";
+import { available as nativeSystem, showWindow, toggleWindow } from "native:system";
 import type { HotkeyChord } from "./chord";
 
 export interface HotkeyHostStatus { running: boolean; platform: string; accessibilityGranted: boolean; error: string | null; restarts: number }
@@ -37,8 +37,8 @@ export const hotkeyHost = {
   onFired(callback: (id: string, phase: HotkeyHostPhase) => void): (() => void) | null {
     return service()?.onFired((event) => callback(event.id, event.phase)) ?? null;
   },
-  async toggleMainWindow(): Promise<boolean> { return isSk ? shell.system.window.toggle() : false; },
-  async showMainWindow(): Promise<boolean> { return isSk ? shell.system.window.show() : false; },
+  async toggleMainWindow(): Promise<boolean> { return nativeSystem ? toggleWindow() : false; },
+  async showMainWindow(): Promise<boolean> { return nativeSystem ? showWindow() : false; },
   async isAccessibilityGranted(): Promise<boolean> { return service()?.status().accessibilityGranted ?? false; },
   async requestAccessibility(): Promise<boolean> {
     const hotkeys = service();

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ native: false, openUrl: vi.fn(async () => true), openInvitePreview: vi.fn() }));
 vi.mock("@/lib/sk", () => ({ get isSk() { return mocks.native; } }));
-vi.mock("@/lib/shell/host", () => ({ shell: { system: { openUrl: mocks.openUrl } } }));
+vi.mock("native:system", () => ({ available: true, openUrl: mocks.openUrl }));
 vi.mock("@/store/ui/windowStore", () => ({ useWindow: () => ({ openInvitePreview: mocks.openInvitePreview }) }));
 import { openExternalUrl, openLink } from "@/lib/linkPreview/openExternal";
 import { inviteDeepLink } from "@/lib/deeplink";

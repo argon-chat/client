@@ -4,8 +4,6 @@ import { useConfig } from "@/store/system/remoteConfig";
 import { isWeb } from "@/lib/platform";
 import { clearMediaCache, mediaCacheStats } from "@/lib/webMediaCache";
 import { cdnCacheEnabled } from "@/store/system/cdnCache";
-import { isSk } from "@/lib/sk";
-import { shell } from "@/lib/shell/host";
 
 export type GroupReport = {
   name: string;
@@ -83,34 +81,9 @@ export function resolveAttachmentUrl(fileId: string, _downloadUrl?: string | nul
   return cdnUrl(fileId);
 }
 
-/** Single source of truth for the on-disk userData breakdown (native only). */
-type StorageBreakdown = { categories: Array<{ name: string; bytes: number }>; totalBytes: number };
-
+// No Skathi host reports or clears its on-disk storage by category yet: the desktop uses
+// navigator.storage like the web.
 export async function getStorageUsageReport(): Promise<StorageUsageReport> {
-  // Native: walk the real userData footprint (cdn-cache + HTTP cache + IndexedDB
-  // + service worker + shaders…). navigator.storage.estimate() can't see most of
-  // these, so on desktop it badly undercounts — we replace it entirely.
-  if (isSk && shell.system.storage) {
-    try {
-      const res = shell.system.storage.usage();
-
-      const total = res.categories.reduce((s, c) => s + (c.bytes || 0), 0);
-      const groups: GroupReport[] = res.categories.map((c) => ({
-        name: c.name,
-        usedBytes: c.bytes,
-        percentOfQuota: null,
-        percentOfGroupsTotal: total > 0 ? round2((c.bytes / total) * 100) : 0,
-      }));
-
-      // No meaningful quota for an app cache — leave it null so UsageStatus
-      // renders a proportional "what eats space" breakdown instead of a
-      // misleading bar against the whole system drive.
-      return { quotaBytes: null, storageUsedBytes: res.totalBytes, totalFreeBytes: null, groups };
-    } catch {
-      // fall through to the web estimate() path on RPC failure
-    }
-  }
-
   const groups: GroupReport[] = [];
   let quota: number | null = null;
   let storageUsed: number | null = null;
@@ -172,18 +145,9 @@ export const pruneStorageCategory = async (category: string) => {
     try { await clearMediaCache(); } catch (e) { logger.error(e); }
     return;
   }
-  if (!isSk || !shell.system.storage) return;
-  try {
-    await shell.system.storage.clear(category);
-  } catch (e) {
-    logger.error(e);
-  }
 };
 
 export const pruneCache = async () => {
-  if (isSk && shell.system.storage) {
-    try { await shell.system.storage.clear("mediaCache"); } catch (e) { logger.error(e); }
-  }
   // The web's equivalent of that on-disk cdn cache: a bucket the service worker owns, which the
   // page cannot reach directly.
   if (isWeb) {

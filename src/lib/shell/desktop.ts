@@ -1,6 +1,6 @@
-/** Application operations use the SDK and the direct native namespace. */
+/** Application operations use the SDK and the native modules of the Argon executable. */
 import { isSk } from "@/lib/sk";
-import { shell } from "./host";
+import { available as nativeSystem, consumeCrashRecovery as takeCrashRecovery, idleMs, openUrl } from "native:system";
 import { getConfig, setConfigValue, setWindowMaterial as applyMaterial } from "./config";
 import type { ConfigUpdate } from "./configTypes";
 import type { ScreenSource } from "@/composables/useScreenShareSources";
@@ -21,7 +21,7 @@ export const desktopConfig = {
   async update(request: ConfigUpdate) { return setConfigValue(request); },
 };
 export async function idleSeconds(): Promise<number> {
-  return Math.floor(shell.idle.getTime().idleMs / 1000);
+  return Math.floor(idleMs() / 1000);
 }
 export function openDevtools(): void {
   const open = (globalThis as { __sk_devtools_open?: () => string }).__sk_devtools_open;
@@ -46,9 +46,9 @@ export async function selectCaptureSource(sourceId: string, includeAudio: boolea
   if (!capture().setPendingSource(sourceId, includeAudio)) throw new Error("The capture source is invalid");
 }
 export async function consumeCrashRecovery(): Promise<boolean> {
-  return isSk ? shell.system.consumeCrashRecovery?.() ?? false : false;
+  return nativeSystem ? takeCrashRecovery() : false;
 }
 export async function openExternalUrl(url: string): Promise<void> {
-  if (isSk) { await shell.system.openUrl(url); return; }
+  if (isSk) { await openUrl(url); return; }
   window.open(url, "_blank", "noopener,noreferrer");
 }

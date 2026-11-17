@@ -8,7 +8,7 @@ import { useFeatureFlags } from "@/store/features/featureFlagsStore";
 import { useGameOverlaySettings } from "@/store/features/gameOverlaySettingsStore";
 import { setGameRunning } from "@/lib/powerSaver";
 import { isSk } from "@/lib/sk";
-import { shell } from "@/lib/shell/host";
+import { current as currentPresence, on as onPresence, type Presence as NativePresence } from "native:presence";
 
 type Presence = {
   kind: ActivityPresenceKind;
@@ -221,7 +221,7 @@ export const useActivity = defineStore("activity", () => {
     if (!isSk || bound) return;
     bound = true;
 
-    stopNativePresence = shell.presence.onChanged((data) => {
+    const announce = (data: NativePresence | null) => {
       const presence = data as Presence;
       // The host repeats the current presence every half minute, so that a window which reloaded
       // and lost its copy picks it back up. A repeat is not news — it is logged as debug and stops
@@ -230,7 +230,9 @@ export const useActivity = defineStore("activity", () => {
       if (isSamePresence(lastRawPresence.value, presence)) logger.debug("onPresenceUpdate (repeat)", data);
       else logger.info("onPresenceUpdate", data);
       onPresenceUpdate(presence);
-    });
+    };
+    stopNativePresence = onPresence("changed", announce);
+    announce(currentPresence());
 
     // Re-evaluate publication when the user toggles game-activity settings live.
     const settings = useGameOverlaySettings();

@@ -4,7 +4,6 @@
 export const DOWNLOAD_URL = "https://argon.gl/download";
 
 import { isSk } from "@/lib/sk";
-import { shell } from "@/lib/shell/host";
 import { hotkeyHost } from "@/lib/hotkeys/host";
 const hasWindow = typeof window !== "undefined";
 
@@ -60,9 +59,8 @@ const WEB_UNSUPPORTED: ReadonlySet<PlatformFeature> = new Set<PlatformFeature>([
 export function supports(feature: PlatformFeature): boolean {
   if (isSk) {
     if (feature === "globalHotkeys") return hotkeyHost.available;
-    if (feature === "nativeNotifications") return !!shell?.system.notifications;
-    if (feature === "appUpdates") return !!shell?.system.updates;
-    if (feature === "storageBreakdown") return !!shell?.system.storage;
+    // No Skathi host provides these yet.
+    if (feature === "nativeNotifications" || feature === "appUpdates" || feature === "storageBreakdown") return false;
     return true;
   }
   return !WEB_UNSUPPORTED.has(feature);

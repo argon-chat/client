@@ -19,7 +19,7 @@ import { computedAsync } from '@vueuse/core';
 import { openDevtools } from "@/lib/shell/desktop";
 import { appWindow } from "@/lib/sk/window";
 import { closeWindow } from "@/lib/sk/tray";
-import { shell } from '@/lib/shell/host';
+import { available as nativeSystem, info as systemInfo } from 'native:system';
 
 const { t } = useLocale();
 const route = useRoute();
@@ -29,7 +29,7 @@ const isMaximized = ref(false);
 const isFullscreen = ref(false);
 // Native window chrome follows the host OS, even when an app overrides its UA.
 const isMac = computed(() => {
-  const platform = shell?.system.info().platform;
+  const platform = nativeSystem ? systemInfo().platform : undefined;
   return platform ? platform === 'macos' || platform === 'darwin' : navigator.userAgent.includes('Mac');
 });
 const { needsUpdate, doUpdate } = useVersionChecker();

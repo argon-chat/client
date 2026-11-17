@@ -206,9 +206,8 @@ import {
 } from "@argon/ui/select";
 import { useToast } from "@argon/ui/toast";
 import { useAuthStore } from "@/store/auth/authStore";
-import { isSk } from "@/lib/sk";
 import { trayUp } from "@/lib/sk/tray";
-import { shell } from "@/lib/shell/host";
+import { available as nativeSystem, autostart, info as systemInfo, setAutostart } from "native:system";
 import { openDevtools } from "@/lib/shell/desktop";
 import { ConfigKey, ConfigValueType, ConfigSection, ConfigUpdate } from "@/lib/shell/configTypes";
 import { useConfigStore } from "@/store/ui/configStore";
@@ -227,7 +226,7 @@ const preference = usePreference();
 const showLinuxUpdateModal = ref(false);
 const version = ref((window as any).ui_fullversion as string);
 const buildtime = ref((window as any).ui_buildtime as string);
-const host_version = ref(isSk ? shell.system.info().appVersion : "");
+const host_version = ref(nativeSystem ? systemInfo().appVersion : "");
 const selected_channel = ref("live" as "live" | "canary" | "beta");
 const disable_channel_select = ref(false);
 const selected_api_endpoint = ref("live" as "live" | "dev" | "local");
@@ -242,11 +241,7 @@ const autostartInstallRequired = ref(false);
 const autostartEnabled = ref(false);
 const autostartBusy = ref(false);
 
-type AutostartBridge = {
-    get: () => Promise<{ supported: boolean; enabled: boolean }>;
-    set: (enabled: boolean) => Promise<{ supported: boolean; enabled: boolean }>;
-};
-const autostartBridge = () => isSk ? shell.system.autostart : undefined;
+const autostartBridge = () => nativeSystem ? { get: async () => autostart(), set: async (enabled: boolean) => setAutostart(enabled) } : undefined;
 
 async function loadAutostart() {
     const a = autostartBridge();
@@ -289,10 +284,6 @@ const copyMyUserId = () => {
     navigator.clipboard.writeText(me.me?.userId ?? "error");
 };
 
-watch(selected_channel, (channel) => {
-    if (isSk) shell.system.updates?.setChannel(channel);
-});
-
 watch(selected_api_endpoint, async (e) => {
     if (!e) return;
     if (localStorage.getItem("api_endpoint") === e) return;
@@ -305,8 +296,8 @@ watch(selected_api_endpoint, async (e) => {
 onMounted(async () => {
     void loadAutostart();
 
-    disable_channel_select.value = !isSk || !shell.system.updates;
-    if (isSk && shell.system.updates) selected_channel.value = shell.system.updates.getChannel();
+    // No host has update channels yet.
+    disable_channel_select.value = true;
 
     const currentApiEndpoint = localStorage.getItem("api_endpoint");
 

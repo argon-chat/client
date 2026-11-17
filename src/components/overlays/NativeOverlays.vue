@@ -2,7 +2,7 @@
 import { computed, onMounted, onUnmounted, shallowRef, watch } from "vue";
 import { SkWindow } from "@/lib/sk/skWindow";
 import { isSk } from "@/lib/sk";
-import { shell, type ActivityWindow } from "@/lib/shell/host";
+import { available as nativeActivity, list as activities, on as onActivity, window as activityWindow, type ActivityWindow } from "native:activity";
 import { drawingTarget, hudVoice, hudConfig, targetBounds, stopNativeDrawing } from "@/lib/shell/overlays";
 import { useGameOverlaySettings, normalizeGameId } from "@/store/features/gameOverlaySettingsStore";
 import NativeGameHud from "./NativeGameHud.vue";
@@ -13,16 +13,16 @@ const game = shallowRef<ActivityWindow | null>(null);
 const off: (() => void)[] = [];
 const visible = computed(() => {
   if (!game.value?.foreground || !hudVoice.value.inVoice || !settings.overlayEnabled) return false;
-  const activity = shell.activity.list().find((item) => item.pid === game.value?.pid);
+  const activity = activities().find((item) => item.pid === game.value?.pid);
   const id = activity ? normalizeGameId(activity.path, activity.name) : "";
   return !id || settings.games[id]?.overlayEnabled !== false;
 });
 watch(() => settings.snapshot().hud, (config) => { hudConfig.value = config; }, { immediate: true, deep: true });
 
 onMounted(() => {
-  if (!isSk || !SkWindow || !shell?.activity) return;
-  game.value = shell.activity.window();
-  off.push(shell.activity.onWindowChanged((value) => { game.value = value; }));
+  if (!isSk || !SkWindow || !nativeActivity) return;
+  game.value = activityWindow();
+  off.push(onActivity("windowChanged", (value) => { game.value = value; }));
 });
 onUnmounted(() => { for (const dispose of off) dispose(); stopNativeDrawing(); });
 </script>

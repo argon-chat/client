@@ -1,7 +1,7 @@
 import { logger } from "@argon/core";
 import { useWindow } from "@/store/ui/windowStore";
 import { isSk } from "@/lib/sk";
-import { shell } from "@/lib/shell/host";
+import { available as nativeLaunch, on as onLaunch, pending as pendingLaunches, take as takeLaunch } from "native:launch";
 import { forwardLaunchLinks } from "@/lib/sk/launch";
 
 /**
@@ -98,9 +98,13 @@ export function initDeepLinks() {
   // Skathi's client-gap.md §4, "launchQueue URLs → handleDeepLink" (A-webapi #94).
   if (isSk) {
     forwardLaunchLinks(handleDeepLink);
-    if (shell?.launch) {
-      shell.launch.onOpenUrl(handleDeepLink);
-      for (const url of shell.launch.pending()) handleDeepLink(url);
+    if (nativeLaunch) {
+      // The event names an installer activation; `pending` may already have claimed it.
+      onLaunch("openUrl", (id) => {
+        const url = takeLaunch(id);
+        if (url !== null) handleDeepLink(url);
+      });
+      for (const url of pendingLaunches()) handleDeepLink(url);
     }
   }
 

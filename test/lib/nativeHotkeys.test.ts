@@ -12,7 +12,7 @@ beforeAll(async () => {
   await import("@/store/ui/hotKeyStore");
   vi.resetModules();
 }, 60_000);
-afterEach(() => { vi.doUnmock("vue"); vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.resetModules(); });
+afterEach(() => { vi.doUnmock("vue"); vi.doUnmock("native:system"); vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.resetModules(); });
 describe("direct native hotkeys", () => {
   test("passes stored VK/raw chords directly and turns native release events into UI actions", async () => {
     let fire!: (event: { id: string; phase: "down" | "up" }) => void;
@@ -93,7 +93,7 @@ describe("direct native hotkeys", () => {
   test("window actions use the native app service without inventing SDK window methods", async () => {
     const toggle = vi.fn(() => true);
     const show = vi.fn(() => true);
-    vi.stubGlobal("argon", { system: { window: { toggle, show } } });
+    vi.doMock("native:system", () => ({ available: true, toggleWindow: toggle, showWindow: show }));
     vi.stubGlobal("__SK_WINDOW__", { appWindow: {} });
     const { hotkeyHost } = await import("@/lib/hotkeys/host");
     expect(await hotkeyHost.toggleMainWindow()).toBe(true);

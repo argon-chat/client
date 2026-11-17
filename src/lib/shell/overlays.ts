@@ -1,8 +1,7 @@
 import { shallowRef } from "vue";
 import type { VoiceMember, OverlayChatMessage, OverlayNotification, OverlayHudConfig } from "@/lib/overlay/types";
 import type { DrawPacket } from "@/lib/screencast-draw/types";
-import type { MonitorTarget } from "./host";
-import { shell } from "./host";
+import { available as nativeSystem, captureTarget, type Target as MonitorTarget } from "native:system";
 import { appWindow } from "@/lib/sk/window";
 
 export const hudVoice = shallowRef<{ inVoice: boolean; members: VoiceMember[] }>({ inVoice: false, members: [] });
@@ -27,7 +26,7 @@ export function stopNativeDrawing(): void {
   drawingTimer = null;
   drawingTarget.value = null;
 }
-export function nativeDrawingAvailable(): boolean { return typeof shell?.capture?.target === "function"; }
+export function nativeDrawingAvailable(): boolean { return nativeSystem; }
 export function startNativeDrawing(sourceId: string | null): void {
   stopNativeDrawing();
   if (!sourceId || !nativeDrawingAvailable()) return;
@@ -35,7 +34,7 @@ export function startNativeDrawing(sourceId: string | null): void {
   const refresh = () => {
     if (epoch !== drawingEpoch) return;
     try {
-      drawingTarget.value = shell.capture.target(sourceId);
+      drawingTarget.value = captureTarget(sourceId);
       if (!drawingTarget.value) stopNativeDrawing();
     } catch (error) {
       stopNativeDrawing();

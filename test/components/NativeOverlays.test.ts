@@ -14,11 +14,12 @@ vi.mock("@/lib/sk/skWindow", async () => {
     setup(props, { slots }) { return () => node("section", { "data-window": props.title }, slots.default?.()); },
   }) };
 });
-vi.mock("@/lib/shell/host", () => ({ shell: { activity: {
+vi.mock("native:activity", () => ({
+  available: true,
   window: () => h.game,
   list: () => [{ pid: 42, path: "c:/game.exe", name: "Game" }],
-  onWindowChanged: (fn: unknown) => { h.changed = fn; return h.off; },
-} } }));
+  on: (_event: string, fn: unknown) => { h.changed = fn; return h.off; },
+}));
 vi.mock("@/store/features/gameOverlaySettingsStore", () => ({
   useGameOverlaySettings: () => h.settings,
   normalizeGameId: (path: string) => path.toLowerCase(),

@@ -2,7 +2,7 @@ import { persistedValue } from "@argon/storage";
 import { openDB, type IDBPDatabase } from "idb";
 import { defineStore } from "pinia";
 import { isSk } from "@/lib/sk";
-import { shell } from "@/lib/shell/host";
+import { available as nativeActivity, list as activities, on as onActivity } from "native:activity";
 import { computed, shallowReactive, onScopeDispose } from "vue";
 import {
   defaultHudConfig,
@@ -187,17 +187,8 @@ export const useGameOverlaySettings = defineStore("gameOverlaySettings", () => {
 
   async function loadIcon(id: string): Promise<void> {
     const stored = await readStoredIcon(id);
-    if (stored) {
-      if (games[id]) icons[id] = stored;
-      return;
-    }
-    try {
-      const dataUrl = await (isSk ? shell.activity.icon?.(id) : undefined);
-      if (typeof dataUrl === "string" && dataUrl && games[id]) {
-        icons[id] = dataUrl;
-        await writeStoredIcon(id, dataUrl);
-      }
-    } catch { /* ignore */ }
+    // Only stored icons: no Skathi host extracts a game's icon yet.
+    if (stored && games[id]) icons[id] = stored;
   }
 
   function forgetIcon(id: string): void {
@@ -308,14 +299,9 @@ export const useGameOverlaySettings = defineStore("gameOverlaySettings", () => {
     pruneJournal();
     migrateLegacyIcons();
     Object.assign(hud, normalizeHudConfig(hud));
-    if (isSk) {
-      for (const activity of shell.activity.list()) recordGame(activity.path, activity.name);
-      nativeListeners.push(shell.activity.onStarted((activity) => recordGame(activity.path, activity.name)));
-      nativeListeners.push(shell.activity.onWindowChanged((value) => {
-        if (!value?.exclusiveFullscreen) return;
-        const activity = shell.activity.list().find((item) => item.pid === value.pid);
-        if (activity) markUnsupported(normalizeGameId(activity.path, activity.name), "exclusive fullscreen");
-      }));
+    if (isSk && nativeActivity) {
+      for (const activity of activities()) recordGame(activity.path, activity.name);
+      nativeListeners.push(onActivity("started", (activity) => recordGame(activity.path, activity.name)));
     }
     for (const id of Object.keys(games)) void ensureIcon(id);
   }

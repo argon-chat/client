@@ -36,7 +36,6 @@
 		"packages/*/src/**/*.ts",
 		"packages/*/src/**/*.vue",
 		"test/**/*.ts",
-		"global.d.ts",
-		"argon.d.ts"
+		"global.d.ts"
 	]
 }

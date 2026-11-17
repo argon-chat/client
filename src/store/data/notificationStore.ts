@@ -1,8 +1,6 @@
 import { defineStore } from "pinia";
-import { isSk } from "@/lib/sk";
-import { ref, computed, shallowRef, triggerRef, watch } from "vue";
+import { ref, computed, shallowRef, triggerRef } from "vue";
 import { logger } from "@argon/core";
-import { shell } from "@/lib/shell/host";
 import { useApi } from "@/store/system/apiStore";
 import { useBus } from "@/store/realtime/busStore";
 import { useMe } from "@/store/auth/meStore";
@@ -141,30 +139,9 @@ export const useNotificationStore = defineStore("notifications", () => {
     return total;
   });
 
-  // Reflect unread state onto the desktop tray icon + taskbar overlay / dock badge (native host only).
-  watch(
-    [hasAnyUnread, pingCount],
-    ([has, pings]) => {
-      if (!isSk || !shell.system.notifications) return;
-      try {
-        shell.system.notifications.setUnread({ unread: has, count: pings });
-      } catch (e) {
-        logger.error("[NotificationStore] Failed to update tray/taskbar badge:", e);
-      }
-    },
-    { immediate: true },
-  );
-
   // Pulse the taskbar button (Windows) / bounce the dock (macOS) on a real ping when the window
-  // isn't focused — the host decides whether to actually flash based on focus.
-  function flashForAttention() {
-    if (!isSk || !shell.system.notifications) return;
-    try {
-      shell.system.notifications.requestAttention();
-    } catch (e) {
-      logger.error("[NotificationStore] Failed to flash taskbar:", e);
-    }
-  }
+  // isn't focused. No Skathi host has the badge or the flash yet.
+  function flashForAttention() {}
 
   function isChannelUnread(channelId: Guid, lastMessageId: bigint): boolean {
     const rs = readStates.value.get(channelId);

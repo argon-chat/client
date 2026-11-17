@@ -1,13 +1,14 @@
 import { describe, test, expect, vi, afterEach } from "vitest";
 
-afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.resetModules(); });
+const stubSystem = (system: object): void => { vi.doMock("native:system", () => ({ available: true, ...system })); };
+afterEach(() => { vi.doUnmock("native:system"); vi.useRealTimers(); vi.unstubAllGlobals(); vi.resetModules(); });
 
 describe("native drawing lifecycle", () => {
   test("follows the selected window, scales its exact bounds and stops polling when the source disappears", async () => {
     vi.useFakeTimers();
     let target: any = { monitorIndex: 1, x: -1200, y: 100, w: 900, h: 600, scaleFactor: 1.5 };
     const resolve = vi.fn(() => target);
-    vi.stubGlobal("argon", { capture: { target: resolve } });
+    stubSystem({ captureTarget: resolve });
     vi.stubGlobal("__SK_WINDOW__", { appWindow: { scaleFactor: 1 } });
     const overlay = await import("@/lib/shell/overlays");
     overlay.startNativeDrawing("window:123");
@@ -25,7 +26,7 @@ describe("native drawing lifecycle", () => {
   test("stop and source changes cannot keep an old capture alive or deliver late strokes", async () => {
     vi.useFakeTimers();
     const resolve = vi.fn(() => ({ monitorIndex: 0, x: 0, y: 0, w: 100, h: 100 }));
-    vi.stubGlobal("argon", { capture: { target: resolve } });
+    stubSystem({ captureTarget: resolve });
     vi.stubGlobal("__SK_WINDOW__", { appWindow: { scaleFactor: 1 } });
     const overlay = await import("@/lib/shell/overlays");
     const accept = vi.fn();
@@ -47,7 +48,7 @@ describe("native drawing lifecycle", () => {
 
   test("an invalid source never falls back to the primary display", async () => {
     vi.useFakeTimers();
-    vi.stubGlobal("argon", { capture: { target: () => null } });
+    stubSystem({ captureTarget: () => null });
     const overlay = await import("@/lib/shell/overlays");
     overlay.startNativeDrawing("window:404");
     expect(overlay.drawingTarget.value).toBeNull();

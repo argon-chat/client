@@ -19,5 +19,5 @@
 			"@/*": ["./src/*"]
 		}
 	},
-	"include": ["argon.d.ts"]
+	"include": ["scripts/nativeModules.ts"]
 }

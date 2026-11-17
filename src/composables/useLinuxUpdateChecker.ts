@@ -1,20 +1,21 @@
 import { ref, onMounted, onUnmounted, computed } from "vue";
 import { logger } from "@argon/core";
 import { isSk } from "@/lib/sk";
-import { shell, type UpdateStatus } from "@/lib/shell/host";
+import { available as nativeSystem, info as systemInfo } from "native:system";
+import { available as nativeUpdate, on as onUpdate, restart, state as updateState, type Status as UpdateStatus } from "native:update";
 
 const UPDATE_CHECK_URL = "https://updates.argon.gl/runtime/core-linux/latest.linux";
 const DOWNLOAD_BASE_URL = "https://updates.argon.gl";
 const CHECK_INTERVAL = 10 * 60 * 1000; // 10 minutes
 
 /**
- * Linux updates. The native app is an AppImage that updates itself (`argon.update`): this only
+ * Linux updates. The native app is an AppImage that updates itself (`native:update`): this only
  * offers the restart once the new version is in place. Elsewhere on Linux (the older .deb desktop
  * app) it checks the .deb channel and offers the install command.
  */
 export function useLinuxUpdateChecker() {
   const isLinux = navigator.userAgent.includes("Linux") && !navigator.userAgent.includes("Android");
-  const native = isSk && !!shell.update;
+  const native = nativeUpdate;
   const nativeStatus = ref<UpdateStatus | null>(null);
   const latestVersion = ref<string | null>(null);
   const latestDebPath = ref<string | null>(null);
@@ -25,7 +26,7 @@ export function useLinuxUpdateChecker() {
   let unsubscribe: (() => void) | null = null;
 
   const currentVersion = computed(() => {
-    return isSk ? shell.system.info().appVersion : undefined;
+    return nativeSystem ? systemInfo().appVersion : undefined;
   });
 
   const hasUpdate = computed(() => (native ? nativeStatus.value?.phase === "ready" : debUpdate.value));
@@ -97,14 +98,13 @@ export function useLinuxUpdateChecker() {
       showModal.value = true;
       return;
     }
-    if (!shell.update!.restart()) logger.warn("No update is ready to restart into");
+    if (!restart()) logger.warn("No update is ready to restart into");
   }
 
   onMounted(() => {
     if (native) {
-      const update = shell.update!;
-      onNativeStatus(update.state());
-      unsubscribe = update.onChanged(onNativeStatus);
+      onNativeStatus(updateState());
+      unsubscribe = onUpdate("changed", onNativeStatus);
       return;
     }
     if (isSk || !isLinux) return;

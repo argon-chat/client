@@ -16,7 +16,7 @@
  */
 
 import { isDesktop } from "@/lib/platform";
-import { shell } from "@/lib/shell/host";
+import { info as systemInfo } from "native:system";
 
 export const CLIENT_DESCRIPTOR_HEADER = "X-Argon-Client";
 
@@ -33,7 +33,7 @@ export function clientDescriptorHeader(): Promise<string> {
 
 async function build(): Promise<string> {
   if (!isDesktop) return encode(fromNavigator());
-  const info = shell.system.info();
+  const info = systemInfo();
   return encode({
     platform: platformOf(info.platform), os: info.osName ?? info.platform,
     osv: info.osVersion, app: info.appVersion, device: info.hostname, arch: info.osArchitecture,
