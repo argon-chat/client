@@ -1,4 +1,5 @@
 /** Application operations use the SDK and the native modules of the Argon executable. */
+import * as vue from "vue";
 import { isSk } from "@/lib/sk";
 import { available as nativeSystem, consumeCrashRecovery as takeCrashRecovery, idleMs, openUrl } from "native:system";
 import { getConfig, setConfigValue, setWindowMaterial as applyMaterial } from "./config";
@@ -24,10 +25,9 @@ export async function idleSeconds(): Promise<number> {
   return Math.floor(idleMs() / 1000);
 }
 export function openDevtools(): void {
-  const open = (globalThis as { __sk_devtools_open?: () => string }).__sk_devtools_open;
-  if (!open) return;
-  const result = JSON.parse(open()) as { error?: string };
-  if (result.error) console.warn("[devtools]", result.error);
+  if (!import.meta.env.SK || !isSk) return;
+  const devtools = Reflect.get(vue, "appDevtools") as { open(): boolean } | undefined;
+  devtools?.open();
 }
 export async function setWindowMaterial(material: string): Promise<boolean> { return applyMaterial(material); }
 export async function screenSources(types: string[], options?: Record<string, unknown>): Promise<ScreenSource[]> {

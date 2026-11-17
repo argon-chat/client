@@ -85,9 +85,8 @@ onMounted(() => {
 const shiftCtrlA = keys["Shift+Ctrl+Digit9"];
 const altShift7 = keys["Shift+Ctrl+Digit7"];
 
-watch(shiftCtrlA, (_) => {
-  // @ts-ignore
-  openDevtools();
+watch(shiftCtrlA, (pressed) => {
+  if (pressed) openDevtools();
 });
 
 watch(altShift7, (v) => {
