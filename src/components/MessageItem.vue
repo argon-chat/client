@@ -142,9 +142,8 @@
       <!-- Unsupported version fallback -->
       <div
         v-if="isUnsupported"
-        class="rounded-r-xl rounded-bl-xl border-l-4 border-destructive bg-destructive/10 italic text-sm py-3 px-4"
-        v-html="t('not_supported_message_please_update')"
-      />
+        class="rounded-r-xl rounded-bl-xl border-l-4 border-destructive bg-destructive/10 italic text-sm py-3 px-4 whitespace-pre-line"
+      >{{ t('not_supported_message_please_update').replaceAll('<br/>', '\n') }}</div>
 
       <!-- Normal content -->
       <template v-else>

@@ -164,6 +164,20 @@ describe("VideoPlayer", () => {
     expect(seen).toHaveBeenCalledTimes(1);
   });
 
+  test("holding a physical mute key toggles once while holding a seek key keeps seeking", async () => {
+    const { root, video } = show();
+    await loaded(video);
+    const key = (code: string, value: string, repeat: boolean) =>
+      root.dispatchEvent(new KeyboardEvent("keydown", { code, key: value, repeat, bubbles: true, cancelable: true }));
+    expect(key("KeyM", "ь", false)).toBe(false);
+    expect(video.muted).toBe(true);
+    expect(key("KeyM", "ь", true)).toBe(false);
+    expect(video.muted).toBe(true);
+    key("ArrowRight", "ArrowRight", false);
+    key("ArrowRight", "ArrowRight", true);
+    expect(video.currentTime).toBeCloseTo(10, 1);
+  });
+
   test("listening always: keys work without focus, and are not passed on", async () => {
     const { video } = show({ listenKeyboard: "always" });
     await loaded(video);

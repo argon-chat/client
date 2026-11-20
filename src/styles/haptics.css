@@ -1,0 +1,24 @@
+button,
+[role="button"],
+[role="switch"],
+[role="tab"] {
+  haptic: activate tick .35;
+}
+
+input[type="checkbox"],
+input[type="radio"],
+select {
+  haptic: change tick .4;
+}
+
+input[type="range"],
+.argon-slider {
+  haptic: step tick .22, boundary edge .6;
+  haptic-min-interval: 45ms, 0ms;
+}
+
+[aria-disabled="true"],
+[data-disabled],
+:disabled {
+  haptic: none;
+}

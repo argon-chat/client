@@ -1,9 +1,10 @@
 <template>
   <div
     class="flex flex-col h-full overflow-hidden relative border border-border/50 rounded-2xl bg-card"
-    @dragover.prevent="onDragOver"
-    @dragleave.prevent="onDragLeave"
-    @drop.prevent="onDrop"
+    @dragenter="onDragEnter"
+    @dragover="onDragOver"
+    @dragleave="onDragLeave"
+    @drop="onDrop"
   >
     <!-- ── Drag-drop overlay ── -->
     <Transition
@@ -14,7 +15,7 @@
     >
       <div
         v-if="isDragging"
-        class="absolute inset-0 z-50 rounded-2xl border-2 border-dashed border-primary bg-primary/[0.06] backdrop-blur-[2px] flex items-center justify-center"
+        class="pointer-events-none absolute inset-0 z-50 rounded-2xl border-2 border-dashed border-primary bg-primary/[0.06] backdrop-blur-[2px] flex items-center justify-center"
       >
         <div class="flex flex-col items-center gap-2.5 text-primary">
           <div class="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
@@ -200,7 +201,8 @@ import { useChannelData } from "@/composables/useChannelData";
 import { useChannelTyping } from "@/composables/useChannelTyping";
 import { replyAuthorName } from "@/composables/useChannelFollow";
 import { MEMBER_DRAG_TYPE, requestMention } from "@/lib/chat/composerMention";
-import { readAttachmentRefs } from "@/lib/attachments/clipboard";
+import { carriesAttachmentRef, readAttachmentRefs } from "@/lib/attachments/clipboard";
+import { droppedFiles, useFileDropZone } from "@/composables/useFileDropZone";
 import { ArgonMessage } from "@argon/glue";
 
 import ChatView from "./ChatView.vue";
@@ -211,7 +213,6 @@ import ScheduledPostsChip from "./chats/ScheduledPostsChip.vue";
 
 const chatViewRef = ref<InstanceType<typeof ChatView> | null>(null);
 const enterTextRef = ref<InstanceType<typeof EnterText> | null>(null);
-const isDragging = ref(false);
 const replyTo = ref<ArgonMessage | null>(null);
 const editing = ref<ArgonMessage | null>(null);
 
@@ -317,40 +318,35 @@ function onMarkFailed(randomId: bigint, error: string) {
 
 // ── Drag & drop ──
 
-let _dragCounter = 0;
-
-function onDragOver(e: DragEvent) {
-  if (!canAttach.value || !e.dataTransfer?.types.includes("Files")) return;
-  _dragCounter++;
-  isDragging.value = true;
-}
-
-function onDragLeave(e: DragEvent) {
-  _dragCounter--;
-  if (_dragCounter <= 0) {
-    _dragCounter = 0;
-    isDragging.value = false;
-  }
-}
+const canDropFiles = () => !!enterTextRef.value && canAttach.value && !editing.value;
+const { isDragging, onDragEnter, onDragLeave, onDragOver, resetDrag } = useFileDropZone(
+  canDropFiles,
+  types => (canSend.value && types.includes(MEMBER_DRAG_TYPE)) || (canDropFiles() && carriesAttachmentRef(types)),
+);
 
 function onDrop(e: DragEvent) {
-  _dragCounter = 0;
-  isDragging.value = false;
+  resetDrag();
   // A voice member dragged in from the sidebar: their mention goes into the composer.
   const member = e.dataTransfer?.getData(MEMBER_DRAG_TYPE);
   if (member) {
-    if (canSend.value && selectedChannelId.value) requestMention(selectedChannelId.value, member);
+    if (canSend.value && selectedChannelId.value) {
+      e.preventDefault();
+      requestMention(selectedChannelId.value, member);
+    }
     return;
   }
-  if (!canAttach.value) return;
+  if (!canDropFiles()) return;
   // An attachment dragged out of a chat is a reference to a file the server has; no bytes move.
   const refs = readAttachmentRefs(e.dataTransfer, true);
   if (refs.length) {
+    e.preventDefault();
     enterTextRef.value?.handleExternalRefs(refs);
     return;
   }
-  if (e.dataTransfer?.files?.length && enterTextRef.value) {
-    enterTextRef.value.handleExternalFiles(e.dataTransfer.files);
+  const files = droppedFiles(e.dataTransfer);
+  if (files.length) {
+    e.preventDefault();
+    enterTextRef.value?.handleExternalFiles(files);
   }
 }
 </script>

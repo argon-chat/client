@@ -158,10 +158,39 @@ describe("with SendMessages", () => {
     h.granted = new Set(["ViewChannel", "SendMessages", "AttachFiles"]);
     const w = render();
 
-    await w.trigger("dragover", fileDrop());
+    await w.trigger("dragenter", fileDrop());
+    const transfer = fileDrop();
+    await w.trigger("dragover", transfer);
+    expect(transfer.dataTransfer).toHaveProperty("dropEffect", "copy");
     expect(w.text()).toContain("drop_files_here");
-    await w.trigger("drop", fileDrop());
+    await w.get(".stub-enter-text").trigger("drop", fileDrop());
     expect(h.handleExternalFiles).toHaveBeenCalledTimes(1);
+  });
+
+  test("hover survives crossing a child and clears on leaving, however many dragovers arrived", async () => {
+    h.granted = new Set(["ViewChannel", "SendMessages", "AttachFiles"]);
+    const w = render();
+    const child = w.get(".stub-enter-text");
+    await w.trigger("dragenter", fileDrop());
+    await child.trigger("dragenter", fileDrop());
+    await w.trigger("dragleave", fileDrop());
+    await child.trigger("dragover", fileDrop());
+    await child.trigger("dragover", fileDrop());
+    expect(w.text()).toContain("drop_files_here");
+    await child.trigger("dragleave", fileDrop());
+    expect(w.text()).not.toContain("drop_files_here");
+  });
+
+  test("a dropped directory is skipped and a real empty file is kept", async () => {
+    h.granted = new Set(["ViewChannel", "SendMessages", "AttachFiles"]);
+    const w = render();
+    const empty = new File([], "empty.txt");
+    const folder = new File([], "folder");
+    const items = [folder, empty].map(file => ({
+      kind: "file", getAsFile: () => file, webkitGetAsEntry: () => ({ isDirectory: file === folder }),
+    }));
+    await w.trigger("drop", { dataTransfer: { files: [folder, empty], items, types: ["Files"], getData: () => "" } });
+    expect(h.handleExternalFiles).toHaveBeenCalledWith([empty]);
   });
 
   test("a voice member dragged in is no file drop: it asks for their mention in this channel", async () => {

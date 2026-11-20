@@ -1,0 +1,21 @@
+diff --git a/build/npm/esm/prod/eventbuilder.js b/build/npm/esm/prod/eventbuilder.js
+--- a/build/npm/esm/prod/eventbuilder.js
++++ b/build/npm/esm/prod/eventbuilder.js
+@@ -87,7 +87,7 @@
+ }
+ function extractType(ex) {
+   const name = ex?.name;
+-  if (!name && isWebAssemblyException(ex)) {
++  if ((typeof __SENTRY_WASM_EXCEPTIONS__ === "undefined" || __SENTRY_WASM_EXCEPTIONS__) && !name && isWebAssemblyException(ex)) {
+     const hasTypeInMessage = ex.message && Array.isArray(ex.message) && ex.message.length == 2;
+     return hasTypeInMessage ? ex.message[0] : "WebAssembly.Exception";
+   }
+@@ -95,7 +95,7 @@
+ }
+ function extractMessage(ex) {
+   const message = ex?.message;
+-  if (isWebAssemblyException(ex)) {
++  if ((typeof __SENTRY_WASM_EXCEPTIONS__ === "undefined" || __SENTRY_WASM_EXCEPTIONS__) && isWebAssemblyException(ex)) {
+     if (Array.isArray(ex.message) && ex.message.length == 2) {
+       return ex.message[1];
+     }

@@ -29,7 +29,8 @@
                             Executing USSD<span class="animate-pulse">▌</span>
                         </span>
 
-                        <span v-else v-html="ussdResult"></span>
+                        <img v-else-if="ussdResult?.imageUrl" :src="ussdResult.imageUrl" :alt="ussdResult.output" class="mx-auto max-w-full" />
+                        <span v-else>{{ ussdResult?.output }}</span>
                     </div>
                 </div>
             </div>
@@ -53,6 +54,7 @@ import { VisuallyHidden } from "@argon/ui/visually-hidden";
 import { SoftphoneKeyboard } from "@argon/softphone";
 
 import { ussdClient } from "@/lib/ussd";
+import type { UssdResponse } from "@argon/softphone";
 import { useLocale } from "@/store/system/localeStore";
 import { delay } from "@argon/core";
 import { playBusyTone, playDTMF, dtmfPlayer } from "@/lib/audio/AudioManager";
@@ -86,7 +88,7 @@ watch(open, (v, oldV) => {
 
 
 const ussdLoading = ref(false);
-const ussdResult = ref("" as string | null);
+const ussdResult = ref<UssdResponse | null>(null);
 
 type DialState =
     | "idle"
@@ -170,9 +172,9 @@ const runUssd = async (cmd: string) => {
     try {
         const result = await ussdClient.run(cmd, 1500);
         backspaceAll();
-        ussdResult.value = result.output;
+        ussdResult.value = result.output || result.imageUrl ? result : null;
     } catch {
-        ussdResult.value = "USSD execution failed";
+        ussdResult.value = { success: false, output: "USSD execution failed" };
     } finally {
         ussdLoading.value = false;
         dialState.value = "idle";

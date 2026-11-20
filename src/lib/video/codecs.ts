@@ -15,13 +15,16 @@ export function ensureAacEncoder(): Promise<{ aac: boolean; polyfill: boolean }>
   aacReady ??= (async () => {
     const { canEncodeAudio } = await import("mediabunny");
     if (await canEncodeAudio("aac").catch(() => false)) return { aac: true, polyfill: false };
-    try {
-      const { registerAacEncoder } = await import("@mediabunny/aac-encoder");
-      registerAacEncoder();
-      return { aac: await canEncodeAudio("aac").catch(() => false), polyfill: true };
-    } catch {
-      return { aac: false, polyfill: false };
+    if (!import.meta.env.ARGON_NO_WASM) {
+      try {
+        const { registerAacEncoder } = await import("@mediabunny/aac-encoder");
+        registerAacEncoder();
+        return { aac: await canEncodeAudio("aac").catch(() => false), polyfill: true };
+      } catch {
+        return { aac: false, polyfill: false };
+      }
     }
+    return { aac: false, polyfill: false };
   })();
   return aacReady;
 }

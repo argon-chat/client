@@ -11,13 +11,15 @@
         <component :is="icon" class="member-volume__icon" aria-hidden="true" />
 
         <SliderRoot
-            class="member-volume__slider"
+            class="member-volume__slider argon-slider"
             :model-value="[level]"
             :min="0"
             :max="200"
             :step="1"
             :disabled="disabled"
             :aria-label="t('member_volume')"
+            @pointerdown.capture="feedback.capture"
+            @keydown.capture="feedback.capture"
             @update:model-value="onChange"
         >
             <SliderTrack class="member-volume__track">
@@ -43,6 +45,7 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref } from "vue";
 import { SliderRange, SliderRoot, SliderThumb, SliderTrack } from "reka-ui";
+import { useSliderHaptics } from "@argon/ui/haptics";
 import { Volume1, Volume2, VolumeX } from "lucide-vue-next";
 import type { IRealtimeChannelUserWithData } from "@/store/data/poolStore";
 import { useUnifiedCall } from "@/store/media/unifiedCallStore";
@@ -60,6 +63,7 @@ const level = computed(() => Math.round(props.user.volume?.[0] ?? 100));
 const zone = computed(() => (level.value > 170 ? "hot" : level.value > 100 ? "boost" : "plain"));
 const icon = computed(() => (level.value === 0 ? VolumeX : level.value > 100 ? Volume2 : Volume1));
 const disabled = computed(() => sys.headphoneMuted);
+const feedback = useSliderHaptics();
 
 function apply(value: number): void {
     const v = Math.max(0, Math.min(200, Math.round(value)));
@@ -71,7 +75,10 @@ function apply(value: number): void {
 
 function onChange(value: number[] | undefined): void {
     const v = value?.[0];
-    if (v !== undefined) apply(v);
+    if (v !== undefined) {
+        feedback.changed(value, 0, 200, [level.value]);
+        apply(v);
+    }
 }
 
 // The reading swells for a beat on reset, so the jump back to 100 reads as an answer to the click.

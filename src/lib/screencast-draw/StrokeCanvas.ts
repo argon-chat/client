@@ -200,10 +200,40 @@ export class StrokeCanvas {
 
     if (s.tool === "arrow") {
       this.drawArrow(s.points, lineW, w, h);
+    } else if (s.points.some(p => Number.isFinite(p[2]))) {
+      this.drawPressureBrush(s.points, lineW, w, h);
     } else {
       this.drawBrush(s.points, lineW, w, h);
     }
     ctx.restore();
+  }
+
+  private drawPressureBrush(points: NormPoint[], lineW: number, w: number, h: number): void {
+    const ctx = this.ctx;
+    let prevX = 0, prevY = 0, prevRadius = 0;
+    // Fill the dots and their connecting strips together so overlap doesn't darken a fading stroke.
+    ctx.beginPath();
+    for (const [nx, ny, pressure] of points) {
+      const p = typeof pressure === "number" && Number.isFinite(pressure) ? Math.min(1, Math.max(0, pressure)) : 0.5;
+      const radius = Math.max(0.5, lineW * (0.25 + 1.5 * p) / 2);
+      const x = nx * w, y = ny * h;
+      ctx.moveTo(x + radius, y);
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.closePath();
+      const dx = x - prevX, dy = y - prevY, length = Math.hypot(dx, dy);
+      if (prevRadius && length) {
+        const normalX = -dy / length, normalY = dx / length;
+        ctx.moveTo(prevX + normalX * prevRadius, prevY + normalY * prevRadius);
+        ctx.lineTo(prevX - normalX * prevRadius, prevY - normalY * prevRadius);
+        ctx.lineTo(x - normalX * radius, y - normalY * radius);
+        ctx.lineTo(x + normalX * radius, y + normalY * radius);
+        ctx.closePath();
+      }
+      prevX = x;
+      prevY = y;
+      prevRadius = radius;
+    }
+    ctx.fill();
   }
 
   /** Smooth freehand line: quadratic curves through the midpoints of consecutive samples. */

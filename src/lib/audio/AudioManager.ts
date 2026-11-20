@@ -3,14 +3,6 @@ import { AudioManagement as BaseAudioManagement, type IAudioManagement, createDT
 import { WebRTCProcessor } from "./WebRTCProcessor";
 import { isSk } from "@/lib/sk";
 
-// Noise suppressor assets (resolved by Vite via ?url)
-import rnnoiseWorkletPath from "@sapphi-red/web-noise-suppressor/rnnoiseWorklet.js?url";
-import speexWorkletPath from "@sapphi-red/web-noise-suppressor/speexWorklet.js?url";
-import noiseGateWorkletPath from "@sapphi-red/web-noise-suppressor/noiseGateWorklet.js?url";
-import rnnoiseWasmPath from "@sapphi-red/web-noise-suppressor/rnnoise.wasm?url";
-import rnnoiseWasmSimdPath from "@sapphi-red/web-noise-suppressor/rnnoise_simd.wasm?url";
-import speexWasmPath from "@sapphi-red/web-noise-suppressor/speex.wasm?url";
-
 export type { IAudioManagement, DeviceId, WorkletPath, WorkletId, AudioManagerConfig, DTMFPlayer, RemoteAudioGraph, RemoteAudioGraphOptions } from "@argon/audio";
 export type { NoiseSuppressionMode } from "@argon/audio";
 
@@ -37,14 +29,7 @@ const audio = new AppAudioManagement({
   // RNNoise/Speex are third-party WASM processors, separate from the native meter/mono/input gate.
   // Native capture uses libwebrtc APM through audio constraints; RNNoise/Speex modes are not
   // advertised as equivalent native algorithms. Without their URLs the mode remains "off".
-  noiseSuppressorUrls: isSk ? undefined : {
-    rnnoiseWorklet: rnnoiseWorkletPath,
-    rnnoiseWasm: rnnoiseWasmPath,
-    rnnoiseWasmSimd: rnnoiseWasmSimdPath,
-    speexWorklet: speexWorkletPath,
-    speexWasm: speexWasmPath,
-    noiseGateWorklet: noiseGateWorkletPath,
-  },
+  noiseSuppressorUrls: import.meta.env.SK || isSk ? undefined : () => import("./noiseSuppressorUrls"),
 });
 
 // App-specific DTMF player

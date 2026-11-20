@@ -2,11 +2,12 @@
   <div ref="surface" data-media-editor-brush-surface class="absolute inset-0 z-[3] select-none touch-none"
     :style="{ pointerEvents: store.uiState.currentTab === 'brush' ? 'auto' : 'none', cursor: 'crosshair' }"
     @pointerdown="onPointerDown" @pointermove="onPointerMove" @pointerup="onPointerUp"
-    @pointercancel="cancelStroke" @lostpointercapture="cancelStroke" />
+    @pointercancel="onPointerCancel" @lostpointercapture="onPointerCancel" />
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue';
+import { startPenFeedback } from '@argon/ui/haptics';
 import { useMediaEditorContext, useEscape } from '../composables/useMediaEditorContext';
 import { useMaskPainterSlot } from '../composables/useMaskPainter';
 import { createBrushPainter, type BrushDrawnLine, type BrushPainterAPI } from '../canvas/brushPainter';
@@ -22,6 +23,7 @@ const canvasEl = ref<HTMLCanvasElement | null>(null);
 let painter: BrushPainterAPI | null = null;
 let currentLine: BrushDrawnLine | null = null;
 let activePointer: number | null = null, isMasking = false;
+let stopFeedback: (() => void) | undefined;
 let bounds: [number, number, number, number] = [Infinity, Infinity, -Infinity, -Infinity];
 let pendingDensity = false;
 let scale = 1, renderFrame: number | null = null;
@@ -100,6 +102,9 @@ function onPointerDown(e: PointerEvent) {
   e.preventDefault(); e.stopPropagation();
   activePointer = e.pointerId;
   try { surface.value.setPointerCapture(e.pointerId); } catch { /* global release remains available */ }
+  const texture = brush === 'eraser' || brush === 'maskErase' ? 'eraser-continuous'
+    : brush === 'pen' || brush === 'arrow' ? 'ink-continuous' : 'brush-continuous';
+  stopFeedback = startPenFeedback(e, texture);
   if (isMaskBrush(brush)) {
     isMasking = true;
     maskPainter.current!.begin(brush === 'maskErase' ? 'erase' : 'restore', store.uiState.maskBrushSize * store.uiState.pixelRatio, canvasPoint(e));
@@ -125,10 +130,15 @@ function onPointerMove(e: PointerEvent) {
 function onPointerUp(e: PointerEvent) {
   if (e.pointerId === activePointer) { e.preventDefault(); finishStroke(true); }
 }
+function onPointerCancel(e: PointerEvent) {
+  if (e.pointerId === activePointer) cancelStroke();
+}
 function finishStroke(commit: boolean) {
   const pointer = activePointer;
   if (pointer === null) return false;
   activePointer = null;
+  stopFeedback?.();
+  stopFeedback = undefined;
   if (renderFrame !== null) { cancelAnimationFrame(renderFrame); renderFrame = null; }
   if (isMasking) { isMasking = false; if (commit) maskPainter.current?.end(); else maskPainter.current?.cancel(); }
   else if (currentLine && painter) {

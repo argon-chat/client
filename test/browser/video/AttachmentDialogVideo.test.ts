@@ -49,6 +49,7 @@ vi.mock("@argon/media-editor", async () => {
 });
 
 import AttachmentDialog from "@/components/chats/AttachmentDialog.vue";
+import { setAttachmentDragData } from "@/lib/attachments/clipboard";
 
 const PROBE = {
   size: 30_000_000,
@@ -186,6 +187,33 @@ beforeEach(() => {
 afterEach(close);
 
 describe("a video in the attach window", () => {
+  test("dragging the preview offers its file and dropping it back keeps a single draft", async () => {
+    const entry = imageEntry();
+    const w = await open([entry]);
+    const stage = document.querySelector(".stage-media")!;
+    const dataTransfer = new DataTransfer();
+    const drag = (type: string) => stage.dispatchEvent(new DragEvent(type, { dataTransfer, bubbles: true, cancelable: true }));
+    drag("dragstart");
+    expect(dataTransfer.files[0].name).toBe(entry.file.name);
+    expect(await dataTransfer.files[0].arrayBuffer()).toEqual(await entry.file.arrayBuffer());
+    drag("drop");
+    expect(w.emitted("add-files")).toBeUndefined();
+    drag("dragend");
+    drag("drop");
+    expect(w.emitted("add-files")).toEqual([[[entry.file]]]);
+  });
+
+  test("an attachment dropped on the caption stays a reference in the open batch", async () => {
+    const w = await open([imageEntry()]);
+    const ref = {fileId:"0199a2b3-c4d5-7e6f-8a9b-0c1d2e3f4a5b", fileName:"notes.txt", fileSize:4,
+      contentType:"text/plain", width:null, height:null, thumbHash:null};
+    const dataTransfer = new DataTransfer();
+    setAttachmentDragData(dataTransfer, [ref], "https://argon.invalid");
+    $("caption")!.dispatchEvent(new DragEvent("drop", {dataTransfer, bubbles:true, cancelable:true}));
+    expect(w.emitted("add-refs")).toEqual([[[ref]]]);
+    expect(w.emitted("add-files")).toBeUndefined();
+  });
+
   test("shows its poster on the stage, its length and its expected size; the title and the footer count it", async () => {
     await open([videoEntry()]);
 

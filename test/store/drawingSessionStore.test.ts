@@ -259,13 +259,14 @@ describe("strokes", () => {
     const seen: DrawPacket[] = [];
     s.registerConsumer("bob", (p) => seen.push(p));
 
-    room.receive(strokeOn("bob", "carol"), "carol");
+    room.receive({ ...strokeOn("bob", "carol"), p: [[0.1, 0.2, 0.75]] }, "carol");
     room.receive(strokeOn("bob", "carol"), "dave"); // claims to be carol; is not
     room.receive(strokeOn("eve", "carol"), "carol"); // eve offers nothing
     room.receive(strokeOn("bob", "carol"), "carol", "other-topic");
     room.receive({ v: 1, from: "carol", target: "bob", kind: "nonsense" }, "carol");
 
     expect(seen).toHaveLength(2);
+    expect(seen[0]).toMatchObject({ p: [[0.1, 0.2, 0.75]] });
     expect(bridge.applyStroke).not.toHaveBeenCalled();
   });
 
@@ -277,7 +278,7 @@ describe("strokes", () => {
     const seen: DrawPacket[] = [];
     s.registerConsumer("bob", (p) => seen.push(p));
 
-    s.publish("bob", { kind: "begin", strokeId: "s1", tool: "arrow", color: "#f00", width: 0.004, ttlMs: 6000, p: [[0.1, 0.2]] });
+    s.publish("bob", { kind: "begin", strokeId: "s1", tool: "brush", color: "#f00", width: 0.004, ttlMs: 6000, p: [[0.1, 0.2, 0.75]] });
     s.publish("bob", { kind: "append", strokeId: "s1", p: [[0.2, 0.3]] });
     s.clearOwn("bob");
 
@@ -291,7 +292,7 @@ describe("strokes", () => {
       { reliable: false, topic: DRAW_TOPIC },
       { reliable: true, topic: DRAW_TOPIC },
     ]);
-    expect(JSON.parse(new TextDecoder().decode(sent[0][0]))).toMatchObject({ from: "me", target: "bob", kind: "begin" });
+    expect(JSON.parse(new TextDecoder().decode(sent[0][0]))).toMatchObject({ from: "me", target: "bob", kind: "begin", p: [[0.1, 0.2, 0.75]] });
 
     // Nothing leaves for a host whose offer does not cover me.
     h.call.participants.bob = offers({ draw: "contacts" });

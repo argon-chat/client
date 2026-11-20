@@ -20,6 +20,7 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
+    "@argon/ui": "workspace:*",
     "@mediabunny/aac-encoder": "^1.61.3",
     "mediabunny": "^1.61.3"
   },

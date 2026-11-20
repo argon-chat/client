@@ -7,4 +7,8 @@ interface ImportMetaEnv {
    * build.
    */
   readonly SK?: boolean;
+  /** Set when the desktop host only provides native codecs. */
+  readonly ARGON_NO_WASM?: boolean;
+  /** Set when the Windows client is compiled to a native application image. */
+  readonly ARGON_NATIVE_AOT?: boolean;
 }

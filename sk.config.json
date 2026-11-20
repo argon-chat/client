@@ -4,6 +4,11 @@
   "name": "argon-vue-native",
   "productName": "Argon",
 
+  "$comment-check": "EmptyStateArt inlines bundled SVG only on the web. The Skathi branch renders EmptyStateLottie.",
+  "check": {
+    "allow": { "SK5003": ["src/components/shared/EmptyStateArt.vue"] }
+  },
+
   "$comment-define": "What vite.config.ts injects through `define` (client-gap/B-build-ui.md row 8). A string value would be an expression, as in Vite; an object is inlined as JSON. Static placeholders: the version here is not GitVersion's answer, and `branch: skathi` says which build it is.",
   "define": {
     "__ARGON_BUILD__": {
@@ -45,6 +50,7 @@
     "minHeight": 680,
     "titleBarStyle": "hidden",
     "titleBarHeight": 38,
+    "lowLatencySurface": true,
     "backdrop": "acrylic",
     "resizable": true,
     "minimizable": true,

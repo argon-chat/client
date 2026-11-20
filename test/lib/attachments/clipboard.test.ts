@@ -12,6 +12,7 @@ import {
   readAttachmentRefs,
   refsFromHtml,
   serializeRefs,
+  setAttachmentDragData,
   type AttachmentRef,
 } from "@/lib/attachments/clipboard";
 
@@ -78,6 +79,15 @@ describe("html", () => {
 });
 
 describe("our payload", () => {
+  test("a drag offers other applications file links and another chat the original references", () => {
+    const dt = new DataTransfer();
+    setAttachmentDragData(dt, [cat, { ...cat, fileId: OTHER }], API + "/");
+    expect(dt.getData("text/uri-list")).toBe(`${API}/files/${ID}\r\n${API}/files/${OTHER}`);
+    expect(dt.getData("text/plain")).toBe(`${API}/files/${ID}\n${API}/files/${OTHER}`);
+    expect(readAttachmentRefs(dt, true, API).map(ref => ref.fileId)).toEqual([ID, OTHER]);
+    expect(dt.effectAllowed).toBe("copy");
+  });
+
   test("survives a round trip", () => {
     expect(parseRefsJson(serializeRefs([cat]))).toEqual([cat]);
   });

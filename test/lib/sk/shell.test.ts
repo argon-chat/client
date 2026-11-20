@@ -1,6 +1,8 @@
 import { describe, test, expect, vi, beforeAll, afterEach } from "vitest";
 
 const idle = vi.hoisted(() => ({ ms: vi.fn(() => 3200) }));
+const inspector = vi.hoisted(() => ({ available: true, open: vi.fn(() => true) }));
+vi.mock("vue", async importOriginal => ({ ...await importOriginal<typeof import("vue")>(), appDevtools: inspector }));
 vi.mock("@/lib/sk", () => ({ isSk: true }));
 vi.mock("native:system", () => ({ available: true, idleMs: idle.ms }));
 
@@ -19,7 +21,14 @@ beforeAll(async () => {
   }
 }, 60_000);
 
-afterEach(() => { vi.unstubAllGlobals(); vi.resetModules(); localStorage.clear(); });
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
+  vi.resetModules();
+  inspector.available = true;
+  inspector.open.mockClear();
+  localStorage.clear();
+});
 describe("native desktop services", () => {
   test("boot installs no IPC bridge", async () => {
     vi.stubGlobal("isSk", true);
@@ -35,9 +44,8 @@ describe("native desktop services", () => {
   test("idle is a synchronous native:system call; capture and devtools use SDK operations", async () => {
     const getSources = vi.fn(async () => [{ id: "screen:1" }]);
     const setPendingSource = vi.fn(() => true);
-    const open = vi.fn(() => JSON.stringify({ opened: true }));
+    vi.stubEnv("SK", "true");
     vi.stubGlobal("__SK_CAPTURE__", { getSources, setPendingSource });
-    vi.stubGlobal("__sk_devtools_open", open);
     const desktop = await import("@/lib/shell/desktop");
     expect(await desktop.idleSeconds()).toBe(3);
     expect(idle.ms).toHaveBeenCalledTimes(1);
@@ -46,16 +54,18 @@ describe("native desktop services", () => {
     desktop.openDevtools();
     expect(getSources).toHaveBeenCalledWith(["screen"], { withIcons: false });
     expect(setPendingSource).toHaveBeenCalledWith("screen:1", true);
-    expect(open).toHaveBeenCalledTimes(1);
+    expect(desktop.devtoolsAvailable).toBe(true);
+    expect(inspector.open).toHaveBeenCalledTimes(1);
   });
 
-  test("invalid SDK selection rejects and disabled devtools explains the refusal", async () => {
+  test("invalid capture selection rejects and the release host exposes no inspector", async () => {
+    vi.stubEnv("SK", "true");
+    inspector.available = false;
     vi.stubGlobal("__SK_CAPTURE__", { setPendingSource: () => false });
-    vi.stubGlobal("__sk_devtools_open", () => JSON.stringify({ error: "devtools are disabled" }));
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const desktop = await import("@/lib/shell/desktop");
     await expect(desktop.selectCaptureSource("window:0", false)).rejects.toThrow("invalid");
     desktop.openDevtools();
-    expect(warn).toHaveBeenCalledWith("[devtools]", "devtools are disabled");
+    expect(desktop.devtoolsAvailable).toBe(false);
+    expect(inspector.open).not.toHaveBeenCalled();
   });
 });

@@ -28,6 +28,7 @@
     "./dropdown-menu": "./src/dropdown-menu/index.ts",
     "./form": "./src/form/index.ts",
     "./hover-card": "./src/hover-card/index.ts",
+    "./haptics": "./src/haptics.ts",
     "./input": "./src/input/index.ts",
     "./label": "./src/label/index.ts",
     "./menubar": "./src/menubar/index.ts",

@@ -26,17 +26,17 @@ const defaultCommands: IUssdCommand[] = [
     pattern: "*#06#",
     handle: () => {
       const me = useMe().me;
-      const el = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-      JsBarcode(el, me?.userId!.replaceAll("-", "")!, {
+      const id = me?.userId?.replaceAll("-", "") ?? "";
+      const canvas = document.createElement("canvas");
+      JsBarcode(canvas, id, {
         format: "CODE128",
         displayValue: true,
       });
 
-      el.setAttribute("width", "");
-      el.setAttribute("height", "");
       return {
         success: true,
-        output: `${new XMLSerializer().serializeToString(el)}`,
+        output: id,
+        imageUrl: canvas.toDataURL("image/png"),
       };
     },
   },

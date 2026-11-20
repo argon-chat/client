@@ -11,6 +11,7 @@
       @pointerup="onPointerUp"
       @pointercancel="onPointerUp"
       @pointerleave="onPointerUp"
+      @lostpointercapture="onPointerUp"
     ></canvas>
 
     <!-- Brush palette: only when the local user is allowed to draw on this stream. -->
@@ -40,9 +41,10 @@
  * drawingSession store (LiveKit + native forward happen there).
  */
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { startPenFeedback } from "@argon/ui/haptics";
 import { useDrawingSession } from "@/store/features/drawingSessionStore";
 import { StrokeCanvas } from "@/lib/screencast-draw/StrokeCanvas";
-import { DEFAULT_TTL_MS, DEFAULT_WIDTH, type DrawPacket, type NormPoint, type StrokeTool } from "@/lib/screencast-draw/types";
+import { DEFAULT_TTL_MS, DEFAULT_WIDTH, samplePoint, type DrawPacket, type NormPoint, type StrokeTool } from "@/lib/screencast-draw/types";
 
 const props = withDefaults(
   defineProps<{
@@ -111,6 +113,9 @@ function sizeCanvas(): void {
 
 // ── Pointer → normalized packets ──────────────────────────────────
 const drawing = ref(false);
+let activePointer: number | null = null;
+let strokeTool: StrokeTool = "arrow";
+let stopFeedback: (() => void) | undefined;
 let strokeId: string | null = null;
 let pending: NormPoint[] = [];
 let flushTimer: ReturnType<typeof setInterval> | null = null;
@@ -119,13 +124,16 @@ function toNorm(e: PointerEvent): NormPoint {
   const rect = canvasEl.value!.getBoundingClientRect();
   const nx = (e.clientX - rect.left) / Math.max(1, rect.width);
   const ny = (e.clientY - rect.top) / Math.max(1, rect.height);
-  return [Math.min(1, Math.max(0, nx)), Math.min(1, Math.max(0, ny))];
+  return samplePoint(strokeTool, nx, ny, e);
 }
 
 function onPointerDown(e: PointerEvent): void {
-  if (!canDraw.value) return;
+  if (!canDraw.value || e.button !== 0 || activePointer !== null) return;
   e.preventDefault();
   canvasEl.value?.setPointerCapture(e.pointerId);
+  activePointer = e.pointerId;
+  strokeTool = tool.value;
+  stopFeedback = startPenFeedback(e, strokeTool === "brush" ? "brush-continuous" : "ink-continuous");
   drawing.value = true;
   strokeId = (crypto as any).randomUUID?.() ?? `${Date.now()}-${Math.round(performance.now())}`;
   const p = toNorm(e);
@@ -133,7 +141,7 @@ function onPointerDown(e: PointerEvent): void {
   draw.publish(props.targetId, {
     kind: "begin",
     strokeId: strokeId!,
-    tool: tool.value,
+    tool: strokeTool,
     color: color.value,
     width: DEFAULT_WIDTH,
     ttlMs: DEFAULT_TTL_MS,
@@ -143,7 +151,7 @@ function onPointerDown(e: PointerEvent): void {
 }
 
 function onPointerMove(e: PointerEvent): void {
-  if (!drawing.value || !strokeId) return;
+  if (e.pointerId !== activePointer || !strokeId) return;
   pending.push(toNorm(e));
 }
 
@@ -155,14 +163,22 @@ function flush(): void {
 }
 
 function onPointerUp(e: PointerEvent): void {
-  if (!drawing.value || !strokeId) return;
+  if (e.pointerId === activePointer) endStroke();
+}
+
+function endStroke(): void {
+  if (activePointer === null || !strokeId) return;
+  const pointerId = activePointer;
+  activePointer = null;
+  stopFeedback?.();
+  stopFeedback = undefined;
   drawing.value = false;
   const tail = pending;
   pending = [];
   if (flushTimer) { clearInterval(flushTimer); flushTimer = null; }
   draw.publish(props.targetId, { kind: "end", strokeId, p: tail.length ? tail : undefined });
   strokeId = null;
-  try { canvasEl.value?.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+  if (canvasEl.value?.hasPointerCapture(pointerId)) canvasEl.value.releasePointerCapture(pointerId);
 }
 
 function clearMine(): void {
@@ -185,6 +201,7 @@ onMounted(() => {
 
   ro = new ResizeObserver(() => recomputeRect());
   if (rootEl.value) ro.observe(rootEl.value);
+  window.addEventListener("blur", endStroke);
   props.video?.addEventListener("loadedmetadata", recomputeRect);
   props.video?.addEventListener("resize", recomputeRect);
 });
@@ -197,8 +214,11 @@ watch(() => props.video, (v, old) => {
   recomputeRect();
 });
 
+watch(canDraw, allowed => { if (!allowed) endStroke(); });
+
 onUnmounted(() => {
-  if (flushTimer) clearInterval(flushTimer);
+  endStroke();
+  window.removeEventListener("blur", endStroke);
   ro?.disconnect();
   props.video?.removeEventListener("loadedmetadata", recomputeRect);
   props.video?.removeEventListener("resize", recomputeRect);

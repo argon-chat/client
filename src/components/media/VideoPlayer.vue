@@ -1039,6 +1039,7 @@ function handleKey(e: KeyboardEvent): boolean {
     return true;
   }
   if (e.shiftKey) return false;
+  if (e.repeat && ["Space", "KeyK", "KeyF", "KeyM"].includes(e.code)) return true;
   const digit = /^(?:Digit|Numpad)([0-9])$/.exec(e.code);
   if (digit) {
     seek(((video.duration || duration.value) * Number(digit[1])) / 10);

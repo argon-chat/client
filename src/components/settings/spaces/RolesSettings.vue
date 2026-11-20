@@ -114,9 +114,9 @@
                         </div>
                         <div class="flex items-center justify-between py-1">
                           <div>
-                            <label class="text-sm font-medium text-white" v-html="t('mention_hard.allow_mention_role', {
-                              mention: `<span class='text-blue-500'>${t('mention_hard.mention')}</span>`
-                            })" />
+                            <I18nT keypath="mention_hard.allow_mention_role" scope="global" tag="label" class="text-sm font-medium text-white">
+                              <template #mention><span class="text-blue-500">{{ t('mention_hard.mention') }}</span></template>
+                            </I18nT>
                           </div>
                           <Switch :checked="selectedArchetype.isMentionable"
                             @update:checked="selectedArchetype.isMentionable = !selectedArchetype.isMentionable"
@@ -285,6 +285,7 @@ import {
   extractEntitlementStrict,
 } from "@/lib/rbac/ArgonEntitlement";
 import { useLocale } from "@/store/system/localeStore";
+import { Translation as I18nT } from "vue-i18n";
 import { delay } from "@argon/core";
 import ArchetypeColorPicker from "./ArchetypeColorPicker.vue";
 import BotRolesTab from "./BotRolesTab.vue";

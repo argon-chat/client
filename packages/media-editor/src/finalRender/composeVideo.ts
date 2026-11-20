@@ -80,13 +80,16 @@ let aacReady: Promise<boolean> | null = null;
 export function ensureAacEncoder(): Promise<boolean> {
   aacReady ??= (async () => {
     if (await canEncodeAudio('aac').catch(() => false)) return true;
-    try {
-      const { registerAacEncoder } = await import('@mediabunny/aac-encoder');
-      registerAacEncoder();
-      return await canEncodeAudio('aac').catch(() => false);
-    } catch {
-      return false;
+    if (!import.meta.env.ARGON_NO_WASM) {
+      try {
+        const { registerAacEncoder } = await import('@mediabunny/aac-encoder');
+        registerAacEncoder();
+        return await canEncodeAudio('aac').catch(() => false);
+      } catch {
+        return false;
+      }
     }
+    return false;
   })();
   return aacReady;
 }

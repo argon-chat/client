@@ -16,7 +16,7 @@ import LinuxUpdateModal from './modals/LinuxUpdateModal.vue';
 import { Signal } from 'lucide-vue-next';
 import Counter from './motionCounter/Counter.vue';
 import { computedAsync } from '@vueuse/core';
-import { openDevtools } from "@/lib/shell/desktop";
+import { devtoolsAvailable, openDevtools } from "@/lib/shell/desktop";
 import { appWindow } from "@/lib/sk/window";
 import { closeWindow } from "@/lib/sk/tray";
 import { available as nativeSystem, info as systemInfo } from 'native:system';
@@ -69,10 +69,6 @@ onBeforeUnmount(() => {
   window.removeEventListener('unhandledrejection', onRuntimeError);
 });
 
-function openDevTools() {
-  // @ts-ignore
-  openDevtools();
-}
 
 const isVoiceConnected = computed(() => voice.isConnected);
 const isVoiceConnecting = computed(() => voice.isConnecting);
@@ -147,11 +143,7 @@ const onTitlebarDblClick = (e: MouseEvent) => {
 </script>
 
 <template>
-  <div class="app-titlebar" :class="{ 'app-titlebar--mac': isMac }" @dblclick="onTitlebarDblClick">
-    <!-- AppKit owns the actual traffic lights and their fullscreen/hover behavior.
-         Reserve their native area rather than painting a second button cluster. -->
-    <div v-if="isMac && !isWeb && !isFullscreen" class="titlebar-native-controls" aria-hidden="true"></div>
-
+  <div class="app-titlebar" :class="{ 'app-titlebar--native-mac': isMac && !isWeb && !isFullscreen }" @dblclick="onTitlebarDblClick">
     <!-- App icon (home) + breadcrumb -->
     <button class="titlebar-brand" @click="goHome" :title="t('dashboard')">
       <IconSw class="brand-icon" :class="{ 'brand-icon--active': isHome }" />
@@ -234,13 +226,11 @@ const onTitlebarDblClick = (e: MouseEvent) => {
         <IconMessageReport class="w-4 h-4" />
       </button>
 
-      <!-- Desktop only: it opens the Electron host's inspector, which a tab does not have — the
-           browser's own devtools are a keystroke away and this button would do nothing. -->
       <button
-        v-if="!isWeb"
+        v-if="devtoolsAvailable"
         class="action-btn devtools-btn"
         :class="{ 'devtools-btn--error': hasRuntimeErrors }"
-        @click="openDevTools"
+        @click="openDevtools"
         :title="hasRuntimeErrors ? `DevTools (${runtimeErrorCount} errors)` : 'DevTools'"
       >
         <TerminalIcon class="w-4 h-4" />
@@ -572,13 +562,8 @@ const onTitlebarDblClick = (e: MouseEvent) => {
   background: #bf0f1d;
 }
 
-/* Native AppKit buttons occupy x=12..66, centered in the 38px titlebar.
-   The remaining 12px separates them from the first application action. */
-.titlebar-native-controls {
-  width: 74px;
-  height: 100%;
-  flex-shrink: 0;
-  -webkit-app-region: no-drag;
+.app-titlebar--native-mac {
+  padding-left: env(titlebar-area-x, 78px);
 }
 
 /* ---- DevTools indicator ---- */

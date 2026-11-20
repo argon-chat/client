@@ -5,9 +5,11 @@
       :show-close-button="false"
       data-testid="attachment-dialog"
       @open-auto-focus="onOpenAutoFocus"
-      @dragover.prevent="onDragOver"
+      @dragenter="onDragEnter"
+      @dragover="onDragOver"
       @dragleave="onDragLeave"
-      @drop.prevent="onDrop"
+      @drop="onDrop"
+      @dragend="draggingFromDialog = false"
     >
       <TooltipProvider :delay-duration="300" :skip-delay-duration="150">
         <header class="attach-header">
@@ -55,11 +57,13 @@
             :src="selectedFile.previewUrl!"
             alt=""
             class="stage-media"
-            draggable="false"
+            draggable="true"
+            @dragstart="dragFile($event, selectedFile.file)"
             @load="onImageLoad"
           />
 
-          <div v-else-if="stageKind === 'video'" class="stage-video" data-testid="attachment-video-preview">
+          <div v-else-if="stageKind === 'video'" class="stage-video" data-testid="attachment-video-preview"
+            draggable="true" @dragstart="dragFile($event, selectedFile.file)">
             <img v-if="selectedFile.previewUrl" :src="selectedFile.previewUrl" alt="" class="stage-media" draggable="false" />
             <FilmIcon v-else class="stage-placeholder" aria-hidden="true" />
 
@@ -108,7 +112,7 @@
             </div>
           </div>
 
-          <div v-else class="stage-file">
+          <div v-else class="stage-file" draggable="true" @dragstart="dragFile($event, selectedFile.file)">
             <span class="stage-file-icon">
               <FileTextIcon v-if="selectedFile.file.type === 'application/pdf'" aria-hidden="true" />
               <FileIcon v-else aria-hidden="true" />
@@ -225,6 +229,8 @@
               type="button"
               role="option"
               class="strip-thumb"
+              draggable="true"
+              @dragstart="dragFile($event, file.file)"
               :class="{ active: i === selectedIndex }"
               :aria-selected="i === selectedIndex"
               :aria-label="file.file.name"
@@ -312,6 +318,8 @@ import {
 } from "lucide-vue-next";
 import { checkCapabilities, videoEditBlock, type PlatformCapabilities } from "@argon/media-editor";
 import type { PendingAttachment, PendingVideo, PendingVideoPrefs } from "@/composables/useAttachmentUpload";
+import { droppedFiles, useFileDropZone } from "@/composables/useFileDropZone";
+import { carriesAttachmentRef, readAttachmentRefs, type AttachmentRef } from "@/lib/attachments/clipboard";
 import {
   estimateOutputBytes,
   planVideo,
@@ -345,7 +353,8 @@ const emit = defineEmits<{
   (e: "close"): void;
   (e: "add-more"): void;
   (e: "remove", index: number): void;
-  (e: "add-files", files: FileList): void;
+  (e: "add-files", files: File[]): void;
+  (e: "add-refs", refs: AttachmentRef[]): void;
   (e: "replace-file", index: number, file: File, previewUrl: string): void;
   (e: "open-editor", index: number, src: string, mediaType: "image" | "video"): void;
   (e: "video-prefs", index: number, patch: Partial<Pick<PendingVideoPrefs, "quality" | "mute" | "sendAsFile">>): void;
@@ -353,7 +362,11 @@ const emit = defineEmits<{
 
 const captionInputRef = ref<InstanceType<typeof EnterText> | null>(null);
 const selectedIndex = ref(0);
-const isDragging = ref(false);
+const draggingFromDialog = ref(false);
+const { isDragging, onDragEnter, onDragLeave, onDragOver, resetDrag } = useFileDropZone(
+  () => !draggingFromDialog.value,
+  types => !draggingFromDialog.value && carriesAttachmentRef(types),
+);
 const qualityOpen = ref(false);
 
 const selectedFile = computed(() => props.files[selectedIndex.value] ?? null);
@@ -362,6 +375,8 @@ const selectedVideo = computed<PendingVideo | null>(() => selectedFile.value?.vi
 
 watch(() => props.open, (v) => {
   qualityOpen.value = false;
+  resetDrag();
+  draggingFromDialog.value = false;
   if (v) {
     selectedIndex.value = 0;
     nextTick(() => {
@@ -996,18 +1011,28 @@ function onTileKeydown(e: KeyboardEvent, i: number) {
 
 // --- Drag-and-drop ---
 
-function onDragOver(e: DragEvent) {
-  if (e.dataTransfer?.types.includes("Files")) isDragging.value = true;
-}
-
-function onDragLeave(e: DragEvent) {
-  const el = e.currentTarget as HTMLElement;
-  if (!el.contains(e.relatedTarget as Node)) isDragging.value = false;
+function dragFile(e: DragEvent, file: File) {
+  if (!e.dataTransfer) return;
+  e.dataTransfer.items.add(file);
+  e.dataTransfer.effectAllowed = "copy";
+  draggingFromDialog.value = true;
 }
 
 function onDrop(e: DragEvent) {
-  isDragging.value = false;
-  if (e.dataTransfer?.files?.length) emit("add-files", e.dataTransfer.files);
+  resetDrag();
+  if (draggingFromDialog.value) return;
+  const refs = readAttachmentRefs(e.dataTransfer, true);
+  if (refs.length) {
+    e.preventDefault();
+    e.stopPropagation();
+    emit("add-refs", refs);
+    return;
+  }
+  const files = droppedFiles(e.dataTransfer);
+  if (!files.length) return;
+  e.preventDefault();
+  e.stopPropagation();
+  emit("add-files", files);
 }
 </script>
 

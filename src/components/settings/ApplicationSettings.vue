@@ -119,9 +119,9 @@
                 </Select>
 
             </div>
-            <div v-if="configStore.devModeEnabled" class="flex flex-row items-center justify-between rounded-lg border p-4">
+            <div v-if="configStore.devModeEnabled && devtoolsAvailable" class="flex flex-row items-center justify-between rounded-lg border p-4">
                 <label class="block font-semibold mb-1">{{ t("dev_tools") }}</label>
-                <button @click="toggleDevTools"
+                <button @click="openDevtools"
                     class="button bg-blue-500 text-white rounded px-4 py-2 hover:bg-blue-600">
                     {{ t("open_dev_tools") }}
                 </button>
@@ -208,7 +208,7 @@ import { useToast } from "@argon/ui/toast";
 import { useAuthStore } from "@/store/auth/authStore";
 import { trayUp } from "@/lib/sk/tray";
 import { available as nativeSystem, autostart, info as systemInfo, setAutostart } from "native:system";
-import { openDevtools } from "@/lib/shell/desktop";
+import { devtoolsAvailable, openDevtools } from "@/lib/shell/desktop";
 import { ConfigKey, ConfigValueType, ConfigSection, ConfigUpdate } from "@/lib/shell/configTypes";
 import { useConfigStore } from "@/store/ui/configStore";
 import LinuxUpdateModal from "@/components/modals/LinuxUpdateModal.vue";
@@ -270,11 +270,6 @@ async function toggleAutostart(v: boolean) {
         autostartBusy.value = false;
     }
 }
-
-const toggleDevTools = () => {
-    // @ts-ignore
-    openDevtools();
-};
 
 const copyMyUserId = () => {
     toast.toast({

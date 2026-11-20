@@ -10,6 +10,7 @@ import {
   useForwardPropsEmits,
 } from "reka-ui";
 import { computed } from "vue";
+import { useSliderHaptics } from "../haptics";
 
 const props = defineProps<
   SliderRootProps & {
@@ -30,16 +31,20 @@ const delegatedProps = computed(() => {
 });
 /* @ts-ignore */
 const forwarded = useForwardPropsEmits(delegatedProps, emits);
+const feedback = useSliderHaptics();
 </script>
 
 <template>
   <!-- @vue-ignore -->
   <SliderRoot
     :class="cn(
-      'relative flex w-full touch-none select-none items-center data-[orientation=vertical]:flex-col data-[orientation=vertical]:w-2 data-[orientation=vertical]:h-full',
+      'argon-slider relative flex w-full touch-none select-none items-center data-[orientation=vertical]:flex-col data-[orientation=vertical]:w-2 data-[orientation=vertical]:h-full',
       props.class,
     )"
     v-bind="forwarded"
+    @pointerdown.capture="feedback.capture"
+    @keydown.capture="feedback.capture"
+    @update:model-value="values => feedback.changed(values, min, max, modelValue)"
     @dblclick="$emit('dblclick')"
   >
     <SliderTrack

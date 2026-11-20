@@ -1,0 +1,19 @@
+diff --git a/build/esm/utils/is.js b/build/esm/utils/is.js
+--- a/build/esm/utils/is.js
++++ b/build/esm/utils/is.js
+@@ -1,12 +1,13 @@
+ const objectToString = Object.prototype.toString;
+ function isError(wat) {
+-  switch (objectToString.call(wat)) {
++  const tag = objectToString.call(wat);
++  switch (tag) {
+     case "[object Error]":
+     case "[object Exception]":
+     case "[object DOMException]":
+-    case "[object WebAssembly.Exception]":
+       return true;
+     default:
++      if ((typeof __SENTRY_WASM_EXCEPTIONS__ === "undefined" || __SENTRY_WASM_EXCEPTIONS__) && tag === "[object WebAssembly.Exception]") return true;
+       return isInstanceOf(wat, Error);
+   }
+ }

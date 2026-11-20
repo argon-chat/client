@@ -7,6 +7,7 @@ export interface UssdRequest {
 export interface UssdResponse {
   success: boolean;
   output: string;
+  imageUrl?: string;
 }
 
 export interface IUssdTransport {

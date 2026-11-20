@@ -14,7 +14,8 @@ import { useLocale } from "@/store/system/localeStore";
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
 import { PaperclipIcon, XIcon, ReplyIcon, MessageSquareIcon, PanelRightCloseIcon, PanelRightOpenIcon } from "lucide-vue-next";
 import type { ArgonMessage } from "@argon/glue";
-import { readAttachmentRefs } from "@/lib/attachments/clipboard";
+import { carriesAttachmentRef, readAttachmentRefs } from "@/lib/attachments/clipboard";
+import { droppedFiles, useFileDropZone } from "@/composables/useFileDropZone";
 
 const route = useRoute();
 const dmCall = useUnifiedCall();
@@ -32,7 +33,6 @@ const chatInputRef = ref<InstanceType<typeof EnterText> | null>(null);
 const userId = computed(() => route.params.userId as string | undefined);
 const isProfileOpen = shallowRef(false);
 const replyTo = ref<ArgonMessage | null>(null);
-const isDragging = ref(false);
 
 /** Whether the chat sidebar is open during a call */
 const chatSidebarOpen = ref(true);
@@ -130,33 +130,25 @@ function onMarkFailed(randomId: bigint, error: string) {
 
 // ── Drag & drop ──
 
-let _dragCounter = 0;
-
-function onDragOver() {
-    _dragCounter++;
-    isDragging.value = true;
-}
-
-function onDragLeave() {
-    _dragCounter--;
-    if (_dragCounter <= 0) {
-        _dragCounter = 0;
-        isDragging.value = false;
-    }
-}
+const { isDragging, onDragEnter, onDragLeave, onDragOver, resetDrag } = useFileDropZone(
+    () => !!chatInputRef.value,
+    types => !!chatInputRef.value && carriesAttachmentRef(types),
+);
 
 function onDrop(e: DragEvent) {
-    _dragCounter = 0;
-    isDragging.value = false;
+    resetDrag();
     if (!chatInputRef.value) return;
     // An attachment dragged out of a chat is a reference to a file the server has; no bytes move.
     const refs = readAttachmentRefs(e.dataTransfer, true);
     if (refs.length) {
+        e.preventDefault();
         chatInputRef.value.handleExternalRefs?.(refs);
         return;
     }
-    if (e.dataTransfer?.files?.length) {
-        chatInputRef.value.handleExternalFiles?.(e.dataTransfer.files);
+    const files = droppedFiles(e.dataTransfer);
+    if (files.length) {
+        e.preventDefault();
+        chatInputRef.value.handleExternalFiles?.(files);
     }
 }
 
@@ -175,9 +167,10 @@ onUnmounted(() => {
 <template>
     <div
         class="flex flex-col flex-1 overflow-hidden rounded-xl bg-card/60 border border-border relative"
-        @dragover.prevent="onDragOver"
-        @dragleave.prevent="onDragLeave"
-        @drop.prevent="onDrop"
+        @dragenter="onDragEnter"
+        @dragover="onDragOver"
+        @dragleave="onDragLeave"
+        @drop="onDrop"
     >
         <!-- Drag-drop overlay -->
         <Transition
@@ -188,7 +181,7 @@ onUnmounted(() => {
         >
             <div
                 v-if="isDragging"
-                class="absolute inset-0 z-50 rounded-xl border-2 border-dashed border-primary bg-primary/[0.06] backdrop-blur-[2px] flex items-center justify-center"
+                class="pointer-events-none absolute inset-0 z-50 rounded-xl border-2 border-dashed border-primary bg-primary/[0.06] backdrop-blur-[2px] flex items-center justify-center"
             >
                 <div class="flex flex-col items-center gap-2.5 text-primary">
                     <div class="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">

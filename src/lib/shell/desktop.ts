@@ -24,10 +24,11 @@ export const desktopConfig = {
 export async function idleSeconds(): Promise<number> {
   return Math.floor(idleMs() / 1000);
 }
+const devtools: { available: boolean; open(): boolean } | undefined =
+  import.meta.env.SK && isSk ? Reflect.get(vue, "appDevtools") : undefined;
+export const devtoolsAvailable = devtools?.available === true;
 export function openDevtools(): void {
-  if (!import.meta.env.SK || !isSk) return;
-  const devtools = Reflect.get(vue, "appDevtools") as { open(): boolean } | undefined;
-  devtools?.open();
+  if (devtools?.available) devtools.open();
 }
 export async function setWindowMaterial(material: string): Promise<boolean> { return applyMaterial(material); }
 export async function screenSources(types: string[], options?: Record<string, unknown>): Promise<ScreenSource[]> {

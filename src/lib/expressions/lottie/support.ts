@@ -39,7 +39,7 @@ function isWasmFeatureSupported(module: Uint8Array<ArrayBuffer>): boolean {
   // validate a module. Stickers and custom emoji are Skathi's <sk-sticker> instead (StickerView,
   // CustomEmojiInline), and a Skathi build leaves tlottie's .wasm out (tlottieWasm.ts). Skathi's
   // client-gap.md §4, "tlottie WASM: off".
-  if (isSk) return false;
+  if (import.meta.env.SK || isSk) return false;
   try {
     return typeof WebAssembly !== "undefined" && typeof WebAssembly.validate === "function" && WebAssembly.validate(module);
   } catch {

@@ -1,24 +1,6 @@
 <template>
     <div class="relative w-full">
-        <div class="relative" @dragover.prevent="onDragOver" @dragleave.prevent="onDragLeave" @drop.prevent="onDrop">
-            <!-- Drag overlay -->
-            <Transition
-              enter-active-class="transition duration-150 ease-out"
-              leave-active-class="transition duration-100 ease-in"
-              enter-from-class="opacity-0"
-              leave-to-class="opacity-0"
-            >
-              <div
-                v-if="isDragging && !captionMode"
-                class="absolute inset-0 z-20 bg-primary/[0.08] border-2 border-dashed border-primary rounded-lg flex items-center justify-center pointer-events-none"
-              >
-                <div class="flex flex-col items-center gap-1 text-primary text-[13px] font-medium">
-                  <PaperclipIcon class="w-6 h-6" />
-                  <span>{{ t('drop_files_here') }}</span>
-                </div>
-              </div>
-            </Transition>
-
+        <div class="relative">
             <!-- Link preview of the draft (Telegram-style: the first link, dismissable per message) -->
             <LinkPreviewBar
               v-if="!captionMode"
@@ -324,6 +306,7 @@
             @add-more="openFilePicker"
             @remove="attachments.removeFile"
             @add-files="onDialogAddFiles"
+            @add-refs="handleExternalRefs"
             @replace-file="onReplaceFile"
             @open-editor="onOpenAttachmentEditor"
             @video-prefs="attachments.setVideoPrefs"
@@ -804,7 +787,6 @@ const messageText = ref("");
 const composerEmoji = shallowRef<MessageEntityCustomEmoji[]>([]);
 const showFormatHelp = ref(false);
 const showAttachmentDialog = ref(false);
-const isDragging = ref(false);
 const api = useApi();
 const pool = usePoolStore();
 const me = useMe();
@@ -1445,35 +1427,12 @@ async function onFileInputChange(e: Event) {
   input.value = "";
 }
 
-function onDragOver() {
-  if (canAttachFiles.value && !props.editing) isDragging.value = true;
-}
-
-function onDragLeave() {
-  isDragging.value = false;
-}
-
 /** Files or references queued into the composer; the dialog opens over whatever landed. */
 async function stage(added: Promise<string[]>) {
   const errors = await added;
   for (const err of errors) logger.warn(err);
   if (attachments.hasFiles.value) {
     showAttachmentDialog.value = true;
-  }
-}
-
-async function onDrop(e: DragEvent) {
-  isDragging.value = false;
-  if (!canAttachFiles.value || props.editing) return;
-  // A file dragged out of a chat — ours or the browser's own drag of its picture — is a reference
-  // to what the server already has, and goes in as a copy rather than as bytes.
-  const refs = readAttachmentRefs(e.dataTransfer, true);
-  if (refs.length) {
-    await stage(attachments.addReferences(refs, null, "drag"));
-    return;
-  }
-  if (e.dataTransfer?.files?.length) {
-    await stage(attachments.addFiles(e.dataTransfer.files));
   }
 }
 
@@ -1508,7 +1467,7 @@ function onAttachmentDialogSend(text: string, entities: IMessageEntity[]) {
   handleSend({ text, entities });
 }
 
-async function onDialogAddFiles(files: FileList) {
+async function onDialogAddFiles(files: File[]) {
   const errors = await attachments.addFiles(files);
   for (const err of errors) logger.warn(err);
 }
@@ -1825,7 +1784,7 @@ function videoSendStage(phase: VideoSendPhase, fraction: number | null): string 
   return t("video_send_uploading", { percent });
 }
 
-async function handleExternalFiles(files: FileList) {
+async function handleExternalFiles(files: FileList | File[]) {
   if (!canAttachFiles.value || props.editing) return;
   await stage(attachments.addFiles(files));
 }

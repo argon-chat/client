@@ -1,0 +1,7 @@
+{
+  "name": "argon-aot-dexie-test",
+  "publishDevtools": false,
+  "publishJit": false,
+  "assets": [],
+  "define": { "import.meta.env.ARGON_NATIVE_AOT": true }
+}

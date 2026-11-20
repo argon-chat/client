@@ -9,7 +9,9 @@ import type {
 // scope, which is a ReferenceError wherever AudioWorkletNode does not exist, and it took the whole
 // bundle down with it. That includes Skathi today, where suppression is native anyway.
 // Skathi's research/reports/m26/client-gap.md §4, "noise suppressor: off".
-const suppressorLib = () => import("@sapphi-red/web-noise-suppressor");
+const suppressorLib = () => import.meta.env.SK
+  ? Promise.reject(new Error("Skathi uses native microphone processing"))
+  : import("@sapphi-red/web-noise-suppressor");
 
 export type NoiseSuppressionMode = "off" | "rnnoise" | "speex" | "noisegate";
 
@@ -22,6 +24,8 @@ export interface NoiseSuppressorUrls {
   noiseGateWorklet: string;
 }
 
+export type NoiseSuppressorUrlSource = NoiseSuppressorUrls | (() => Promise<NoiseSuppressorUrls>);
+
 /**
  * Manages noise suppression AudioWorklet nodes.
  * Handles loading worklet modules + WASM binaries, creating/destroying nodes.
@@ -30,7 +34,7 @@ export class NoiseSuppressor {
   private currentNode: AudioWorkletNode | null = null;
   private currentMode: NoiseSuppressionMode = "off";
   private activationId = 0;
-  private urls: NoiseSuppressorUrls;
+  private urls: NoiseSuppressorUrlSource;
 
   // Cache loaded WASM binaries
   private rnnoiseWasm: ArrayBuffer | null = null;
@@ -39,7 +43,7 @@ export class NoiseSuppressor {
   // Track which worklet modules have been registered
   private registeredModules = new WeakMap<AudioContext, Set<string>>();
 
-  constructor(urls: NoiseSuppressorUrls) {
+  constructor(urls: NoiseSuppressorUrlSource) {
     this.urls = urls;
   }
 
@@ -109,13 +113,14 @@ export class NoiseSuppressor {
     mode: NoiseSuppressionMode,
     audioCtx: AudioContext,
   ): Promise<AudioWorkletNode> {
+    const urls = typeof this.urls === "function" ? await this.urls() : this.urls;
     switch (mode) {
       case "rnnoise":
-        return this.createRnnoiseNode(audioCtx);
+        return this.createRnnoiseNode(audioCtx, urls);
       case "speex":
-        return this.createSpeexNode(audioCtx);
+        return this.createSpeexNode(audioCtx, urls);
       case "noisegate":
-        return this.createNoiseGateNode(audioCtx);
+        return this.createNoiseGateNode(audioCtx, urls);
       default:
         throw new Error(`Unknown noise suppression mode: ${mode}`);
     }
@@ -134,15 +139,15 @@ export class NoiseSuppressor {
     logger.info(`[NoiseSuppressor] Worklet module loaded successfully`);
   }
 
-  private async createRnnoiseNode(audioCtx: AudioContext): Promise<RnnoiseWorkletNode> {
-    await this.ensureWorkletModule(audioCtx, this.urls.rnnoiseWorklet);
+  private async createRnnoiseNode(audioCtx: AudioContext, urls: NoiseSuppressorUrls): Promise<RnnoiseWorkletNode> {
+    await this.ensureWorkletModule(audioCtx, urls.rnnoiseWorklet);
 
     if (!this.rnnoiseWasm) {
       logger.info(`[NoiseSuppressor] Loading RNNoise WASM...`);
       const { loadRnnoise } = await suppressorLib();
       this.rnnoiseWasm = await loadRnnoise({
-        url: this.urls.rnnoiseWasm,
-        simdUrl: this.urls.rnnoiseWasmSimd,
+        url: urls.rnnoiseWasm,
+        simdUrl: urls.rnnoiseWasmSimd,
       });
       logger.info(`[NoiseSuppressor] RNNoise WASM loaded: ${this.rnnoiseWasm.byteLength} bytes`);
     }
@@ -160,14 +165,14 @@ export class NoiseSuppressor {
     return node;
   }
 
-  private async createSpeexNode(audioCtx: AudioContext): Promise<SpeexWorkletNode> {
-    await this.ensureWorkletModule(audioCtx, this.urls.speexWorklet);
+  private async createSpeexNode(audioCtx: AudioContext, urls: NoiseSuppressorUrls): Promise<SpeexWorkletNode> {
+    await this.ensureWorkletModule(audioCtx, urls.speexWorklet);
 
     if (!this.speexWasm) {
       logger.info(`[NoiseSuppressor] Loading Speex WASM...`);
       const { loadSpeex } = await suppressorLib();
       this.speexWasm = await loadSpeex({
-        url: this.urls.speexWasm,
+        url: urls.speexWasm,
       });
       logger.info(`[NoiseSuppressor] Speex WASM loaded: ${this.speexWasm.byteLength} bytes`);
     }
@@ -181,8 +186,8 @@ export class NoiseSuppressor {
     return node;
   }
 
-  private async createNoiseGateNode(audioCtx: AudioContext): Promise<NoiseGateWorkletNode> {
-    await this.ensureWorkletModule(audioCtx, this.urls.noiseGateWorklet);
+  private async createNoiseGateNode(audioCtx: AudioContext, urls: NoiseSuppressorUrls): Promise<NoiseGateWorkletNode> {
+    await this.ensureWorkletModule(audioCtx, urls.noiseGateWorklet);
 
     const { NoiseGateWorkletNode } = await suppressorLib();
     return new NoiseGateWorkletNode(audioCtx, {

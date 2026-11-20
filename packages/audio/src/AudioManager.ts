@@ -2,7 +2,7 @@ import { Subject, BehaviorSubject, type Subscription } from "rxjs";
 import { v4 } from "uuid";
 import { ref, type Ref } from "vue";
 import { logger, Disposable } from "@argon/core";
-import { NoiseSuppressor, type NoiseSuppressionMode, type NoiseSuppressorUrls } from "./NoiseSuppressor";
+import { NoiseSuppressor, type NoiseSuppressionMode, type NoiseSuppressorUrlSource } from "./NoiseSuppressor";
 import { createAudioProcessor, isNativeAudioRuntime, nativeProcessorName, type AudioProcessorNode } from "./AudioProcessors";
 
 export type DeviceId = string;
@@ -245,7 +245,7 @@ export interface AudioManagerConfig {
    */
   monitorAudioElements?: boolean;
   /** URLs for noise suppressor worklets and WASM binaries (resolved via ?url imports) */
-  noiseSuppressorUrls?: NoiseSuppressorUrls;
+  noiseSuppressorUrls?: NoiseSuppressorUrlSource;
 }
 
 export class AudioManagement implements IAudioManagement {

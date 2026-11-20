@@ -138,8 +138,20 @@ export function readAttachmentRefs(
   return [];
 }
 
-export function setAttachmentDragData(dt: DataTransfer, refs: AttachmentRef[]): void {
+export function carriesAttachmentRef(types: readonly string[]): boolean {
+  return types.includes(ATTACHMENT_CLIPBOARD_TYPE) || types.includes(ATTACHMENT_WEB_CLIPBOARD_TYPE) || types.includes("text/html");
+}
+
+export function setAttachmentDragData(dt: DataTransfer, refs: AttachmentRef[], apiBase = configuredApiBase()): void {
   dt.setData(ATTACHMENT_CLIPBOARD_TYPE, serializeRefs(refs));
+  // A remote attachment can travel as a link immediately, even before anyone downloads its bytes.
+  if (/^https?:\/\//i.test(apiBase)) {
+    const urls = refs.filter(ref => GUID_ONLY.test(ref.fileId)).map(ref => `${apiBase.replace(/\/+$/, "")}/files/${ref.fileId}`);
+    if (urls.length) {
+      dt.setData("text/uri-list", urls.join("\r\n"));
+      dt.setData("text/plain", urls.join("\n"));
+    }
+  }
   dt.effectAllowed = "copy";
 }
 

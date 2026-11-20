@@ -217,6 +217,7 @@ export function useViewerWindow(SkWindow: Component, src: ViewerSource) {
       cover: "monitor",
       taskbar: false,
       fullResolution: true,
+      lowLatencySurface: true,
       activate: true,
       alwaysOnTop: TOPMOST && shown.value,
       chrome: "hidden",

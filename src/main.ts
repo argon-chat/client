@@ -1,3 +1,5 @@
+// Dexie reads the global Promise constructor when its module initializes.
+import "./lib/sk/aotPromise";
 // Apply saved SDK window preferences before mounting the application.
 import "./lib/sk/bootstrap";
 import "./lib/sk/window";
@@ -10,6 +12,7 @@ import "./styles/reduced-motion.css";
 import "./styles/power-save.css";
 import "./styles/decor-paused.css";
 import "./styles/icon-motion.css";
+import "./styles/haptics.css";
 import "./styles/ultrawide.css";
 
 import "@argon/glue";
@@ -64,7 +67,7 @@ if (isWeb) installTranslatedDomGuard();
 // none of which the app needs there, and then draws its refusal through innerHTML, into a window
 // that has no document. The result is a blank window. Skathi's client-gap.md §4, "skip
 // evaluateBootGate()".
-const bootBlock = isSk ? null : evaluateBootGate();
+const bootBlock = import.meta.env.SK || isSk ? null : evaluateBootGate();
 
 // The browser build has no OS window behind it to tint, so the "materials" the desktop app asks
 // Windows for are emulated in CSS off this class. Set before first paint so nothing flashes flat.

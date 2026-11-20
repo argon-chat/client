@@ -9,8 +9,19 @@
 
 export type StrokeTool = "brush" | "arrow";
 
-/** A single normalized point [x, y], each in [0,1]. */
-export type NormPoint = [number, number];
+/** A brush may append pressure in [0,1]. Older v1 renderers read the first two coordinates. */
+export type NormPoint = [x: number, y: number, pressure?: number];
+
+export function samplePoint(tool: StrokeTool, x: number, y: number, event: PointerEvent): NormPoint {
+  const point: NormPoint = [Math.min(1, Math.max(0, x)), Math.min(1, Math.max(0, y))];
+  const { pointerType, pressure } = event;
+  // Force Touch is a mouse pointer. An ordinary mouse reports a constant 0.5 while held.
+  const hasPressure = pointerType === "pen" || (pointerType === "mouse" && (event.buttons & 1) !== 0 && pressure !== 0.5);
+  if (tool === "brush" && hasPressure && Number.isFinite(pressure) && pressure >= 0 && pressure <= 1) {
+    point[2] = Math.round(pressure * 1000) / 1000;
+  }
+  return point;
+}
 
 export type DrawKind = "begin" | "append" | "end" | "clear" | "undo";
 
