@@ -75,8 +75,7 @@
                         class-name="flex-shrink-0"
                         :custom-style="tileStyle(activityStrip)"
                         name-class="text-xs"
-                        icon-position="top-1 right-1"
-                        @video-ref="setVideoRef" />
+                        icon-position="top-1 right-1" />
                 </div>
             </div>
 
@@ -111,7 +110,6 @@ import { useElementSize } from "@vueuse/core";
 import ParticipantCard from "./home/views/ParticipantCard.vue";
 import CallGrid from "./calls/CallGrid.vue";
 import { useResponsiveGrid, tileStyle } from "@/composables/useResponsiveGrid";
-import { useVideoTrackAttach } from "@/composables/useVideoTrackAttach";
 import { useUnifiedCall } from "@/store/media/unifiedCallStore";
 import { useApi } from "@/store/system/apiStore";
 import { usePoolStore } from "@/store/data/poolStore";
@@ -166,7 +164,6 @@ const {
     toggleFocus,
     qualityConnection,
 } = layout;
-const { setVideoRef } = useVideoTrackAttach();
 
 // Activities others started (shown as grid tiles until you join one).
 const activityTiles = computed(() =>

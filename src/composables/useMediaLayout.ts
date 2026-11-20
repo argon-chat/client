@@ -247,6 +247,7 @@ export function useMediaLayout(
     const source = getPreferredSource(uid, prefer);
     return {
       videoSource: source,
+      videoTrack: voice.videoTracks.get(voice.videoTrackKey(uid, source)),
       isVideoPaused: voice.isVideoPaused(uid, source),
       isVideoHidden: voice.isVideoHidden(uid, source),
       videoQuality: voice.videoQualityOf(uid, source),

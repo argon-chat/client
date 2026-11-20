@@ -1834,6 +1834,12 @@ export function createCallManager(config: CallManagerConfig) {
       if (track.kind === Track.Kind.Audio) setupRadioGraph(uid, track, participant);
       return;
     }
+    // Apply video events in arrival order. A subscription can be replaced or removed
+    // while the participant's profile is being loaded.
+    if (track.kind === Track.Kind.Video) {
+      const source = track.source || pub.source || 'unknown';
+      videoTracks.set(videoTrackKey(uid, source), track);
+    }
     if (!participants[uid]) {
       const info = await pool.getUser(uid);
       // Re-check after the await. A participant's microphone and screen-share audio
@@ -1855,12 +1861,6 @@ export function createCallManager(config: CallManagerConfig) {
           capabilities: parseCapabilities(participant.attributes),
         };
       }
-    }
-
-    if (track.kind === Track.Kind.Video) {
-      const source = track.source || pub.source || 'unknown';
-      videoTracks.set(videoTrackKey(uid, source), track);
-      return;
     }
 
     if (track.kind === Track.Kind.Audio) {
@@ -1901,13 +1901,12 @@ export function createCallManager(config: CallManagerConfig) {
     const uid = participant.identity;
 
     if (track.kind === "video") {
-      const source = track.source || pub.source || 'unknown';
-      // Detach before the map entry goes: the <video> unmounts because the entry is gone, and by
-      // then the component can no longer find the track to detach it — every camera-off and
-      // share-stop used to leave an element with a live srcObject behind.
+      const key = videoTrackKey(uid, track.source || pub.source || 'unknown');
       try { track.detach(); } catch { /* already detached */ }
-      videoTracks.delete(videoTrackKey(uid, source));
-      pausedVideoTracks.delete(videoTrackKey(uid, source));
+      if (toRaw(videoTracks.get(key)) === toRaw(track)) {
+        videoTracks.delete(key);
+        pausedVideoTracks.delete(key);
+      }
       return;
     }
 

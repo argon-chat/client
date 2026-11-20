@@ -1,0 +1,7 @@
+{
+  "name": "argon-call-video-test",
+  "publishDevtools": false,
+  "publishJit": false,
+  "assets": [],
+  "aliases": { "livekit-client": "../../../../crates/argon-livekit/js/livekit.ts" }
+}

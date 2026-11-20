@@ -19,7 +19,6 @@ vi.mock("@/composables/useMediaLayout", async () => {
   const { ref } = await import("vue");
   return { useMediaLayout: () => ({ allUsers: ref([]), qualityConnection: ref("green") }) };
 });
-vi.mock("@/composables/useVideoTrackAttach", () => ({ useVideoTrackAttach: () => ({ setVideoRef() {} }) }));
 vi.mock("@/components/home/views/ParticipantCard.vue", () => ({ default: { render: () => null } }));
 vi.mock("@/components/calls/CallGrid.vue", () => ({ default: { render: () => null } }));
 vi.mock("@/components/playframe/PlayFramePanel.vue", () => ({ default: { render: () => null } }));

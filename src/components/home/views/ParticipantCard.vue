@@ -15,7 +15,7 @@
              or a PiP window stops it, start it again immediately. -->
         <video
             v-if="showsVideo"
-            :ref="(el) => onVideoRef(el)"
+            ref="videoEl"
             autoplay
             playsinline
             muted
@@ -162,7 +162,8 @@
 
 <script setup lang="ts">
 import type { Guid } from "@argon-chat/ion.webcore";
-import { computed, ref } from "vue";
+import { computed, ref, shallowRef } from "vue";
+import { useVideoTrackAttach, type AttachableVideoTrack } from "@/composables/useVideoTrackAttach";
 import ArgonAvatar from "@/components/ArgonAvatar.vue";
 import DrawOverlay from "@/components/DrawOverlay.vue";
 import { useDrawingSession } from "@/store/features/drawingSessionStore";
@@ -196,6 +197,7 @@ interface Props {
     isServerMuted?: boolean;
     isServerDeafened?: boolean;
     hasVideo?: boolean;
+    videoTrack?: AttachableVideoTrack;
     isVideoPaused?: boolean;
     isVideoHidden?: boolean;
     isScreenSharing?: boolean;
@@ -250,9 +252,8 @@ const props = withDefaults(defineProps<Props>(), {
     videoFit: 'cover',
 });
 
-const emit = defineEmits<{
+defineEmits<{
     (e: 'click', userId: Guid): void;
-    (e: 'video-ref', el: any, userId: Guid, source: string): void;
     (e: 'toggle-pin', userId: Guid): void;
     (e: 'set-video-hidden', userId: Guid, source: string, hidden: boolean): void;
     (e: 'set-video-quality', userId: Guid, source: string, quality: VideoQuality): void;
@@ -260,13 +261,9 @@ const emit = defineEmits<{
 
 const draw = useDrawingSession();
 const { t } = useLocale();
-const videoEl = ref<HTMLVideoElement | null>(null);
+const videoEl = shallowRef<HTMLVideoElement | null>(null);
 const cardEl = ref<HTMLElement | null>(null);
-
-function onVideoRef(el: any): void {
-    videoEl.value = (el as HTMLVideoElement) ?? null;
-    emit('video-ref', el, props.userId, props.videoSource);
-}
+useVideoTrackAttach(videoEl, () => props.videoTrack);
 
 /** There is a track AND the local user hasn't switched this tile off. */
 const showsVideo = computed(() => props.hasVideo && !props.isVideoHidden);

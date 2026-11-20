@@ -3,6 +3,9 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useUserStore } from '@/store/data/userStore';
 import { useChannelStore } from '@/store/data/channelStore';
 import { db } from '@/store/db/dexie';
+import type { LogEntry } from '@/composables/useAppLogger';
+
+defineProps<{ errors: LogEntry[] }>();
 
 const userStore = useUserStore();
 const channelStore = useChannelStore();
@@ -120,6 +123,12 @@ const getSeverityClass = (duration: number) => {
 
 <template>
   <div class="diagnostics-overlay">
+    <div v-if="errors.length" class="diag-section">
+      <div class="diag-title">RECENT ERRORS</div>
+      <div class="diag-error" v-for="(entry, index) in errors" :key="index">
+        <time>{{ entry.time }}</time> {{ entry.message }}
+      </div>
+    </div>
     <div class="diag-section">
       <div class="diag-title">⚡ PERFORMANCE</div>
       <div class="diag-line">FPS: <span class="diag-value">{{ fps }}</span></div>
@@ -201,12 +210,18 @@ const getSeverityClass = (duration: number) => {
     </div>
 
     <div class="diag-footer">
-      Alt+Shift+7 to toggle
+      Ctrl+Shift+7 to toggle
     </div>
   </div>
 </template>
 
 <style scoped>
+.diag-error {
+  color: #fca5a5;
+  overflow-wrap: anywhere;
+  user-select: text;
+  pointer-events: auto;
+}
 .diagnostics-overlay {
   position: fixed;
   top: 10px;

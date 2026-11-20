@@ -2,7 +2,7 @@
 import { Toaster } from "@argon/ui/toast";
 import NativeOverlays from "@/components/overlays/NativeOverlays.vue";
 import { isSk } from "@/lib/sk";
-import { useColorMode, useMagicKeys } from "@vueuse/core";
+import { useColorMode, useEventListener } from "@vueuse/core";
 import { ref, watch, onMounted, computed } from "vue";
 import Island from "./components/shared/Island.vue";
 import { useSleepWatcher } from "./composables/useSleepWatcher";
@@ -11,6 +11,7 @@ import { isWeb } from "@/lib/platform";
 import { openDevtools } from "@/lib/shell/desktop";
 import IncomingCallOverlay from "./components/calls/IncomingCallOverlay.vue";
 import DiagnosticsOverlay from "./components/overlays/DiagnosticsOverlay.vue";
+import { useAppLogger } from "./composables/useAppLogger";
 import LoadingOverlay from "./components/overlays/LoadingOverlay.vue";
 import ErrorBoundary from "./components/shared/ErrorBoundary.vue";
 import ReconnectOverlay from "./components/overlays/ReconnectOverlay.vue";
@@ -41,8 +42,8 @@ const { t } = useLocale();
 provideExpressionResolver(createStoreResolver());
 const sys = useSystemStore();
 const call = useUnifiedCall();
-const keys = useMagicKeys();
 const showDiagnostics = ref(false);
+const recentErrors = useAppLogger();
 
 const mode = useColorMode();
 const { applyAppearanceSettings, currentTheme } = useTheme();
@@ -82,18 +83,14 @@ onMounted(() => {
   void call.maybeRecoverVoiceAfterCrash();
 });
 
-const shiftCtrlA = keys["Shift+Ctrl+Digit9"];
-const altShift7 = keys["Shift+Ctrl+Digit7"];
-
-watch(shiftCtrlA, (pressed) => {
-  if (pressed) openDevtools();
-});
-
-watch(altShift7, (v) => {
-
-  if (v) {
-    logger.info("Toggling diagnostics overlay:", v);
+useEventListener("keydown", (event: KeyboardEvent) => {
+  if (!event.ctrlKey || !event.shiftKey || event.altKey || event.metaKey || event.repeat) return;
+  // Skathi can deliver a chord in one event with the modifiers set and no physical key code.
+  const key = event.code || event.key;
+  if (key === "Digit7" || key === "7" || key === "&" || key === "?") {
     showDiagnostics.value = !showDiagnostics.value;
+  } else if (key === "Digit9" || key === "9" || key === "(") {
+    openDevtools();
   }
 });
 
@@ -118,7 +115,7 @@ watch(() => call.connectError, (err) => {
   </ErrorBoundary>
   <NativeOverlays v-if="isSk" />
   <IncomingCallOverlay />
-  <DiagnosticsOverlay v-if="showDiagnostics" />
+  <DiagnosticsOverlay v-if="showDiagnostics" :errors="recentErrors" />
   <ReconnectOverlay />
   <GamePicker />
   <PlayFrameOverlay />

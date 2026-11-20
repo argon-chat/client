@@ -22,8 +22,7 @@
                     icon-position="top-2 left-2"
                     @toggle-pin="toggleFocus"
                     @set-video-hidden="setVideoHidden"
-                    @set-video-quality="setVideoQuality"
-                    @video-ref="setVideoRef" />
+                    @set-video-quality="setVideoQuality" />
             </div>
 
             <div
@@ -53,8 +52,7 @@
                     @click="toggleFocus"
                     @toggle-pin="toggleFocus"
                     @set-video-hidden="setVideoHidden"
-                    @set-video-quality="setVideoQuality"
-                    @video-ref="setVideoRef" />
+                    @set-video-quality="setVideoQuality" />
                 <ActivityCard
                     v-for="a in activities"
                     :key="a.sessionId"
@@ -89,8 +87,7 @@
                 @click="toggleFocus"
                 @toggle-pin="toggleFocus"
                 @set-video-hidden="setVideoHidden"
-                @set-video-quality="setVideoQuality"
-                @video-ref="setVideoRef" />
+                @set-video-quality="setVideoQuality" />
             <ActivityCard
                 v-for="a in activities"
                 :key="a.sessionId"
@@ -128,7 +125,6 @@ import { useElementSize } from "@vueuse/core";
 import ParticipantCard from "@/components/home/views/ParticipantCard.vue";
 import ActivityCard from "@/components/playframe/ActivityCard.vue";
 import { useResponsiveGrid, tileStyle } from "@/composables/useResponsiveGrid";
-import { useVideoTrackAttach } from "@/composables/useVideoTrackAttach";
 import type { MediaLayout } from "@/composables/useMediaLayout";
 import type { ActivityPresence } from "@/store/features/playframeStore";
 
@@ -159,7 +155,6 @@ const {
     toggleFocus,
 } = props.layout;
 
-const { setVideoRef } = useVideoTrackAttach();
 
 // Each region is measured and solved on its own: the solver only ever returns tiles that
 // fit the measured box, so nothing here can grow past the screen.

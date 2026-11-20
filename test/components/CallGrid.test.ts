@@ -663,6 +663,21 @@ describe("video elements are bound to their tracks for exactly as long as they e
     expect(cam.detach).toHaveBeenCalledWith(el);
   });
 
+  test.each(["camera", "screen_share"] as const)("rebinds a replacement %s publication on the existing tile", async (source) => {
+    channelUsers("Alice");
+    const first = publish("alice", source);
+    const w = await render();
+    const video = w.get("video").element;
+    const replacement = publish("alice", source);
+    await nextTick();
+
+    expect(w.get("video").element).toBe(video);
+    expect(first.detach).toHaveBeenCalledWith(video);
+    expect(replacement.attach).toHaveBeenCalledWith(video);
+    w.unmount();
+    expect(replacement.detach).toHaveBeenCalledWith(video);
+  });
+
   test("unmounting the grid detaches everything it attached", async () => {
     channelUsers("Alice", "Bob");
     const a = publish("alice", "camera");

@@ -413,6 +413,24 @@ describe("incoming tracks", () => {
     expect(calls.videoTracks.has("u1:camera")).toBe(false);
     expect(calls.videoTracks.has("u1:screen_share")).toBe(true);
   });
+
+  test("a late unsubscribe keeps the replacement camera, including while its profile loads", async () => {
+    const { calls, room } = await joined();
+    const p = remote("u1");
+    const old = remoteTrack(Track.Kind.Video, Track.Source.Camera);
+    const next = remoteTrack(Track.Kind.Video, Track.Source.Camera);
+    const pub = { isMuted: false, source: Track.Source.Camera };
+
+    room.emit("trackSubscribed", old, pub, p);
+    room.emit("trackSubscribed", next, pub, p);
+    room.emit("trackUnsubscribed", old, pub, p);
+    expect(calls.videoTracks.get("u1:camera")?.detach).toBe(next.detach);
+    expect(next.detach).not.toHaveBeenCalled();
+
+    room.emit("trackUnsubscribed", next, pub, p);
+    await vi.waitFor(() => expect(calls.participants["u1"]).toBeDefined());
+    expect(calls.videoTracks.has("u1:camera")).toBe(false);
+  });
 });
 
 describe("volume", () => {

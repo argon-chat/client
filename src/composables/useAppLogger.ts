@@ -1,36 +1,42 @@
-import { ref } from "vue";
+import { onMounted, onUnmounted, shallowRef } from "vue";
 import { logger } from "@argon/core";
 
-interface LogEntry {
+export interface LogEntry {
   message: string;
-  type: "info" | "error";
   time: string;
 }
 
 export function useAppLogger() {
-  const logs = ref<LogEntry[]>([]);
+  const logs = shallowRef<LogEntry[]>([]);
 
-  function logMessage(message: string, type: "info" | "error") {
-    logs.value.push({
-      message,
-      type,
-      time: new Date().toLocaleTimeString(),
-    });
+  function record(message: string) {
+    logs.value = [{ message: message.slice(0, 1000), time: new Date().toLocaleTimeString() }, ...logs.value.slice(0, 19)];
   }
 
-  function initLogger() {
-    logger.addReporter({
-      log: (obj, _) => {
-        if (obj.type === "error" || obj.type === "fail" || obj.type === "fatal") {
-          logMessage(obj.args.join(" "), "error");
-        }
-      },
-    });
+  function describe(value: unknown): string {
+    if (value && typeof value === "object" && "message" in value) return String(value.message);
+    return String(value);
   }
 
-  return {
-    logs,
-    logMessage,
-    initLogger,
+  const reporter: Parameters<typeof logger.addReporter>[0] = {
+    log(entry) {
+      if (entry.type === "error" || entry.type === "fail" || entry.type === "fatal") {
+        record(entry.args.map(describe).join(" "));
+      }
+    },
   };
+  const onError = (event: ErrorEvent) => { if (event.message) record(event.message); };
+  const onRejection = (event: PromiseRejectionEvent) => record(describe(event.reason));
+
+  onMounted(() => {
+    logger.addReporter(reporter);
+    window.addEventListener("error", onError);
+    window.addEventListener("unhandledrejection", onRejection);
+  });
+  onUnmounted(() => {
+    logger.removeReporter(reporter);
+    window.removeEventListener("error", onError);
+    window.removeEventListener("unhandledrejection", onRejection);
+  });
+  return logs;
 }
