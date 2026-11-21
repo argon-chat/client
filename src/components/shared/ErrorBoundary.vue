@@ -10,7 +10,7 @@
  * JS for good (its runtime is poisoned), so no button here could ever do anything; the host shows
  * its own crash dialog with a real restart. This only says what happened, without dead buttons.
  */
-import { computed, ref, onErrorCaptured } from "vue";
+import { computed, ref, onErrorCaptured, type ComponentPublicInstance } from "vue";
 import { AlertTriangleIcon, CheckIcon, ChevronDownIcon, ChevronUpIcon, CopyIcon } from "lucide-vue-next";
 import { logger } from "@argon/core";
 import { Button } from "@argon/ui/button";
@@ -19,6 +19,7 @@ import { useLocale } from "@/store/system/localeStore";
 const hasError = ref(false);
 const message = ref("");
 const stack = ref("");
+const context = ref("");
 const detailsOpen = ref(false);
 const copied = ref(false);
 
@@ -50,15 +51,29 @@ try {
 }
 
 const native = computed(() => message.value.startsWith("native panic at "));
-const report = computed(() => [message.value, stack.value].filter(Boolean).join("\n\n"));
+const report = computed(() => [message.value, context.value, stack.value].filter(Boolean).join("\n\n"));
 
-onErrorCaptured((err) => {
+function errorContext(instance: ComponentPublicInstance | null, info: string): string {
+  const components: string[] = [];
+  for (let vm = instance; vm; vm = vm.$parent) {
+    const name = vm.$options.name || vm.$options.__name;
+    if (name) components.push(name);
+  }
+  return [
+    info && `Vue: ${info}`,
+    components.length && `Components: ${components.join(" ← ")}`,
+    window.ui_fullversion && `Argon: ${window.ui_fullversion}`,
+  ].filter(Boolean).join("\n");
+}
+
+onErrorCaptured((err, instance, info) => {
   hasError.value = true;
   message.value = err instanceof Error ? err.message : String(err);
   stack.value = err instanceof Error ? (err.stack ?? "") : "";
+  context.value = errorContext(instance, info);
   detailsOpen.value = false;
   copied.value = false;
-  logger.error("[error-boundary] captured render error:", err);
+  logger.error("[error-boundary]", context.value, err);
   return false; // stop propagation past the boundary
 });
 

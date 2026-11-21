@@ -4,9 +4,9 @@
  * app stopped and offers no buttons (the host's own dialog restarts it).
  */
 
-import { describe, test, expect, vi, beforeEach } from "vitest";
+import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
-import { defineComponent, h, nextTick } from "vue";
+import { defineComponent, h, nextTick, type Component } from "vue";
 
 vi.mock("@/store/system/localeStore", () => ({ useLocale: () => ({ t: (k: string) => `T:${k}` }) }));
 vi.mock("@argon/core", async (importOriginal) => ({
@@ -26,9 +26,10 @@ function throwing(message: string) {
   });
 }
 
-function mountWith(message: string) {
+function mountWith(child: string | Component) {
+  const component = typeof child === "string" ? throwing(child) : child;
   return mount(ErrorBoundary, {
-    slots: { default: () => h(throwing(message)) },
+    slots: { default: () => h(component) },
     // Rendered in place, so the card can be found on the wrapper.
     global: { stubs: { teleport: true } },
   });
@@ -36,6 +37,10 @@ function mountWith(message: string) {
 
 beforeEach(() => {
   vi.restoreAllMocks();
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 describe("ErrorBoundary", () => {
@@ -51,16 +56,31 @@ describe("ErrorBoundary", () => {
     expect(w.find(".eb-details-text").text()).toContain("boom in the channel list");
   });
 
-  test("Copy puts the message and stack on the clipboard", async () => {
+  test("Copy includes the failing event, component chain, build and original stack", async () => {
     const writeText = vi.fn(async () => {});
     Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
-    const w = mountWith("boom");
+    vi.stubGlobal("ui_fullversion", "1.2.3-test");
+    const field = defineComponent({
+      __name: "PinInputInput",
+      setup: () => () => h("input", {
+        onFocus() {
+          throw new Error("boom");
+        },
+      }),
+    });
+    const w = mountWith(defineComponent({ name: "OtpForm", setup: () => () => h(field) }));
+    await w.get("input").trigger("focus");
     await nextTick();
     await w.find(".eb-details-toggle").trigger("click");
     await w.find(".eb-copy").trigger("click");
     await nextTick();
     expect(writeText).toHaveBeenCalledOnce();
-    expect(String((writeText.mock.calls[0] as unknown[])[0])).toContain("boom");
+    const report = w.get(".eb-details-text").text();
+    expect(writeText).toHaveBeenCalledWith(report);
+    expect(report).toContain("Vue: native event handler");
+    expect(report).toContain("PinInputInput ← OtpForm");
+    expect(report).toContain("Argon: 1.2.3-test");
+    expect(report).toContain("Error: boom");
     await nextTick();
     expect(w.find(".eb-copy").text()).toBe("T:error_boundary_copied");
   });
