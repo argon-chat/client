@@ -1,9 +1,7 @@
 import { logger } from "@argon/core";
 import { computedAsync } from "@vueuse/core";
-import { useObservable } from "@vueuse/rxjs";
 import { liveQuery, type Subscription } from "dexie";
 import { defineStore } from "pinia";
-import { from, shareReplay } from "rxjs";
 import { type Ref, computed, ref, watch, type ComputedRef, reactive } from "vue";
 import { useApi } from "@/store/system/apiStore";
 import { type RealtimeUser, db } from "@/store/db/dexie";

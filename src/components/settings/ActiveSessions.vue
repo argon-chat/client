@@ -14,7 +14,7 @@
     <p class="text-xs text-muted-foreground mb-4">{{ t("sessions_desc") }}</p>
 
     <div v-if="loading && sessions.length === 0" class="spinner-container">
-      <AtomSpinner class="text-center" />
+      <Loader2 class="w-8 h-8 animate-spin text-muted-foreground" />
     </div>
 
     <!-- An empty list means "nothing else is signed in", not "we failed to ask" — a failed call
@@ -109,7 +109,6 @@ import {
   DialogTitle,
 } from "@argon/ui/dialog";
 //@ts-ignore
-import { AtomSpinner } from "epic-spinners";
 import {
   GlobeIcon,
   LaptopIcon,

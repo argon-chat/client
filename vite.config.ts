@@ -3,7 +3,6 @@ import vue from "@vitejs/plugin-vue";
 import path from "node:path";
 import tailwind from "tailwindcss";
 import autoprefixer from "autoprefixer";
-import Icons from "unplugin-icons/vite";
 import vueDevTools from "vite-plugin-vue-devtools";
 import SvgImporter from "vite-svg-loader";
 import pkg from "./package.json";
@@ -71,7 +70,6 @@ export default defineConfig(({ mode }) => {
           },
         },
       }),
-      Icons({ compiler: "vue3", autoInstall: true }) as any,
       vueDevTools(),
       SvgImporter(),
       cspHeaders(),
@@ -114,11 +112,6 @@ export default defineConfig(({ mode }) => {
     },
     worker: {
       format: "es",
-    },
-    // onnxruntime-web ships prebuilt ES bundles; pre-bundling moves them away from their wasm files
-    // (the workbench worker loads those itself, by ?url, but the runtime's own lookups would break).
-    optimizeDeps: {
-      exclude: ["onnxruntime-web"],
     },
   };
 });

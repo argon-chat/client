@@ -10,7 +10,6 @@ import {
     IconSearch,
     IconDialpad,
     IconPin,
-    IconHeadphones,
     IconVideo,
     IconBug,
 } from "@tabler/icons-vue";
@@ -42,7 +41,7 @@ const { dialpadActive, dmActive, inventoryActive, notificationActive } = useFeat
 const configStore = useConfigStore();
 const route = useRoute();
 
-const tab = defineModel<'dashboard' | 'friends' | 'notifications' | 'inventory' | 'overlayDebug' | 'audioDebug' | 'nv12Debug'>('tab', {
+const tab = defineModel<'dashboard' | 'friends' | 'notifications' | 'inventory' | 'overlayDebug' | 'nv12Debug'>('tab', {
     default: 'dashboard'
 });
 
@@ -58,7 +57,7 @@ const softphoneOpened = ref(false);
 const searchQuery = ref('');
 
 const emit = defineEmits<{
-    (e: 'select', tab: 'dashboard' | 'friends' | 'notifications' | 'inventory' | 'overlayDebug' | 'audioDebug' | 'nv12Debug'): void;
+    (e: 'select', tab: 'dashboard' | 'friends' | 'notifications' | 'inventory' | 'overlayDebug' | 'nv12Debug'): void;
 }>();
 
 // --- Chat lists ---
@@ -224,7 +223,7 @@ onUnmounted(() => {
 
 // --- Nav items ---
 interface NavItem {
-    key: 'dashboard' | 'friends' | 'inventory' | 'notifications' | 'overlayDebug' | 'audioDebug' | 'nv12Debug';
+    key: 'dashboard' | 'friends' | 'inventory' | 'notifications' | 'overlayDebug' | 'nv12Debug';
     icon: any;
     label: string;
     badge: number;
@@ -237,7 +236,6 @@ const navItems = computed<NavItem[]>(() => [
     { key: 'inventory', icon: IconBoxMultiple, label: t('inventory'), badge: inventoryBadge.value, visible: inventoryActive },
     { key: 'notifications', icon: IconBell, label: t('notifications'), badge: 0, visible: notificationActive },
     { key: 'overlayDebug', icon: IconBug, label: 'Overlay Debug', badge: 0, visible: configStore.devModeEnabled },
-    { key: 'audioDebug', icon: IconHeadphones, label: 'Audio Debug', badge: 0, visible: configStore.devModeEnabled },
     { key: 'nv12Debug', icon: IconVideo, label: 'NV12 Debug', badge: 0, visible: configStore.devModeEnabled },
 ]);
 </script>

@@ -35,7 +35,7 @@
     <!-- Existing invites -->
     <div class="space-y-2">
       <div class="spinner-container" v-if="loading">
-        <AtomSpinner class="text-center" />
+        <Loader2 class="w-8 h-8 animate-spin text-muted-foreground" />
       </div>
 
       <div v-else-if="invites.length === 0" class="flex flex-col items-center justify-center py-6">
@@ -109,7 +109,6 @@
 import { onMounted, ref, computed } from "vue";
 import { Button } from "@argon/ui/button";
 //@ts-ignore
-import { AtomSpinner } from "epic-spinners";
 import {
   LinkIcon,
   PlusIcon,

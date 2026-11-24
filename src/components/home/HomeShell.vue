@@ -5,9 +5,9 @@ import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import router from '@/router';
 
-type HomeTab = "dashboard" | "friends" | "notifications" | "inventory" | "overlayDebug" | "audioDebug" | "nv12Debug";
+type HomeTab = "dashboard" | "friends" | "notifications" | "inventory" | "overlayDebug" | "nv12Debug";
 
-const HOME_TABS: HomeTab[] = ["dashboard", "friends", "notifications", "inventory", "overlayDebug", "audioDebug", "nv12Debug"];
+const HOME_TABS: HomeTab[] = ["dashboard", "friends", "notifications", "inventory", "overlayDebug", "nv12Debug"];
 
 const route = useRoute();
 

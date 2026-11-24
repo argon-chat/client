@@ -1,4 +1,4 @@
-import type { Ref, ComputedRef } from "vue-demi";
+import type { Ref, ComputedRef } from "vue";
 
 export type MaybeRef<T> = T | Ref<T> | ComputedRef<T>;
 

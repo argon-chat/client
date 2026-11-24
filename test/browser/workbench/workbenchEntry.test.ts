@@ -116,11 +116,6 @@ describe.skipIf(!adapter)(`sticker workbench entry${adapter ? "" : " — skipped
     expect(editor.mode).toBe("emoji");
     expect(document.querySelector('.media-editor__container [data-tab="cutout"]')).not.toBeNull();
 
-    // Background removal through the dialog's worker client.
-    (document.querySelector("[data-remove-background]") as HTMLElement).click();
-    await until(() => editor.mediaState.mask.source !== null, 60_000);
-    expect(editor.uiState.backgroundRemoval.status).toBe("idle");
-
     (document.querySelector("[data-outline-toggle]") as HTMLElement).click();
     await nextTick();
     expect(editor.mediaState.outline.enabled).toBe(true);

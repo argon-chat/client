@@ -28,7 +28,7 @@
     "livekit-client": "^2.23.0"
   },
   "peerDependencies": {
-    "pinia": "^3.0.0",
+    "pinia": "^4.0.0",
     "vue": "^3.5.0",
     "rxjs": "^7.0.0"
   }

@@ -13,7 +13,6 @@
     "./accordion": "./src/accordion/index.ts",
     "./alert": "./src/alert/index.ts",
     "./aspect-ratio": "./src/aspect-ratio/index.ts",
-    "./auto-form": "./src/auto-form/index.ts",
     "./avatar": "./src/avatar/index.ts",
     "./badge": "./src/badge/index.ts",
     "./button": "./src/button/index.ts",
@@ -26,7 +25,6 @@
     "./dialog": "./src/dialog/index.ts",
     "./drawer": "./src/drawer/index.ts",
     "./dropdown-menu": "./src/dropdown-menu/index.ts",
-    "./form": "./src/form/index.ts",
     "./hover-card": "./src/hover-card/index.ts",
     "./haptics": "./src/haptics.ts",
     "./input": "./src/input/index.ts",
@@ -65,7 +63,6 @@
     "@argon/core": "workspace:*",
     "@internationalized/date": "^3.5.0",
     "class-variance-authority": "^0.7.1",
-    "radix-vue": "1.9.17",
     "reka-ui": "^2.10.1",
     "vaul-vue": "^0.4.1",
     "lucide-vue-next": "^0.548.0"

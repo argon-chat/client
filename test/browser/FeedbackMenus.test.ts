@@ -36,7 +36,6 @@ vi.mock('@/components/shared/EmptyStateArt.vue', () => state.stub('EmptyStateArt
 vi.mock('@/store/auth/meStore', () => ({ useMe: () => ({ me: { userId: 'me' } }) }));
 vi.mock('@/store/data/ultimaStore', () => ({ useUltimaStore: () => ({ unassignedBoosts: [] }) }));
 vi.mock('@argon/ui/toast', () => ({ useToast: () => ({ toast() {} }) }));
-vi.mock('@/lib/useConfetti', () => ({ default: () => {} }));
 vi.mock('@/store/system/fileStorage', () => ({ cdnUrl: () => '' }));
 vi.mock('@/composables/useLiveQuery', () => ({ useLiveQuery: () => state.ref({ name: 'Test Space', hideBoostStrip: true }) }));
 vi.mock('@/components/modals/BoostShopModal.vue', () => state.stub('BoostShopModal'));

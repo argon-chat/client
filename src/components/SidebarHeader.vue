@@ -35,7 +35,7 @@
           <div class="boost-strip-bar-fill" :style="{ width: boostProgressPercent + '%' }" />
         </div>
         <span class="boost-strip-count">{{ spaceName.boostCount }}</span>
-        <button class="boost-strip-btn icon-motion icon-motion--lift" ref="boostBtnRef" :disabled="boosting"
+        <button class="boost-strip-btn icon-motion icon-motion--lift" :disabled="boosting"
           @click="handleBoostClick">
           <Loader2 v-if="boosting" class="w-3 h-3 animate-spin" />
           <RocketIcon v-else class="w-3 h-3 icon-appear" />
@@ -52,7 +52,6 @@
 import { computed, ref } from "vue";
 import { cdnUrl } from "@/store/system/fileStorage";
 import { RocketIcon, Loader2 } from "lucide-vue-next";
-import confetti from "@/lib/useConfetti";
 import { useUltimaStore } from "@/store/data/ultimaStore";
 import { useToast } from "@argon/ui/toast";
 import { useWindow } from "@/store/ui/windowStore";
@@ -80,7 +79,6 @@ const selectedSpaceId = defineModel<string>('selectedSpace', {
 
 const spaceName = useLiveQuery(() => db.servers.where("spaceId").equals(selectedSpaceId.value).first())
 
-const boostBtnRef = ref<HTMLButtonElement | null>(null);
 const boosting = ref(false);
 const shopOpen = ref(false);
 
@@ -97,25 +95,6 @@ const boostProgressPercent = computed(() => {
   const progress = (count - currentThreshold) / (nextThreshold - currentThreshold);
   return Math.min(Math.max(progress * 100, 0), 100);
 });
-
-function fireConfetti() {
-  if (boostBtnRef.value) {
-    const rect = boostBtnRef.value.getBoundingClientRect();
-    const x = (rect.left + rect.width / 2) / window.innerWidth;
-    const y = (rect.top + rect.height / 2) / window.innerHeight;
-    const colors = ['#8b5cf6', '#c084fc', '#a78bfa', '#e879f9', '#7c3aed'];
-    const base = { origin: { x, y }, colors, ticks: 120, scalar: 0.8, particleCount: 15, spread: 40 };
-
-    // Up
-    confetti({ ...base, angle: 270, gravity: 1.5 });
-    // Right
-    setTimeout(() => confetti({ ...base, angle: 0, gravity: 0.8 }), 80);
-    // Down
-    setTimeout(() => confetti({ ...base, angle: 90, gravity: 0.3 }), 160);
-    // Left
-    setTimeout(() => confetti({ ...base, angle: 180, gravity: 0.8 }), 240);
-  }
-}
 
 async function handleBoostClick() {
   if (boosting.value) return;
@@ -135,7 +114,6 @@ async function handleBoostClick() {
     const spaceId = selectedSpaceId.value as Guid;
     const result = await ultima.applyBoost(boostId, spaceId);
     if (result.success) {
-      fireConfetti();
       toast({ title: "Boost applied!" });
     } else {
       toast({ title: "Boost failed", variant: "destructive" });

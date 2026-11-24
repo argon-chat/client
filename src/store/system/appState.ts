@@ -6,7 +6,6 @@ import { ref } from "vue";
 import { useTone } from "@/store/media/toneStore";
 import { useAuthStore } from "@/store/auth/authStore";
 import { useMe } from "@/store/auth/meStore";
-import { usePredictor } from "@/store/media/predictorStore";
 import { useIdleStore } from "@/store/ui/idleStore";
 import { useActivity } from "@/store/features/activityStore";
 import { worklets, initWorklets } from "@/lib/audio/WorkletBase";
@@ -127,7 +126,6 @@ export const useAppState = defineStore("app", () => {
       { label: "Resolving instance...", run: () => { useInstance(); } },
       { label: "Initializing audio engine...", run: () => useTone().init() },
       { label: "Restoring session...", run: () => auth.restoreSession() },
-      { label: "Loading AI predictor...", run: () => usePredictor().init() },
       {
         label: "Initializing audio worklets...",
         run: async () => {

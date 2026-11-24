@@ -24,7 +24,6 @@ export { useCallManager } from './media/callManagerStore';
 export { useUnifiedCall } from './media/unifiedCallStore';
 export { useTone } from './media/toneStore';
 export { useUserVolumeStore } from './media/userVolumeStore';
-export { usePredictor } from './media/predictorStore';
 
 // UI
 export { useWindow } from './ui/windowStore';

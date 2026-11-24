@@ -3,8 +3,6 @@ import "./lib/sk/aotPromise";
 // Apply saved SDK window preferences before mounting the application.
 import "./lib/sk/bootstrap";
 import "./lib/sk/window";
-import "vfonts/Lato.css";
-import "vfonts/FiraCode.css";
 //@ts-ignore
 import "@argon/assets/styles";
 import "@argon-chat/emojix/style.css";

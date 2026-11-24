@@ -9,7 +9,7 @@ import type {
   AudioAtlas,
   AudioAtlasConfig,
 } from "./types";
-import { onMounted, onUnmounted, ref, unref, watch, type Ref } from "vue-demi";
+import { onMounted, onUnmounted, ref, unref, watch, type Ref } from "vue";
 
 export * from "./types";
 

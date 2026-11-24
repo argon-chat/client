@@ -10,7 +10,7 @@ bun add @argon/ui
 
 ## Features
 
-- 43+ headless UI components built on [Radix Vue](https://www.radix-vue.com/)
+- 43+ headless UI components built on [Reka UI](https://reka-ui.com/)
 - Fully accessible (WAI-ARIA compliant)
 - Dark mode support
 - Tailwind CSS styling with CSS variables
@@ -37,7 +37,6 @@ bun add @argon/ui
 - `NumberField` - Numeric input
 - `PinInput` - PIN/OTP code input
 - `TagsInput` - Tag/chip input
-- `Form` - Form validation with vee-validate
 
 ### Feedback
 - `Alert` - Alert messages
@@ -138,7 +137,7 @@ export default {
 ## Dependencies
 
 - `vue` ^3.5.0 (peer)
-- `radix-vue` - Headless component primitives
+- `reka-ui` - Headless component primitives
 - `class-variance-authority` - Variant management
 - `tailwind-merge` - Class merging
 - `@argon/core` - Core utilities

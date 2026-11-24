@@ -72,8 +72,6 @@ export default defineConfig({
         },
         // The app's stylesheet, so what is laid out is what the app lays out.
         css: { postcss: { plugins: [tailwind(), autoprefixer()] } },
-        // As in vite.config.ts: served as shipped, and not discovered mid-run (which reloads the page).
-        optimizeDeps: { exclude: ["onnxruntime-web"] },
         test: {
           name: "browser",
           api: { host: "127.0.0.1" },

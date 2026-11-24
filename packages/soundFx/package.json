@@ -13,8 +13,5 @@
   },
   "peerDependencies": {
     "vue": "^3.4.0"
-  },
-  "dependencies": {
-    "vue-demi": "^0.14.10"
   }
 }

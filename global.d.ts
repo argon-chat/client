@@ -1,3 +1,4 @@
+/// <reference types="@webgpu/types" />
 import { ObjectDirective } from "vue";
 import type { IonDateTime } from "@argon-chat/ion.webcore";
 export {};

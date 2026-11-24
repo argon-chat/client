@@ -152,10 +152,6 @@ watch(() => call.connectError, (err) => {
   <!-- Toaster moved outside NConfigProvider for highest z-index -->
   <Toaster />
 </template>
-<style>
-@import '@vue-flow/core/dist/style.css';
-@import '@vue-flow/core/dist/theme-default.css';
-</style>
 
 <style scoped>
 /* Window chrome */
