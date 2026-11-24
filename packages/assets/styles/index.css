@@ -15,6 +15,11 @@
   }
 }
 
+html {
+  line-metrics: snapped;
+  font-dilation: luminance;
+}
+
 .xterm-viewport {
   overflow: hidden !important;
 }
